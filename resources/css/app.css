@@ -1,0 +1,11 @@
+@import 'tailwindcss';
+@import './esection-theme.css';
+@import './esection-shell.css';
+
+@source '../views';
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+
+@theme {
+    --font-sans:
+        'Inter', 'Instrument Sans', ui-sans-serif, system-ui, -apple-system, sans-serif;
+}

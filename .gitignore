@@ -1,0 +1,69 @@
+# Dependencies
+/node_modules
+/vendor
+!/public/assets/vendor
+
+# Environment & Credentials
+.env
+.env.backup
+.env.production
+.env.*
+!.env.example
+/auth.json
+/storage/*.key
+
+# Build Assets
+/public/build
+/public/hot
+/public/storage
+/bootstrap/ssr
+/public/fonts-manifest.dev.json
+
+# Storage Caches & Runtime Logs
+/storage/pail
+/storage/inertia-devtools
+/storage/framework/cache/data/*
+/storage/framework/sessions/*
+/storage/framework/testing/*
+/storage/framework/views/*
+/storage/logs/*.log
+!/storage/app/.gitignore
+!/storage/framework/.gitignore
+!/storage/logs/.gitignore
+
+# Uploads Runtime Files (preserve directory structure via .gitkeep)
+/public/uploads/*
+!/public/uploads/.gitkeep
+!/public/uploads/institute/
+/public/uploads/institute/*
+!/public/uploads/institute/.gitkeep
+
+# Testing & Cache
+/.phpunit.cache
+.phpunit.result.cache
+.phpactor.json
+
+# Wayfinder Generated Routes & Types
+/resources/js/actions
+/resources/js/routes
+/resources/js/wayfinder
+
+# IDE & Editor Files
+Homestead.json
+Homestead.yaml
+npm-debug.log*
+yarn-error.log*
+/.fleet
+/.idea
+/.nova
+/.vscode
+/.zed
+
+# OS Generated Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db

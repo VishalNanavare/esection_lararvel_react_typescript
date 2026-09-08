@@ -1,0 +1,1599 @@
+/* ==========================================================================
+   E-Section - Light Enterprise Theme
+   --------------------------------------------------------------------------
+   Loaded by BOTH layouts/app.php and layouts/auth.php. Contains only things
+   that make sense on any page: tokens, base type, components, utilities and
+   vendor widget skins. The application chrome (sidebar/topbar/responsive
+   shell) lives in esection-shell.css and is loaded only by layouts/app.php.
+
+   NOTE: the `glass-` prefix on .glass-card / .btn-glass / .table-glass /
+   .badge-glass-* is historical -- it predates the move from a dark
+   glassmorphism theme to this light enterprise one. The names are kept
+   because renaming them is 60+ markup edits for no user-visible benefit.
+   Must be loaded AFTER bootstrap.min.css: the utility backfill below
+   deliberately relies on source order to win.
+   ========================================================================== */
+
+:root {
+    /* ----------------------------------------------------------------------
+       Motion.
+
+       One scale, used by everything. Durations were previously written inline
+       at each rule -- 0.15s here, 0.2s there, 0.35s somewhere else -- which is
+       why the interface felt abrupt and inconsistent: nothing shared a rhythm.
+
+       These are deliberately slower than the values they replace. Interface
+       motion reads as "smooth" when the eye can follow it; under about 200ms a
+       transition registers as a jump rather than a movement.
+
+           swift   hover and focus, where a delay would feel laggy
+           base    the default for colour, border and small state changes
+           slow    things that move or resize -- rows, panels, drawers
+           slower  whole-view changes: page reveal, splash, overlays
+
+       --es-ease is a gentle decelerate: quick to start, settling softly, which
+       reads as physical rather than mechanical. --es-ease-in-out is for things
+       that travel and stop, like a drawer.
+
+       Tune the whole application from these six lines.
+       ---------------------------------------------------------------------- */
+    --es-dur-swift: 180ms;
+    --es-dur-base: 300ms;
+    --es-dur-slow: 480ms;
+    --es-dur-slower: 720ms;
+    --es-ease: cubic-bezier(0.16, 1, 0.3, 1);
+    --es-ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+
+    --bg-primary: #f8fafc;
+    --bg-secondary: #f1f5f9;
+    --bg-card: #ffffff;
+    --bg-card-hover: #ffffff;
+    --border-card: #e2e8f0;
+    --border-accent: #cbd5e1;
+
+    --text-main: #1e293b;
+    --text-muted: #64748b;
+    --text-heading: #0f172a;
+
+    --accent-indigo: #4f46e5;
+    --accent-indigo-light: #e0e7ff;
+    --accent-indigo-glow: rgba(79, 70, 229, 0.25);
+
+    --accent-emerald: #10b981;
+    --accent-emerald-light: #d1fae5;
+    --accent-emerald-glow: rgba(16, 185, 129, 0.25);
+
+    --accent-cyan: #06b6d4;
+    --accent-amber: #f59e0b;
+    --accent-amber-light: #fef3c7;
+    --accent-rose: #f43f5e;
+    --accent-rose-light: #ffe4e6;
+
+    /* RGB triplets so the colours can participate in Bootstrap's
+       --bs-*-opacity system (see "Colour utilities" below). */
+    --es-indigo-rgb: 79, 70, 229;
+    --es-emerald-rgb: 16, 185, 129;
+    --es-amber-rgb: 245, 158, 11;
+    --es-cyan-rgb: 6, 182, 212;
+    --es-rose-rgb: 244, 63, 94;
+}
+
+body {
+    background-color: var(--bg-primary);
+    background-image:
+        radial-gradient(at 10% 10%, rgba(79, 70, 229, 0.05) 0px, transparent 50%),
+        radial-gradient(at 90% 90%, rgba(16, 185, 129, 0.04) 0px, transparent 50%);
+    background-attachment: fixed;
+    color: var(--text-main);
+    font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    min-height: 100vh;
+    margin: 0;
+    padding: 0;
+}
+
+/* ==========================================================================
+   Colour utilities
+   --------------------------------------------------------------------------
+   text-indigo / bg-emerald / border-indigo and friends are used across all
+   eight views but were defined NOWHERE -- not here, not in Bootstrap. They
+   are Tailwind-style names in a Bootstrap project, so every one was a no-op
+   and all four dashboard KPI tiles rendered as identical grey boxes.
+
+   They are defined via rgba(var(--es-*-rgb), var(--bs-*-opacity)) rather
+   than a flat hex so that Bootstrap's own bg-opacity-* / text-opacity-*
+   utilities -- which the markup ALREADY uses -- start working as authored.
+   --bs-indigo is deliberately not overridden; Bootstrap 5.1.2 defines it as
+   #6610f2 and redefining a framework token would be a silent trap.
+   ========================================================================== */
+
+.text-indigo   { --bs-text-opacity: 1; color: rgba(var(--es-indigo-rgb),  var(--bs-text-opacity)) !important; }
+.text-emerald  { --bs-text-opacity: 1; color: rgba(var(--es-emerald-rgb), var(--bs-text-opacity)) !important; }
+.text-amber    { --bs-text-opacity: 1; color: rgba(var(--es-amber-rgb),   var(--bs-text-opacity)) !important; }
+.text-cyan     { --bs-text-opacity: 1; color: rgba(var(--es-cyan-rgb),    var(--bs-text-opacity)) !important; }
+.text-rose     { --bs-text-opacity: 1; color: rgba(var(--es-rose-rgb),    var(--bs-text-opacity)) !important; }
+
+.bg-indigo     { --bs-bg-opacity: 1; background-color: rgba(var(--es-indigo-rgb),  var(--bs-bg-opacity)) !important; }
+.bg-emerald    { --bs-bg-opacity: 1; background-color: rgba(var(--es-emerald-rgb), var(--bs-bg-opacity)) !important; }
+.bg-amber      { --bs-bg-opacity: 1; background-color: rgba(var(--es-amber-rgb),   var(--bs-bg-opacity)) !important; }
+.bg-cyan       { --bs-bg-opacity: 1; background-color: rgba(var(--es-cyan-rgb),    var(--bs-bg-opacity)) !important; }
+
+.border-indigo  { --bs-border-opacity: 1; border-color: rgba(var(--es-indigo-rgb),  var(--bs-border-opacity)) !important; }
+.border-emerald { --bs-border-opacity: 1; border-color: rgba(var(--es-emerald-rgb), var(--bs-border-opacity)) !important; }
+.border-amber   { --bs-border-opacity: 1; border-color: rgba(var(--es-amber-rgb),   var(--bs-border-opacity)) !important; }
+.border-cyan    { --bs-border-opacity: 1; border-color: rgba(var(--es-cyan-rgb),    var(--bs-border-opacity)) !important; }
+
+/* ...and make Bootstrap's own border colours honour that variable. In 5.1.2
+   they are flat literals, so opacity could never apply to them. */
+.border-primary   { --bs-border-opacity: 1; border-color: rgba(var(--bs-primary-rgb),   var(--bs-border-opacity)) !important; }
+.border-secondary { --bs-border-opacity: 1; border-color: rgba(var(--bs-secondary-rgb), var(--bs-border-opacity)) !important; }
+.border-success   { --bs-border-opacity: 1; border-color: rgba(var(--bs-success-rgb),   var(--bs-border-opacity)) !important; }
+.border-danger    { --bs-border-opacity: 1; border-color: rgba(var(--bs-danger-rgb),    var(--bs-border-opacity)) !important; }
+.border-warning   { --bs-border-opacity: 1; border-color: rgba(var(--bs-warning-rgb),   var(--bs-border-opacity)) !important; }
+.border-info      { --bs-border-opacity: 1; border-color: rgba(var(--bs-info-rgb),      var(--bs-border-opacity)) !important; }
+.border-dark      { --bs-border-opacity: 1; border-color: rgba(var(--bs-dark-rgb),      var(--bs-border-opacity)) !important; }
+.border-light     { --bs-border-opacity: 1; border-color: rgba(var(--bs-light-rgb),     var(--bs-border-opacity)) !important; }
+
+/* ALL opacity utilities live here, AFTER every colour class in this file.
+   That ordering is the whole point, not tidiness.
+
+   `--bs-*-opacity` are custom properties, so when `.bg-indigo` and
+   `.bg-opacity-10` both land on one element the winner is decided by
+   specificity and then SOURCE ORDER -- and both are a single class, i.e.
+   identical specificity. Bootstrap's own `.bg-warning` escapes this only
+   because `.bg-opacity-*` appears later inside bootstrap.min.css. This file
+   loads afterwards, so any colour class declared below an opacity utility
+   silently kills it.
+
+   That is what made the dashboard stat-card icons look "missing": the chip is
+   `bg-indigo bg-opacity-10 text-indigo`, so the background stayed solid indigo
+   while the glyph was painted the same indigo. The icon was always there, at
+   full width, in the right font -- drawn in exactly its own background colour.
+
+   The border-opacity backfill used to sit ABOVE `.border-primary`...
+   `.border-light`, which meant `border-opacity-25` was dead for the entire
+   Bootstrap palette -- a full-strength rule wherever the markup asked for a
+   soft one (the warning/info dashboard tiles, and every auth alert box).
+   Keeping all three families together here makes the invariant checkable by
+   inspection: if it sets an opacity variable, it belongs in this block.
+
+   Dropping `--bs-*-opacity: 1` from the base classes instead would be shorter,
+   but custom properties inherit: any such element nested inside a
+   `.bg-opacity-25` ancestor would silently pick up the parent's value. */
+.bg-opacity-10      { --bs-bg-opacity: 0.1; }
+.bg-opacity-25      { --bs-bg-opacity: 0.25; }
+.bg-opacity-50      { --bs-bg-opacity: 0.5; }
+.bg-opacity-75      { --bs-bg-opacity: 0.75; }
+.bg-opacity-100     { --bs-bg-opacity: 1; }
+
+/* text-opacity-10 is not a Bootstrap utility at any version; it is defined here
+   so the `-10` step exists for all three families. Without it, copying the
+   dashboard's working `bg-<tone> bg-opacity-10` idiom into `text-opacity-10`
+   fails silently. */
+.text-opacity-10    { --bs-text-opacity: 0.1; }
+.text-opacity-25    { --bs-text-opacity: 0.25; }
+.text-opacity-50    { --bs-text-opacity: 0.5; }
+.text-opacity-75    { --bs-text-opacity: 0.75; }
+.text-opacity-100   { --bs-text-opacity: 1; }
+
+.border-opacity-10  { --bs-border-opacity: 0.1; }
+.border-opacity-25  { --bs-border-opacity: 0.25; }
+.border-opacity-50  { --bs-border-opacity: 0.5; }
+.border-opacity-75  { --bs-border-opacity: 0.75; }
+.border-opacity-100 { --bs-border-opacity: 1; }
+
+/* ==========================================================================
+   Motion
+   ========================================================================== */
+
+@keyframes slideUp {
+    from { opacity: 0; transform: translateY(18px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+/* Scoped to .glass-card only, and behind a reduced-motion guard.
+   Deliberately NOT applied to:
+     .modal-content    - fights Bootstrap's own .modal.fade transform,
+                         producing a visible double-bounce
+     .table-responsive - animation-fill-mode:forwards leaves a permanent
+                         transform, which makes the element a containing
+                         block and clips absolutely-positioned descendants
+                         such as a Select2 dropdown opened inside a cell */
+@media (prefers-reduced-motion: no-preference) {
+    .glass-card {
+        animation: slideUp var(--es-dur-slower) var(--es-ease) forwards;
+    }
+}
+
+@media print {
+    *, *::before, *::after {
+        animation: none !important;
+        transition: none !important;
+    }
+}
+
+/* ==========================================================================
+   Typography
+   ========================================================================== */
+
+h1, h2, h3, h4, h5, h6 {
+    color: var(--text-heading);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+}
+
+/* Deprecated aliases: these never produced a gradient. Prefer .text-indigo
+   and .text-emerald. Kept so existing markup does not regress. */
+.text-gradient-indigo  { color: var(--accent-indigo); }
+.text-gradient-emerald { color: var(--accent-emerald); }
+
+/* ==========================================================================
+   Cards & layout components
+   ========================================================================== */
+
+.glass-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-card);
+    border-radius: 0.85rem;
+    box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.06), 0 2px 6px -1px rgba(15, 23, 42, 0.03);
+    transition: border-color var(--es-dur-base) var(--es-ease),
+                box-shadow var(--es-dur-base) var(--es-ease);
+}
+
+.glass-card:hover {
+    border-color: var(--border-accent);
+    box-shadow: 0 10px 30px -4px rgba(79, 70, 229, 0.1), 0 4px 10px -2px rgba(15, 23, 42, 0.04);
+}
+
+/* Repeated inline styles, extracted. Six views hardcoded the filter panel
+   and one of them had already drifted to a literal #e2e8f0. */
+.filter-panel {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-card);
+    border-radius: 0.75rem;
+    padding: 1rem;
+}
+
+.entry-panel {
+    background: var(--bg-card);
+    border: 1px dashed var(--border-accent);
+    border-radius: 0.75rem;
+    padding: 1rem;
+}
+
+.brand-mark {
+    width: 36px;
+    height: 36px;
+    background: var(--accent-indigo-light);
+    border: 1px solid #c7d2fe;
+    border-radius: 0.75rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+}
+
+.brand-mark--lg {
+    width: 64px;
+    height: 64px;
+}
+
+.topbar-pill {
+    display: inline-flex;
+    align-items: center;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-card);
+    border-radius: 9999px;
+    padding: 0.3rem 0.8rem;
+    font-size: 0.8125rem;
+    white-space: nowrap;
+}
+
+.page-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-bottom: 1.5rem;
+}
+
+.page-header h3 {
+    margin-bottom: 0.25rem;
+}
+
+/* KPI tiles */
+.stat-card { padding: 1.25rem; }
+
+.stat-card__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.stat-card__label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    line-height: 1.3;
+}
+
+.stat-card__icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 0.6rem;
+    border: 1px solid;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+}
+
+/* Replaces .display-6, which is calc(1.375rem + 1.5vw) below 1200px and
+   overflows a 2-up tile on a phone. */
+.stat-card__value {
+    font-size: 1.9rem;
+    font-weight: 700;
+    line-height: 1.1;
+    margin: 0 0 0.25rem;
+    letter-spacing: -0.02em;
+}
+
+.stat-card__meta {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.empty-state {
+    text-align: center;
+    padding: 2.5rem 1rem;
+    color: var(--text-muted);
+}
+
+.empty-state__icon {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-card);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    color: var(--text-muted);
+    margin-bottom: 0.85rem;
+}
+
+/* ==========================================================================
+   Buttons
+   ========================================================================== */
+
+.btn-indigo {
+    background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%);
+    color: #ffffff !important;
+    border: none;
+    border-radius: 0.5rem;
+    padding: 0.6rem 1.4rem;
+    font-weight: 600;
+    box-shadow: 0 4px 12px 0 var(--accent-indigo-glow);
+    transition: all var(--es-dur-base) var(--es-ease);
+}
+
+.btn-indigo:hover {
+    background: linear-gradient(135deg, #4338ca 0%, #3730a3 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 18px 0 var(--accent-indigo-glow);
+}
+
+.btn-emerald {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: #ffffff !important;
+    border: none;
+    border-radius: 0.5rem;
+    padding: 0.6rem 1.4rem;
+    font-weight: 600;
+    box-shadow: 0 4px 12px 0 var(--accent-emerald-glow);
+    transition: all var(--es-dur-base) var(--es-ease);
+}
+
+.btn-emerald:hover {
+    background: linear-gradient(135deg, #059669 0%, #047857 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 18px 0 var(--accent-emerald-glow);
+}
+
+.btn-glass {
+    background: #ffffff;
+    color: var(--text-main) !important;
+    border: 1px solid #cbd5e1;
+    border-radius: 0.5rem;
+    padding: 0.5rem 1.2rem;
+    font-weight: 500;
+    transition: all var(--es-dur-base) var(--es-ease);
+}
+
+.btn-glass:hover {
+    background: #f1f5f9;
+    color: #0f172a !important;
+    border-color: #94a3b8;
+}
+
+/* .btn-glass hardcodes its padding, which otherwise defeats .btn-sm
+   everywhere the two are combined (table row actions, dashboard links). */
+.btn-sm.btn-glass {
+    padding: 0.35rem 0.75rem;
+    font-size: 0.8125rem;
+}
+
+/* ==========================================================================
+   Forms
+   ========================================================================== */
+
+.form-control, .form-select {
+    background: #ffffff !important;
+    border: 1px solid #cbd5e1 !important;
+    color: #0f172a !important;
+    border-radius: 0.5rem;
+    padding: 0.65rem 1rem;
+    transition: border-color var(--es-dur-base) var(--es-ease),
+                box-shadow var(--es-dur-base) var(--es-ease);
+}
+
+/* Validation state has to be re-asserted with !important, because the base
+   .form-control rule above sets `border` with !important and would otherwise
+   win on source order -- Bootstrap's own .is-invalid border is not !important.
+   Without this the invalid field looks completely untouched: no red border and
+   the normal indigo focus ring, which reads as "accepted". */
+.form-control.is-invalid,
+.form-select.is-invalid {
+    border-color: #dc3545 !important;
+}
+
+.form-control.is-invalid:focus,
+.form-select.is-invalid:focus {
+    border-color: #dc3545 !important;
+    box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.15) !important;
+}
+
+
+.form-control:focus, .form-select:focus {
+    background: #ffffff !important;
+    border-color: var(--accent-indigo) !important;
+    box-shadow: 0 0 0 0.25rem var(--accent-indigo-glow) !important;
+    outline: none;
+}
+
+.form-control::placeholder { color: #94a3b8; }
+
+.form-check-input:checked {
+    background-color: var(--accent-indigo);
+    border-color: var(--accent-indigo);
+}
+
+.form-check-input:focus {
+    border-color: var(--accent-indigo);
+    box-shadow: 0 0 0 0.2rem var(--accent-indigo-glow);
+}
+
+/* ==========================================================================
+   Tables
+   ========================================================================== */
+
+.table-glass {
+    color: var(--text-main);
+    margin-bottom: 0;
+}
+
+.table-glass th {
+    background: #f8fafc;
+    color: #475569;
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.05em;
+    border-bottom: 2px solid #e2e8f0;
+    padding: 1rem;
+    white-space: nowrap;
+}
+
+.table-glass td {
+    border-bottom: 1px solid #f1f5f9;
+    padding: 1rem;
+    vertical-align: middle;
+    background: transparent;
+    color: var(--text-main);
+}
+
+.table-glass tbody tr:hover td { background: #f8fafc; }
+
+.table-responsive { position: relative; min-width: 0; }
+.table-responsive > .table-glass { min-width: 760px; }
+
+.col-sr { width: 52px; }
+
+/* Long university addresses are the widest cell in three tables and would
+   otherwise force ~700px of table width on their own. */
+.cell-address {
+    max-width: 22ch;
+    white-space: normal;
+}
+
+@media (max-width: 1199.98px) {
+    .table-glass th, .table-glass td { padding: 0.75rem 0.6rem; }
+}
+
+@media (max-width: 991.98px) {
+    .table-glass th, .table-glass td { padding: 0.65rem 0.55rem; font-size: 0.875rem; }
+
+    /* Pin the first two columns (checkbox/Sr.No + identity) so a row can
+       still be identified while scrolling horizontally. In all five tables
+       the identity column is nth-child(2). */
+    .table-sticky-id th:nth-child(-n + 2),
+    .table-sticky-id td:nth-child(-n + 2) {
+        position: sticky;
+        z-index: 1;
+        background: var(--bg-card);
+    }
+
+    .table-sticky-id th:nth-child(1),
+    .table-sticky-id td:nth-child(1) { left: 0; }
+
+    .table-sticky-id th:nth-child(2),
+    .table-sticky-id td:nth-child(2) {
+        left: 52px;
+        box-shadow: 1px 0 0 var(--border-card);
+    }
+
+    .table-sticky-id thead th:nth-child(-n + 2) { background: var(--bg-secondary); }
+    .table-sticky-id tbody tr:hover td:nth-child(-n + 2) { background: var(--bg-primary); }
+
+    /* Right-edge affordance signalling there is more table off-screen. */
+    .table-responsive::after {
+        content: '';
+        position: absolute;
+        inset: 0 0 0 auto;
+        width: 18px;
+        pointer-events: none;
+        background: linear-gradient(to left, rgba(15, 23, 42, 0.10), transparent);
+    }
+}
+
+/* ==========================================================================
+   Badges
+   ========================================================================== */
+
+.badge-glass-indigo {
+    background: var(--accent-indigo-light);
+    color: #3730a3;
+    border: 1px solid #c7d2fe;
+    padding: 0.4em 0.8em;
+    border-radius: 9999px;
+    font-weight: 600;
+}
+
+.badge-glass-emerald {
+    background: var(--accent-emerald-light);
+    color: #065f46;
+    border: 1px solid #a7f3d0;
+    padding: 0.4em 0.8em;
+    border-radius: 9999px;
+    font-weight: 600;
+}
+
+.badge-glass-amber {
+    background: var(--accent-amber-light);
+    color: #92400e;
+    border: 1px solid #fde68a;
+    padding: 0.4em 0.8em;
+    border-radius: 9999px;
+    font-weight: 600;
+}
+
+.badge-glass-rose,
+.badge-glass-danger {
+    background: var(--accent-rose-light);
+    color: #9f1239;
+    border: 1px solid #fecdd3;
+    padding: 0.4em 0.8em;
+    border-radius: 9999px;
+    font-weight: 600;
+}
+
+/* ==========================================================================
+   Select2 4.0.5 skin - Bootstrap 5 form-control parity
+   --------------------------------------------------------------------------
+   Heights are expressed in the same terms as .form-control above
+   (calc(1.5em + 1.3rem + 2px)) so the two can never drift apart, and so the
+   raw <select> before Select2 initialises is the same size as the widget
+   that replaces it -- no visible jump on load.
+   ========================================================================== */
+
+.select2-container { width: 100% !important; display: block; }
+
+.select2-container--default .select2-selection--single {
+    height: calc(1.5em + 1.3rem + 2px);
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 0.5rem;
+    transition: border-color var(--es-dur-base) var(--es-ease),
+                box-shadow var(--es-dur-base) var(--es-ease);
+}
+
+.select2-container--default .select2-selection--single .select2-selection__rendered {
+    color: var(--text-main);
+    font-size: 1rem;
+    line-height: calc(1.5em + 1.3rem);
+    padding-left: 1rem;
+    padding-right: 2.25rem;
+}
+
+.select2-container--default .select2-selection--single .select2-selection__placeholder { color: #94a3b8; }
+
+.select2-container--default .select2-selection--single .select2-selection__arrow {
+    height: calc(1.5em + 1.3rem);
+    right: 0.6rem;
+    width: 1.25rem;
+}
+
+.select2-container--default .select2-selection--single .select2-selection__arrow b {
+    border-color: #64748b transparent transparent transparent;
+}
+
+.select2-container--default.select2-container--open .select2-selection--single {
+    border-color: var(--accent-indigo);
+    box-shadow: 0 0 0 0.25rem var(--accent-indigo-glow);
+}
+
+.select2-container--default.select2-container--open.select2-container--below .select2-selection--single {
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
+.select2-container--default.select2-container--open.select2-container--above .select2-selection--single {
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+}
+
+.select2-container--default.select2-container--disabled .select2-selection--single { background: #f1f5f9; }
+.select2-container--default .select2-selection--single .select2-selection__clear { color: #94a3b8; margin-right: 1.6rem; }
+
+.select2-dropdown {
+    border: 1px solid var(--accent-indigo);
+    border-radius: 0.5rem;
+    box-shadow: 0 12px 32px -8px rgba(15, 23, 42, 0.18);
+    /* Select2 ships 1051, below Bootstrap 5's .modal (1055). Raised so a
+       dropdown placed inside a modal is not hidden behind it. Note a modal
+       ALSO needs dropdownParent set at init for focus handling. */
+    z-index: 1060;
+}
+
+.select2-container--open .select2-dropdown--below { border-top: 0; border-top-left-radius: 0; border-top-right-radius: 0; }
+.select2-container--open .select2-dropdown--above { border-bottom: 0; border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+
+.select2-search--dropdown { padding: 0.5rem; }
+
+.select2-container--default .select2-search--dropdown .select2-search__field {
+    border: 1px solid #cbd5e1;
+    border-radius: 0.4rem;
+    padding: 0.45rem 0.65rem;
+    outline: 0;
+}
+
+.select2-container--default .select2-search--dropdown .select2-search__field:focus {
+    border-color: var(--accent-indigo);
+    box-shadow: 0 0 0 0.2rem var(--accent-indigo-glow);
+}
+
+.select2-results__options { max-height: 15rem; }
+
+.select2-results__option {
+    padding: 0.5rem 1rem;
+    font-size: 0.925rem;
+    color: var(--text-main);
+}
+
+.select2-container--default .select2-results__option--highlighted[aria-selected] {
+    background-color: var(--accent-indigo-light);
+    color: #3730a3;
+}
+
+.select2-container--default .select2-results__option[aria-selected=true] {
+    background-color: var(--accent-indigo);
+    color: #ffffff;
+}
+
+.select2-container--default .select2-results__option[aria-disabled=true] { color: #94a3b8; }
+
+.select2-results__message,
+.select2-results__option.loading-results {
+    color: var(--text-muted);
+    font-size: 0.875rem;
+    padding: 0.6rem 1rem;
+}
+
+/* ==========================================================================
+   SweetAlert2 skin
+   --------------------------------------------------------------------------
+   The .all build injects its stylesheet into <head> at run time, i.e. AFTER
+   this file, so it wins at equal specificity. These rules therefore hang off
+   the customClass names registered in layouts/app.php rather than trying to
+   out-!important the injected CSS. Buttons are handled by
+   buttonsStyling:false, so they inherit .btn-indigo / .btn-glass directly.
+   ========================================================================== */
+
+.swal2-popup.es-swal {
+    border-radius: 0.85rem;
+    border: 1px solid var(--border-card);
+    box-shadow: 0 20px 60px -12px rgba(15, 23, 42, 0.25);
+    font-family: inherit;
+    padding: 1.75rem;
+}
+
+.swal2-title.es-swal__title {
+    color: var(--text-heading);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    font-size: 1.35rem;
+}
+
+.swal2-html-container.es-swal__text {
+    color: var(--text-muted);
+    font-size: 0.95rem;
+}
+
+.swal2-container { z-index: 2000; }
+.swal2-toast .swal2-title { font-size: 0.9rem; }
+
+/* Breathing room between the dialog's buttons.
+   buttonsStyling:false means SweetAlert stops supplying its own margins, so
+   Confirm and Cancel ended up all but touching -- two differently-coloured
+   buttons a couple of pixels apart, on a dialog whose whole job is to make the
+   operator pause. gap on the flex row it already uses, plus a top margin to
+   separate the pair from the text above. */
+.swal2-actions {
+    gap: 0.75rem;
+    margin-top: 1.5rem;
+}
+
+/* =============================================================================
+   Search field
+   -----------------------------------------------------------------------------
+   NOT an .input-group. This theme sets border-radius on .form-control with
+   !important, which Bootstrap's input-group cannot flatten -- so a group of
+   [icon][input][button] rendered as three separately rounded boxes wedged
+   together rather than one control, which is what made the batch filter look
+   unfinished.
+
+   One .form-control instead, with the icon and the clear button laid over its
+   own padding. The result is a single rounded field that inherits every focus
+   and border rule the rest of the form already uses.
+   ========================================================================== */
+.es-search {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    width: 100%;
+}
+
+.es-search .form-control {
+    padding-left: 2.4rem;
+    padding-right: 2.4rem;
+}
+
+.es-search__icon {
+    position: absolute;
+    left: 0.85rem;
+    color: var(--text-muted);
+    pointer-events: none;
+    font-size: 0.9rem;
+}
+
+.es-search__clear {
+    position: absolute;
+    right: 0.5rem;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 1.5rem;
+    height: 1.5rem;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--text-muted);
+    line-height: 1;
+    cursor: pointer;
+    transition: background-color var(--es-dur-base) var(--es-ease),
+                color var(--es-dur-base) var(--es-ease);
+}
+
+.es-search__clear:hover {
+    background: #e2e8f0;
+    color: var(--text-main);
+}
+
+/* Only offered once there is something to clear -- a permanent x next to an
+   empty box is noise. Toggled by .es-search--filled from the input handler. */
+.es-search--filled .es-search__clear {
+    display: inline-flex;
+}
+
+/* The browser's own search x would sit alongside ours. */
+.es-search input[type="search"]::-webkit-search-cancel-button,
+.es-search input[type="search"]::-webkit-search-decoration {
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+/* Pagination -- see app/Views/common/pagination_glass.php ------------------
+   The template renders a bar: the row range on the left, the page links on the
+   right. Below sm the two stack and centre, because at that width a range and a
+   page list side by side leaves neither enough room to read. */
+.es-pagebar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    margin-top: 1rem;
+}
+
+/* Holds the left edge even when the nav is absent, so the count does not jump
+   to the middle on a single-page result. */
+.es-pagebar__count { margin-right: auto; }
+
+.es-pagebar__nav { margin-left: auto; }
+
+@media (max-width: 575.98px) {
+    .es-pagebar {
+        justify-content: center;
+        gap: 0.5rem;
+    }
+
+    .es-pagebar__count,
+    .es-pagebar__nav {
+        margin: 0;
+        width: 100%;
+        text-align: center;
+    }
+
+    .es-pagebar__nav .pagination { justify-content: center; }
+}
+
+/* Pagination -- see app/Views/common/pagination_glass.php */
+.pagination-glass .page-link {
+    color: var(--accent-indigo);
+    border-color: rgba(0, 0, 0, 0.08);
+}
+.pagination-glass .page-item.active .page-link {
+    background-color: var(--accent-indigo);
+    border-color: var(--accent-indigo);
+    color: #fff;
+}
+.pagination-glass .page-item.disabled .page-link {
+    color: var(--text-muted);
+}
+.pagination-glass .page-link:focus {
+    box-shadow: 0 0 0 0.2rem var(--accent-indigo-glow);
+}
+
+/* Deep-link target row -- see confirmations/batch_detail.php + common/ajax_confirmations_history_js.php */
+.confirmation-row-highlight {
+    background-color: var(--accent-amber-light) !important;
+    box-shadow: inset 3px 0 0 0 var(--accent-amber);
+    transition: background-color var(--es-dur-slow) var(--es-ease);
+}
+
+/* ==========================================================================
+   Access Rights - grouped permission cards
+   --------------------------------------------------------------------------
+   Permissions render as selectable chips, not bare checkboxes. With 32 of them
+   a `.form-check` row put each checkbox flush against the previous label
+   ("View[]Create[]Edit") and the checked state came down to a 13px tick, which
+   is unreadable when scanning a whole module at once.
+   ========================================================================== */
+
+.permission-card {
+    border: 1px solid rgba(148, 163, 184, 0.28);
+    border-radius: 0.75rem;
+    background: #ffffff;
+    padding: 0.9rem 1rem 1rem;
+    margin-bottom: 0.85rem;
+}
+
+.permission-card:last-child { margin-bottom: 0; }
+
+.permission-card__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+}
+
+.permission-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+/* Hidden, not removed: it still carries name="pages[]", still receives focus
+   and still drives :checked below, so keyboard and screen-reader behaviour is
+   exactly a checkbox's. */
+.permission-chip__input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.permission-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.4rem 0.8rem;
+    border: 1px solid rgba(148, 163, 184, 0.45);
+    border-radius: 2rem;
+    background: #ffffff;
+    color: #475569;
+    font-size: 0.82rem;
+    font-weight: 500;
+    line-height: 1.4;
+    cursor: pointer;
+    user-select: none;
+    transition: background-color var(--es-dur-base) var(--es-ease),
+                border-color var(--es-dur-base) var(--es-ease),
+                color var(--es-dur-base) var(--es-ease);
+}
+
+.permission-chip:hover {
+    border-color: rgba(var(--es-indigo-rgb), 0.55);
+    color: rgb(var(--es-indigo-rgb));
+}
+
+.permission-chip__tick {
+    font-size: 0.7rem;
+    opacity: 0;
+    transform: scale(0.6);
+    transition: opacity var(--es-dur-base) var(--es-ease),
+                transform var(--es-dur-base) var(--es-ease);
+}
+
+.permission-chip.is-checked,
+.permission-chip__input:checked + .permission-chip {
+    background: rgba(var(--es-indigo-rgb), 0.1);
+    border-color: rgba(var(--es-indigo-rgb), 0.65);
+    color: rgb(var(--es-indigo-rgb));
+    font-weight: 600;
+}
+
+.permission-chip.is-checked .permission-chip__tick,
+.permission-chip__input:checked + .permission-chip .permission-chip__tick {
+    opacity: 1;
+    transform: scale(1);
+}
+
+/* Keyboard users get the same ring a real checkbox would show. */
+.permission-chip__input:focus-visible + .permission-chip {
+    outline: 2px solid rgba(var(--es-indigo-rgb), 0.6);
+    outline-offset: 2px;
+}
+
+/* `view` locks on once any other action in its card is ticked. Kept at full
+   contrast -- a greyed-out chip reads as "broken", not "implied". */
+.permission-chip__input:disabled + .permission-chip {
+    cursor: not-allowed;
+    border-style: dashed;
+}
+
+/* ---- Staff picker on the Access Rights screen -------------------------- */
+/* Bootstrap's own .active is unusable here: it sets color:#fff, so against the
+   transparent list this screen needs, the selected name rendered white on
+   white and vanished entirely. */
+.js-staff-pick {
+    background: transparent;
+    color: var(--text-main);
+}
+
+.js-staff-pick:hover { background: rgba(var(--es-indigo-rgb), 0.06); }
+
+.js-staff-pick.is-selected {
+    background: rgba(var(--es-indigo-rgb), 0.12);
+    color: var(--text-main);
+    box-shadow: inset 3px 0 0 rgb(var(--es-indigo-rgb));
+}
+
+.js-staff-pick.is-selected .fw-semibold { color: rgb(var(--es-indigo-rgb)); }
+
+/* ---- Full-screen user modal ------------------------------------------- */
+/* ONE scroll region, not two.
+   The body previously scrolled AND the permission column scrolled inside it,
+   so the modal showed two stacked scrollbars on the right and the outer one
+   moved the whole layout including the fixed header. The body is now pinned
+   and only the two columns scroll, independently. */
+/* The <form> wraps the body AND the footer, so IT is the flex child of
+   .modal-content -- not .modal-body. Left as display:block with the default
+   min-height:auto it grew to its content height (897px in a 950px viewport),
+   pushing the footer to bottom:956 where it was clipped off the screen. It has
+   to become the flex column itself. */
+.modal-fullscreen .modal-content > form {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+.modal-fullscreen .modal-body {
+    /* A flex column, so .row below can fill it by FLEXING rather than by
+       height:100%. See the note on .row -- the percentage was the fragile
+       link in this chain. */
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding: 0;
+    flex: 1 1 auto;
+    /* min-height:0 is load-bearing, not tidiness. .modal-content is a flex
+       column and .modal-body is a flex child, whose default min-height:auto
+       refuses to shrink below its content. Without this the body grew to the
+       full height of six permission cards, the dialog grew with it, the FOOTER
+       was pushed off the bottom of the screen, and the page scrolled instead of
+       the column -- which is the same "two scrollbars" symptom by another
+       route. */
+    min-height: 0;
+}
+
+/* This was height:100%, and that is the one rule in the dialog that can fail
+   quietly. A percentage height only resolves while the PARENT's height is
+   "definite", and .modal-body has no stated height -- it gets one by flexing.
+   Where that is treated as indefinite the percentage falls back to auto, the
+   row collapses to less than the body, and a band of dead white space appears
+   between the bottom of the two columns and the footer, lasting until the
+   dialog is closed and re-laid-out. Filling by flex has no such fallback:
+   flex-grow resolves against the free space that is already there. */
+.modal-fullscreen .modal-body > .row {
+    flex: 1 1 auto;
+    min-height: 0;
+    /* nowrap is what makes the stretch above exact. Bootstrap's .row is
+       flex-wrap:wrap, and a WRAPPING flex container sizes its line from the
+       items' content -- so with six permission cards the line grew to 826px,
+       the columns stretched to that, overflowed the body and lost their own
+       scrollbars. With a single guaranteed line the line's cross size IS the
+       container's inner height, so the columns land on it exactly. */
+    flex-wrap: nowrap;
+    margin: 0;
+}
+
+/* Deliberately no height here. .row is a flex container and align-items
+   defaults to stretch, so each column already spans the row's full height.
+   Restating height:100% would reintroduce the very percentage dependency
+   this layout exists to avoid. min-height:0 lets them scroll instead of
+   pushing the row taller than the body. */
+.user-modal__aside,
+.user-modal__perms {
+    min-height: 0;
+    overflow-y: auto;
+}
+
+.user-modal__aside {
+    background: #f8fafc;
+    border-right: 1px solid rgba(148, 163, 184, 0.25);
+}
+
+.user-modal__perms {
+    background: #f1f5f9;
+}
+
+/* The footer carried Bootstrap's default 1rem padding plus the button's own,
+   which made it noticeably taller than the header on a full-screen dialog. */
+.modal-fullscreen .modal-footer {
+    padding: 0.6rem 1.25rem;
+    min-height: auto;
+}
+
+.modal-fullscreen .modal-header {
+    padding: 0.85rem 1.25rem;
+}
+
+@media (max-width: 991.98px) {
+    /* Stacked columns cannot each own a scrollbar -- let the body scroll again.
+       display:block undoes the flex column above, so the two columns lay out on
+       their natural heights instead of splitting one line's cross size. */
+    .modal-fullscreen .modal-body { display: block; overflow-y: auto; }
+    /* flex-wrap must go back to wrap or the two columns can never stack. */
+    .modal-fullscreen .modal-body > .row { height: auto; flex-wrap: wrap; }
+
+    .user-modal__aside,
+    .user-modal__perms { height: auto; overflow-y: visible; }
+
+    .user-modal__aside {
+        border-right: 0;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.25);
+    }
+}
+
+/* ==========================================================================
+   Application motion
+   --------------------------------------------------------------------------
+   Splash, page reveal, navigation progress and the shared row/element
+   animations. Everything here obeys prefers-reduced-motion at the bottom of
+   the block.
+   ========================================================================== */
+
+/* The splash screen that used to live here has been removed -- see the note in
+   layouts/auth.php. It rendered on every return to the sign-in page, so it
+   interrupted logging out and every failed sign-in rather than only greeting
+   someone arriving. Sign-in feedback is the submit button's own spinner. */
+
+/* --- Page reveal ----------------------------------------------------------
+   Every screen's content settles in rather than snapping. This is NOT an
+   overlay: nothing is covered and nothing has to be dismissed, so it cannot
+   trap the interface the way the old splash could.
+   ------------------------------------------------------------------------ */
+@media (prefers-reduced-motion: no-preference) {
+    .page-body > * {
+        animation: esPageIn var(--es-dur-slower) var(--es-ease) both;
+    }
+
+    /* A gentle stagger so a stack of cards arrives in sequence rather than
+       all at once -- the thing that makes an interface feel composed. Capped
+       at four; beyond that the last card would feel late. */
+    .page-body > *:nth-child(1) { animation-delay: 0ms; }
+    .page-body > *:nth-child(2) { animation-delay: 70ms; }
+    .page-body > *:nth-child(3) { animation-delay: 140ms; }
+    .page-body > *:nth-child(n+4) { animation-delay: 210ms; }
+}
+
+@keyframes esPageIn {
+    from { opacity: 0; transform: translateY(14px); }
+    to   { opacity: 1; transform: none; }
+}
+
+/* --- Navigation progress --------------------------------------------------
+   A slim bar across the top while the next page is being fetched. This is the
+   honest version of a loading screen on a multi-page app: it appears only when
+   the browser is ACTUALLY waiting, and it costs nothing when it is not.
+
+   It never blocks input, so a slow response can still be cancelled or
+   navigated away from.
+   ------------------------------------------------------------------------ */
+#es-progress {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 3px;
+    width: 0;
+    z-index: 10000;
+    background: linear-gradient(90deg, var(--accent-indigo), var(--accent-cyan));
+    box-shadow: 0 0 10px var(--accent-indigo-glow);
+    opacity: 0;
+    pointer-events: none;
+    transition: width var(--es-dur-slower) var(--es-ease),
+                opacity var(--es-dur-base) var(--es-ease);
+}
+
+#es-progress.es-progress--on  { opacity: 1; width: 82%; }
+#es-progress.es-progress--done { opacity: 0; width: 100%; }
+
+/* The page fade-out that used to live here has been removed.
+
+   It dropped the current page to opacity 0 when a link was clicked, on the
+   promise that another page was arriving. Every time that promise was false --
+   a cancelled confirmation, a file download, a navigation that failed -- the
+   screen was left blank until someone refreshed. It was guarded three times
+   and stranded the interface anyway.
+
+   Navigation feedback is the #es-progress bar alone, which is only ever added
+   on top of the page and so cannot hide it. */
+
+/* --- Shared element motion ------------------------------------------------
+   Used by the batch table and available to any other list. Defined once here
+   rather than per screen.
+   ------------------------------------------------------------------------ */
+@keyframes esRowIn {
+    from { opacity: 0; transform: translateY(-8px); }
+    to   { opacity: 1; transform: none; }
+}
+
+@keyframes esRowOut {
+    from { opacity: 1; transform: none;                max-height: 6rem; }
+    to   { opacity: 0; transform: translateX(2.5rem);  max-height: 0; }
+}
+
+@keyframes esRowFlash {
+    0%   { background: var(--accent-emerald-light); }
+    100% { background: transparent; }
+}
+
+.es-row-in    { animation: esRowIn var(--es-dur-slow) var(--es-ease) both; }
+.es-row-out   { animation: esRowOut var(--es-dur-slow) var(--es-ease-in-out) both; }
+.es-row-flash { animation: esRowFlash calc(var(--es-dur-slower) * 2) var(--es-ease) both; }
+
+/* --- Reduced motion -------------------------------------------------------
+   One guard for everything above. Motion here is decoration; for someone with
+   vestibular sensitivity it is not neutral, and none of it carries meaning
+   that is lost when it stops.
+
+   The splash is the exception that must still DISAPPEAR -- so it is hidden
+   outright rather than animated, which is the safe direction.
+   ------------------------------------------------------------------------ */
+@media (prefers-reduced-motion: reduce) {
+    .page-body > *,
+    .es-row-in,
+    .es-row-out,
+    .es-row-flash {
+        animation: none !important;
+    }
+
+    #es-progress {
+        transition: none !important;
+    }
+}
+
+/* --- Busy submit button ---------------------------------------------------
+   Applied by common/es_form_motion_js while a form is in flight. The spinner
+   replaces the button's leading icon rather than being appended, so the label
+   stays put and the button does not change size.
+   ------------------------------------------------------------------------ */
+.es-btn-busy {
+    position: relative;
+    cursor: progress;
+    pointer-events: none;
+}
+
+.es-btn-busy > i,
+.es-btn-busy > .fa {
+    visibility: hidden;
+}
+
+.es-btn-busy::before {
+    content: "";
+    position: absolute;
+    left: 0.9rem;
+    top: 50%;
+    width: 0.95rem;
+    height: 0.95rem;
+    margin-top: -0.475rem;
+    border: 2px solid currentColor;
+    border-right-color: transparent;
+    border-radius: 50%;
+    opacity: 0.9;
+    animation: esSpin 620ms linear infinite;
+}
+
+/* A button with no icon has nothing to hide behind, so the spinner sits after
+   the label instead of over it. */
+.es-btn-busy.es-btn-busy--trailing::before {
+    left: auto;
+    right: 0.9rem;
+}
+
+@keyframes esSpin {
+    to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .es-btn-busy::before {
+        animation-duration: 1.6s;
+    }
+}
+
+/* --- Show / hide password -------------------------------------------------
+   Added by common/es_password_toggle_js to every password field. Two shapes,
+   because a control inside Bootstrap's .input-group has to be laid out by the
+   group itself, while a standalone field has no such row to join.
+   ------------------------------------------------------------------------ */
+.es-pw-toggle {
+    border: 0;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+    transition: color var(--es-dur-base) var(--es-ease),
+                background-color var(--es-dur-base) var(--es-ease);
+}
+
+.es-pw-toggle:hover  { color: var(--accent-indigo); }
+.es-pw-toggle:focus-visible {
+    outline: 2px solid var(--accent-indigo);
+    outline-offset: 2px;
+    border-radius: 0.35rem;
+}
+
+/* Standalone field: the input is wrapped and the button sits over its right
+   padding, so the field keeps its own rounded corners. */
+.es-pw {
+    position: relative;
+    display: block;
+}
+
+.es-pw .form-control { padding-right: 2.6rem; }
+
+.es-pw-toggle--inline {
+    position: absolute;
+    top: 50%;
+    right: 0.75rem;
+    transform: translateY(-50%);
+    width: 1.75rem;
+    height: 1.75rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+}
+
+.es-pw-toggle--inline:hover { background: var(--bg-secondary); }
+
+/* Inside an .input-group the button is a real group member, matched to the
+   prepended icon so the row reads as one control. */
+.es-pw-toggle--group {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 0.9rem;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-left: 0;
+    border-radius: 0 0.5rem 0.5rem 0;
+}
+
+.es-pw-toggle--group:hover { background: var(--bg-secondary); }
+
+/* The browser's own reveal control would sit beside ours in Edge and IE. */
+input[type="password"]::-ms-reveal,
+input[type="password"]::-ms-clear {
+    display: none;
+}
+
+/* Bootstrap reveals a validation message with a GENERAL SIBLING selector:
+       .is-invalid ~ .invalid-feedback { display: block }
+   Wrapping the input in .es-pw puts the input one level down, so it stops
+   being a sibling of its own message and the message never appears again --
+   silently, which is the worst way for validation to fail.
+
+   :has() restores it by matching the wrapper that CONTAINS the invalid field.
+   The JS additionally mirrors the class onto the wrapper, so this still works
+   on a browser without :has(). */
+.es-pw:has(> .form-control.is-invalid) ~ .invalid-feedback,
+.es-pw.es-pw-invalid ~ .invalid-feedback,
+.was-validated .es-pw:has(> :invalid) ~ .invalid-feedback {
+    display: block;
+}
+
+/* ==========================================================================
+   Confirmations -- pending list
+   --------------------------------------------------------------------------
+   Two problems this block solves.
+
+   1. The clarification fields used to sit inside the REMARK cell, which is one
+      narrow column -- the panel overflowed it and spilled over its neighbours.
+      They are a full-width row under the candidate now, which gives them room
+      but makes them look like the NEXT record rather than part of this one.
+      The rules below tie the pair together.
+
+   2. Ten columns of form controls do not fit a laptop, let alone a phone.
+      Above lg this stays a table; below it each row becomes a labelled card
+      built from the SAME cells, so there is one set of markup rather than a
+      table plus a mobile list that drift apart. Every field name is untouched.
+
+   This table opts out of .table-sticky-id: pinning the first two columns is
+   for horizontal scrolling, and below lg there is no horizontal scrolling any
+   more. Above lg those rules do not apply at all, so nothing is lost.
+   ========================================================================== */
+
+.conf-detail-cell {
+    background: var(--bg-secondary);
+    border-top: 0 !important;
+    padding: 0 !important;
+}
+
+.conf-detail {
+    padding: 1rem 1.25rem 1.25rem;
+    border-left: 3px solid var(--accent-indigo);
+}
+
+.conf-detail__head {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    margin-bottom: 0.85rem;
+}
+
+/* The candidate whose clarification is open is tinted and carries the same
+   accent bar as the panel, so the two rows read as one block. Without this the
+   panel is just a wide row sitting under an untouched candidate.
+
+   Specificity here (0,3,2) is deliberate: it has to beat .table-glass tbody
+   tr:hover td (0,2,2), or the tint would drop out under the pointer -- exactly
+   when the operator is looking at the row. */
+.conf-pending-table tbody tr.conf-row--open > td {
+    background: var(--bg-secondary);
+    border-bottom-color: transparent;
+}
+
+.conf-pending-table tbody tr.conf-row--open > td:first-child {
+    box-shadow: inset 3px 0 0 0 var(--accent-indigo);
+}
+
+/* Opens by expanding rather than appearing, so the eye follows where the
+   extra fields came from. */
+.conf-detail-row--open > .conf-detail-cell > .conf-detail {
+    animation: esDetailOpen var(--es-dur-slow) var(--es-ease) both;
+}
+
+@keyframes esDetailOpen {
+    from { opacity: 0; transform: translateY(-6px); }
+    to   { opacity: 1; transform: none; }
+}
+
+/* --- Stacked cards below lg ---------------------------------------------- */
+@media (max-width: 991.98px) {
+    /* The wrapper otherwise forces 760px of width and paints a right-edge
+       gradient hinting at more table off-screen. In card form there is no
+       off-screen, so that hint would be a lie. */
+    .table-responsive > .conf-pending-table { min-width: 0; }
+    .table-responsive:has(> .conf-pending-table)::after { content: none; }
+
+    .conf-pending-table,
+    .conf-pending-table tbody,
+    .conf-pending-table tr,
+    .conf-pending-table td {
+        display: block;
+        width: auto;
+    }
+
+    /* Column headings would only repeat what each cell now prints for itself,
+       so they go -- except the select-all box, which is a control and the only
+       one on the screen. Losing it would mean no bulk selection on a phone. */
+    .conf-pending-table thead,
+    .conf-pending-table thead tr { display: block; }
+
+    .conf-pending-table thead th { display: none; }
+
+    .conf-pending-table thead th.col-sr:has(input) {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        width: auto;
+        padding: 0 0.25rem 0.7rem;
+        background: transparent;
+        border-bottom: 0;
+    }
+
+    .conf-pending-table thead th.col-sr:has(input)::after { content: 'Select all'; }
+
+    .conf-pending-table tr.conf-row {
+        border: 1px solid var(--border-card);
+        border-radius: 0.75rem;
+        background: var(--bg-card);
+        padding: 0.85rem 1rem;
+        margin-bottom: 0.85rem;
+        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+    }
+
+    .conf-pending-table tr.conf-row > td {
+        border: 0;
+        padding: 0.4rem 0;
+        display: grid;
+        grid-template-columns: 9.5rem minmax(0, 1fr);
+        gap: 0.75rem;
+        align-items: center;
+    }
+
+    .conf-pending-table tr.conf-row > td::before {
+        content: attr(data-label);
+        font-size: 0.78rem;
+        font-weight: 600;
+        color: var(--text-muted);
+    }
+
+    /* The candidate's name is the card's heading: full width, no label. */
+    .conf-pending-table td.conf-cell-name {
+        grid-template-columns: minmax(0, 1fr);
+        font-size: 1.02rem;
+        padding-bottom: 0.6rem;
+        margin-bottom: 0.35rem;
+        border-bottom: 1px solid var(--border-card);
+    }
+
+    .conf-pending-table td.conf-cell-name::before { content: none; }
+
+    /* "Already confirmed" / "no permission" spans the entry columns and has no
+       data-label, so it must not reserve the empty label gutter. */
+    .conf-pending-table td.conf-cell-note {
+        grid-template-columns: minmax(0, 1fr);
+        text-align: left !important;
+        padding-top: 0.5rem;
+    }
+
+    .conf-pending-table td.conf-cell-note::before { content: none; }
+
+    /* The tick belongs beside its label, not stranded in a 9.5rem gutter. */
+    .conf-pending-table td.conf-cell-select {
+        grid-template-columns: auto minmax(0, 1fr);
+        gap: 0.6rem;
+    }
+
+    /* Hover tint is a pointer affordance; on a card list it just makes one
+       card look selected when it is not. */
+    .conf-pending-table tbody tr:hover td { background: transparent; }
+
+    .conf-pending-table tbody tr.conf-row--open > td { background: transparent; }
+    .conf-pending-table tbody tr.conf-row--open > td:first-child { box-shadow: none; }
+
+    /* An open card and its clarification join into a single rounded block. */
+    .conf-pending-table tr.conf-row--open {
+        margin-bottom: 0;
+        border-bottom: 0;
+        border-bottom-left-radius: 0;
+        border-bottom-right-radius: 0;
+    }
+
+    .conf-pending-table tr.conf-detail-row {
+        margin-bottom: 0.85rem;
+        border: 1px solid var(--border-card);
+        border-top: 0;
+        border-radius: 0 0 0.75rem 0.75rem;
+        overflow: hidden;
+    }
+
+    .conf-pending-table .conf-detail {
+        padding: 0.9rem 1rem 1.1rem;
+        border-left: 0;
+    }
+
+    /* A card is already narrow; thirds inside it would be unusable. */
+    .conf-detail .row > [class*="col-"] {
+        flex: 0 0 100%;
+        max-width: 100%;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .conf-detail-row--open > .conf-detail-cell > .conf-detail { animation: none; }
+}
+
+/* Flatpickr Theme Customization */
+.flatpickr-calendar {
+    font-family: inherit;
+    border-radius: 0.75rem;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+    border: 1px solid var(--border-card, #e2e8f0);
+}
+.flatpickr-day.selected, 
+.flatpickr-day.startRange, 
+.flatpickr-day.endRange, 
+.flatpickr-day.selected.inRange, 
+.flatpickr-day.startRange.inRange, 
+.flatpickr-day.endRange.inRange, 
+.flatpickr-day.selected:focus, 
+.flatpickr-day.startRange:focus, 
+.flatpickr-day.endRange:focus, 
+.flatpickr-day.selected:hover, 
+.flatpickr-day.startRange:hover, 
+.flatpickr-day.endRange:hover, 
+.flatpickr-day.selected.prevMonthDay, 
+.flatpickr-day.selected.nextMonthDay, 
+.flatpickr-day.startRange.prevMonthDay, 
+.flatpickr-day.startRange.nextMonthDay, 
+.flatpickr-day.endRange.prevMonthDay, 
+.flatpickr-day.endRange.nextMonthDay {
+    background: #6366f1 !important;
+    border-color: #6366f1 !important;
+    color: #fff !important;
+}
+.flatpickr-day:hover {
+    background: #f1f5f9;
+}
+.flatpickr-months .flatpickr-month {
+    color: #1e293b;
+    fill: #1e293b;
+}
