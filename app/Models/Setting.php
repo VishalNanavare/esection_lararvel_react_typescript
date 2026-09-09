@@ -16,6 +16,7 @@ class Setting extends Model
     public static function get(string $key, ?string $default = null): ?string
     {
         $setting = self::where('setting_key', $key)->first();
+
         return $setting ? $setting->setting_value : $default;
     }
 
@@ -29,5 +30,10 @@ class Setting extends Model
                 'updated_by' => $updatedBy,
             ]
         );
+    }
+
+    public static function enabled(string $key, bool $default = true): bool
+    {
+        return self::get($key, $default ? '1' : '0') === '1';
     }
 }

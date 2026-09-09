@@ -4,8 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\AcademicYear;
 use App\Models\ActivityLog;
-use App\Models\CollegeDetail;
-use App\Models\ConfStudData;
 use App\Models\Setting;
 use App\Models\StreamDetail;
 use App\Models\StudentDetail;
@@ -32,7 +30,7 @@ class StudentController extends Controller
         $commonNo = $maxId + 1;
 
         $casePrefix = Setting::get('case_no_prefix', 'CASE');
-        $suggestedCaseNo = strtoupper($casePrefix) . '-' . date('Y') . '/' . sprintf('%04d', $commonNo);
+        $suggestedCaseNo = strtoupper($casePrefix).'-'.date('Y').'/'.sprintf('%04d', $commonNo);
 
         $academicYears = AcademicYear::orderBy('id', 'desc')->get()->map(fn ($y) => [
             'id' => $y->year_label,
@@ -66,7 +64,7 @@ class StudentController extends Controller
     {
         $maxId = StudentDetail::max('id') ?? 0;
         $casePrefix = Setting::get('case_no_prefix', 'CASE');
-        $caseNo = strtoupper($casePrefix) . '-' . date('Y') . '/' . sprintf('%04d', $maxId + 1);
+        $caseNo = strtoupper($casePrefix).'-'.date('Y').'/'.sprintf('%04d', $maxId + 1);
 
         return response()->json(['case_no' => $caseNo]);
     }
@@ -143,7 +141,7 @@ class StudentController extends Controller
 
             return response()->json([
                 'status' => 'error',
-                'message' => 'Failed to save candidate batch: ' . $e->getMessage(),
+                'message' => 'Failed to save candidate batch: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -166,27 +164,27 @@ class StudentController extends Controller
         if ($name !== '') {
             $query->where(function ($q) use ($name) {
                 $q->where('student_name', 'like', "%{$name}%")
-                  ->orWhere('eligibility_case_no', 'like', "%{$name}%");
+                    ->orWhere('eligibility_case_no', 'like', "%{$name}%");
             });
         }
         if ($batch !== '') {
             $query->where('array_space', 'like', "%{$batch}%");
         }
         if ($dateFrom !== '') {
-            $from = strtotime($dateFrom . ' 00:00:00');
+            $from = strtotime($dateFrom.' 00:00:00');
             if ($from !== false) {
                 $query->where(function ($q) use ($from, $dateFrom) {
                     $q->where('en_time', '>=', (string) $from)
-                      ->orWhere('en_time', '>=', $dateFrom);
+                        ->orWhere('en_time', '>=', $dateFrom);
                 });
             }
         }
         if ($dateTo !== '') {
-            $to = strtotime($dateTo . ' 23:59:59');
+            $to = strtotime($dateTo.' 23:59:59');
             if ($to !== false) {
                 $query->where(function ($q) use ($to, $dateTo) {
                     $q->where('en_time', '<=', (string) $to)
-                      ->orWhere('en_time', '<=', $dateTo . ' 23:59:59');
+                        ->orWhere('en_time', '<=', $dateTo.' 23:59:59');
                 });
             }
         }
@@ -221,7 +219,7 @@ class StudentController extends Controller
 
         $batches->getCollection()->transform(function ($b) {
             $formattedTime = '';
-            if (!empty($b->en_time)) {
+            if (! empty($b->en_time)) {
                 if (is_numeric($b->en_time)) {
                     $formattedTime = date('d M Y, H:i', (int) $b->en_time);
                 } elseif ($ts = strtotime($b->en_time)) {
@@ -231,6 +229,7 @@ class StudentController extends Controller
                 }
             }
             $b->formatted_en_time = $formattedTime;
+
             return $b;
         });
 
@@ -330,6 +329,8 @@ class StudentController extends Controller
      */
     public function destroy(int $id): JsonResponse|RedirectResponse
     {
+        abort_unless(Setting::enabled('feature_delete_enabled'), 403, 'Deleting records is currently disabled by an administrator.');
+
         $student = StudentDetail::findOrFail($id);
         $arraySpace = $student->array_space;
         $name = $student->student_name;
@@ -402,16 +403,16 @@ class StudentController extends Controller
                 if ($name === '') {
                     $messages[] = 'Candidate name is missing.';
                 } elseif (mb_strlen($name) > 100) {
-                    $messages[] = 'Candidate name is too long (' . mb_strlen($name) . ' characters; the limit is 100).';
+                    $messages[] = 'Candidate name is too long ('.mb_strlen($name).' characters; the limit is 100).';
                 }
 
                 if ($caseNo === '') {
                     $messages[] = 'Eligibility case number is missing.';
                 } elseif (mb_strlen($caseNo) > 60) {
-                    $messages[] = 'Eligibility case number is too long (' . mb_strlen($caseNo) . ' characters; the limit is 60).';
+                    $messages[] = 'Eligibility case number is too long ('.mb_strlen($caseNo).' characters; the limit is 60).';
                 }
 
-                if ($email !== '' && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                if ($email !== '' && ! filter_var($email, FILTER_VALIDATE_EMAIL)) {
                     $messages[] = 'Email address is not valid.';
                 }
 
@@ -454,7 +455,7 @@ class StudentController extends Controller
         } catch (\Throwable $e) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'That sheet could not be read: ' . $e->getMessage(),
+                'message' => 'That sheet could not be read: '.$e->getMessage(),
             ], 422);
         }
     }
@@ -477,27 +478,27 @@ class StudentController extends Controller
         if ($name !== '') {
             $query->where(function ($q) use ($name) {
                 $q->where('student_name', 'like', "%{$name}%")
-                  ->orWhere('eligibility_case_no', 'like', "%{$name}%");
+                    ->orWhere('eligibility_case_no', 'like', "%{$name}%");
             });
         }
         if ($batch !== '') {
             $query->where('array_space', 'like', "%{$batch}%");
         }
         if ($dateFrom !== '') {
-            $from = strtotime($dateFrom . ' 00:00:00');
+            $from = strtotime($dateFrom.' 00:00:00');
             if ($from !== false) {
                 $query->where(function ($q) use ($from, $dateFrom) {
                     $q->where('en_time', '>=', (string) $from)
-                      ->orWhere('en_time', '>=', $dateFrom);
+                        ->orWhere('en_time', '>=', $dateFrom);
                 });
             }
         }
         if ($dateTo !== '') {
-            $to = strtotime($dateTo . ' 23:59:59');
+            $to = strtotime($dateTo.' 23:59:59');
             if ($to !== false) {
                 $query->where(function ($q) use ($to, $dateTo) {
                     $q->where('en_time', '<=', (string) $to)
-                      ->orWhere('en_time', '<=', $dateTo . ' 23:59:59');
+                        ->orWhere('en_time', '<=', $dateTo.' 23:59:59');
                 });
             }
         }
@@ -526,7 +527,7 @@ class StudentController extends Controller
 
         $batches = $batchQuery->orderByRaw('MAX(en_time) DESC')->get();
 
-        $spreadsheet = new Spreadsheet();
+        $spreadsheet = new Spreadsheet;
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Batch History');
 
@@ -537,7 +538,7 @@ class StudentController extends Controller
         $dataRows = [];
         foreach ($batches as $b) {
             $created = '';
-            if (!empty($b->en_time)) {
+            if (! empty($b->en_time)) {
                 $created = is_numeric($b->en_time)
                     ? date('d/m/Y H:i', (int) $b->en_time)
                     : (strtotime($b->en_time) ? date('d/m/Y H:i', strtotime($b->en_time)) : $b->en_time);
@@ -553,7 +554,7 @@ class StudentController extends Controller
             ];
         }
 
-        if (!empty($dataRows)) {
+        if (! empty($dataRows)) {
             $sheet->fromArray($dataRows, null, 'A2');
         }
 
@@ -562,7 +563,7 @@ class StudentController extends Controller
             $sheet->getColumnDimension($col)->setAutoSize(true);
         }
 
-        $filename = 'student_batches_' . date('Ymd_His') . '.xlsx';
+        $filename = 'student_batches_'.date('Ymd_His').'.xlsx';
 
         return response()->streamDownload(function () use ($spreadsheet) {
             $writer = new Xlsx($spreadsheet);

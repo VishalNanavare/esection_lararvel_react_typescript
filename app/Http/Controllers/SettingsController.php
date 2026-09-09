@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\AcademicYear;
-use App\Models\AccessPage;
 use App\Models\ActivityLog;
 use App\Models\BackupHistory;
 use App\Models\Course;
@@ -80,7 +79,7 @@ class SettingsController extends Controller
         }
 
         $uploadDir = public_path('uploads/institute');
-        if (!is_dir($uploadDir)) {
+        if (! is_dir($uploadDir)) {
             mkdir($uploadDir, 0755, true);
         }
 
@@ -94,14 +93,14 @@ class SettingsController extends Controller
             [$w, $h] = $dims;
             if ($w !== 300 || $h !== 300) {
                 return redirect()->back()->withErrors([
-                    'logo' => "The image must be exactly 300x300 pixels (uploaded file is {$w}x{$h}px)."
+                    'logo' => "The image must be exactly 300x300 pixels (uploaded file is {$w}x{$h}px).",
                 ]);
             }
             $oldLogo = Setting::get('institute_logo_path');
-            $filename = time() . '_' . bin2hex(random_bytes(8)) . '.' . $logoFile->getClientOriginalExtension();
+            $filename = time().'_'.bin2hex(random_bytes(8)).'.'.$logoFile->getClientOriginalExtension();
             $logoFile->move($uploadDir, $filename);
-            Setting::set('institute_logo_path', 'uploads/institute/' . $filename, 'institute', $userId);
-            if ($oldLogo && file_exists(public_path($oldLogo)) && $oldLogo !== 'uploads/institute/' . $filename) {
+            Setting::set('institute_logo_path', 'uploads/institute/'.$filename, 'institute', $userId);
+            if ($oldLogo && file_exists(public_path($oldLogo)) && $oldLogo !== 'uploads/institute/'.$filename) {
                 @unlink(public_path($oldLogo));
             }
         }
@@ -116,14 +115,14 @@ class SettingsController extends Controller
             [$w, $h] = $dims;
             if ($w !== 1486 || $h !== 368) {
                 return redirect()->back()->withErrors([
-                    'letterhead' => "The image must be exactly 1486x368 pixels (uploaded file is {$w}x{$h}px)."
+                    'letterhead' => "The image must be exactly 1486x368 pixels (uploaded file is {$w}x{$h}px).",
                 ]);
             }
             $oldLetterhead = Setting::get('institute_letterhead_path');
-            $filename = time() . '_' . bin2hex(random_bytes(8)) . '.' . $letterheadFile->getClientOriginalExtension();
+            $filename = time().'_'.bin2hex(random_bytes(8)).'.'.$letterheadFile->getClientOriginalExtension();
             $letterheadFile->move($uploadDir, $filename);
-            Setting::set('institute_letterhead_path', 'uploads/institute/' . $filename, 'institute', $userId);
-            if ($oldLetterhead && file_exists(public_path($oldLetterhead)) && $oldLetterhead !== 'uploads/institute/' . $filename) {
+            Setting::set('institute_letterhead_path', 'uploads/institute/'.$filename, 'institute', $userId);
+            if ($oldLetterhead && file_exists(public_path($oldLetterhead)) && $oldLetterhead !== 'uploads/institute/'.$filename) {
                 @unlink(public_path($oldLetterhead));
             }
         }
@@ -201,7 +200,7 @@ class SettingsController extends Controller
             'is_current' => 'nullable|boolean',
         ]);
 
-        $isCurrent = !empty($validated['is_current']);
+        $isCurrent = ! empty($validated['is_current']);
         if ($isCurrent) {
             AcademicYear::query()->update(['is_current' => false]);
         }
@@ -221,11 +220,11 @@ class SettingsController extends Controller
     {
         $year = AcademicYear::findOrFail($id);
         $validated = $request->validate([
-            'year_label' => 'required|string|max:60|unique:academic_years,year_label,' . $id,
+            'year_label' => 'required|string|max:60|unique:academic_years,year_label,'.$id,
             'is_current' => 'nullable|boolean',
         ]);
 
-        $isCurrent = !empty($validated['is_current']);
+        $isCurrent = ! empty($validated['is_current']);
         if ($isCurrent) {
             AcademicYear::query()->where('id', '!=', $id)->update(['is_current' => false]);
         }
@@ -256,6 +255,8 @@ class SettingsController extends Controller
      */
     public function destroyAcademicYear(int $id): RedirectResponse
     {
+        abort_unless(Setting::enabled('feature_delete_enabled'), 403, 'Deleting records is currently disabled by an administrator.');
+
         $year = AcademicYear::findOrFail($id);
         $year->delete();
 
@@ -296,7 +297,7 @@ class SettingsController extends Controller
             'action' => 'course.create',
             'entity_type' => 'course',
             'entity_id' => $course->id,
-            'description' => 'Created course ' . $course->name,
+            'description' => 'Created course '.$course->name,
             'ip_address' => $request->ip(),
         ]);
 
@@ -312,7 +313,7 @@ class SettingsController extends Controller
 
         $validated = $request->validate([
             'name' => 'required|string|max:150',
-            'code' => 'nullable|string|max:50|unique:courses,code,' . $id,
+            'code' => 'nullable|string|max:50|unique:courses,code,'.$id,
         ]);
 
         $course->update([
@@ -326,7 +327,7 @@ class SettingsController extends Controller
             'action' => 'course.update',
             'entity_type' => 'course',
             'entity_id' => $course->id,
-            'description' => 'Updated course ' . $course->name,
+            'description' => 'Updated course '.$course->name,
             'ip_address' => $request->ip(),
         ]);
 
@@ -339,7 +340,7 @@ class SettingsController extends Controller
     public function toggleCourse(int $id): RedirectResponse
     {
         $course = Course::findOrFail($id);
-        $course->is_active = !$course->is_active;
+        $course->is_active = ! $course->is_active;
         $course->save();
 
         $action = $course->is_active ? 'Activated' : 'Deactivated';
@@ -350,11 +351,11 @@ class SettingsController extends Controller
             'action' => 'course.toggle_active',
             'entity_type' => 'course',
             'entity_id' => $course->id,
-            'description' => "{$action} course " . $course->name,
+            'description' => "{$action} course ".$course->name,
             'ip_address' => request()->ip(),
         ]);
 
-        return redirect()->back()->with('success', "Course status updated.");
+        return redirect()->back()->with('success', 'Course status updated.');
     }
 
     /**
@@ -362,7 +363,10 @@ class SettingsController extends Controller
      */
     public function destroyCourse(int $id): RedirectResponse
     {
+        abort_unless(Setting::enabled('feature_delete_enabled'), 403, 'Deleting records is currently disabled by an administrator.');
+
         Course::findOrFail($id)->delete();
+
         return redirect()->back()->with('success', 'Course removed.');
     }
 
@@ -387,6 +391,7 @@ class SettingsController extends Controller
     public function destroyStream(int $id): RedirectResponse
     {
         StreamDetail::findOrFail($id)->delete();
+
         return redirect()->back()->with('success', 'Stream division removed.');
     }
 
@@ -505,8 +510,8 @@ class SettingsController extends Controller
             $parts = explode('.', $k);
             $module = $parts[0] ?? null;
             if ($module && isset($groups[$module])) {
-                $viewKey = $module . '.view';
-                if (!in_array($viewKey, $keys, true)) {
+                $viewKey = $module.'.view';
+                if (! in_array($viewKey, $keys, true)) {
                     $keys[] = $viewKey;
                 }
             }
@@ -525,6 +530,7 @@ class SettingsController extends Controller
 
         $usersWithPages = $users->map(function ($u) use ($grants) {
             $u->pages = $grants->get($u->id, []);
+
             return $u;
         });
 
@@ -558,7 +564,7 @@ class SettingsController extends Controller
             'is_active' => true,
         ]);
 
-        if ($user->role === 'staff' && !empty($validated['pages'])) {
+        if ($user->role === 'staff' && ! empty($validated['pages'])) {
             $normalized = self::normalizePermissions($validated['pages']);
             $adminId = Auth::id();
             foreach ($normalized as $pageKey) {
@@ -577,7 +583,7 @@ class SettingsController extends Controller
             'action' => 'user.create',
             'entity_type' => 'user',
             'entity_id' => $user->id,
-            'description' => 'Created user ' . $user->username,
+            'description' => 'Created user '.$user->username,
             'ip_address' => $request->ip(),
         ]);
 
@@ -606,7 +612,7 @@ class SettingsController extends Controller
             'role' => $validated['role'],
         ];
 
-        if (!empty($validated['password'])) {
+        if (! empty($validated['password'])) {
             $data['password'] = Hash::make($validated['password']);
         }
 
@@ -636,7 +642,7 @@ class SettingsController extends Controller
             'action' => 'user.update',
             'entity_type' => 'user',
             'entity_id' => $user->id,
-            'description' => 'Updated user ' . $user->username,
+            'description' => 'Updated user '.$user->username,
             'ip_address' => $request->ip(),
         ]);
 
@@ -653,10 +659,11 @@ class SettingsController extends Controller
             return redirect()->back()->with('error', 'Cannot deactivate root administrator account.');
         }
 
-        $user->is_active = !$user->is_active;
+        $user->is_active = ! $user->is_active;
         $user->save();
 
         $action = $user->is_active ? 'activated' : 'deactivated';
+
         return redirect()->back()->with('success', "Account '{$user->username}' {$action}.");
     }
 
@@ -696,6 +703,7 @@ class SettingsController extends Controller
                     ]);
                 }
             }
+
             return redirect()->back()->with('success', 'Permissions updated.');
         }
 
@@ -726,7 +734,7 @@ class SettingsController extends Controller
             'action' => 'access_rights.update',
             'entity_type' => 'user_page_access',
             'entity_id' => $userId,
-            'description' => 'Updated page access for: ' . $user->username,
+            'description' => 'Updated page access for: '.$user->username,
             'ip_address' => $request->ip(),
         ]);
 
@@ -863,7 +871,7 @@ class SettingsController extends Controller
     public function backup(): Response
     {
         $history = BackupHistory::orderBy('id', 'desc')->take(50)->get();
-        $passwordConfigured = !empty(Setting::get('backup_password_hash', ''));
+        $passwordConfigured = ! empty(Setting::get('backup_password_hash', ''));
         $retentionCount = (int) Setting::get('backup_retention_count', '10');
 
         return Inertia::render('Settings/Backup', [
@@ -881,7 +889,7 @@ class SettingsController extends Controller
      */
     public function runBackupSql(Request $request): RedirectResponse
     {
-        $filename = 'backup_' . date('Y-m-d_His') . '.sql';
+        $filename = 'backup_'.date('Y-m-d_His').'.sql';
         BackupHistory::create([
             'filename' => $filename,
             'type' => 'sql',
@@ -894,7 +902,7 @@ class SettingsController extends Controller
             'user_id' => Auth::id(),
             'username' => Auth::user()?->username ?? 'staff',
             'action' => 'backup.sql',
-            'description' => 'Created SQL database backup ' . $filename,
+            'description' => 'Created SQL database backup '.$filename,
             'ip_address' => $request->ip(),
         ]);
 
@@ -906,7 +914,7 @@ class SettingsController extends Controller
      */
     public function runBackupExcel(Request $request): RedirectResponse
     {
-        $filename = 'reference_data_' . date('Y-m-d_His') . '.xlsx';
+        $filename = 'reference_data_'.date('Y-m-d_His').'.xlsx';
         BackupHistory::create([
             'filename' => $filename,
             'type' => 'excel',
@@ -919,7 +927,7 @@ class SettingsController extends Controller
             'user_id' => Auth::id(),
             'username' => Auth::user()?->username ?? 'staff',
             'action' => 'backup.excel',
-            'description' => 'Created Excel reference data backup ' . $filename,
+            'description' => 'Created Excel reference data backup '.$filename,
             'ip_address' => $request->ip(),
         ]);
 
@@ -983,7 +991,7 @@ class SettingsController extends Controller
         foreach ($mailKeys as $k => $default) {
             $mailSettings[$k] = Setting::get($k, $default);
         }
-        $mailSettings['password_configured'] = !empty(Setting::get('mail_smtp_password', ''));
+        $mailSettings['password_configured'] = ! empty(Setting::get('mail_smtp_password', ''));
 
         $emailTemplatesDef = [
             'university_reminder' => [
@@ -1090,11 +1098,10 @@ class SettingsController extends Controller
             'user_id' => Auth::id(),
             'username' => Auth::user()?->username ?? 'staff',
             'action' => 'mail.test_send',
-            'description' => 'Sent test email to ' . $validated['test_email'],
+            'description' => 'Sent test email to '.$validated['test_email'],
             'ip_address' => $request->ip(),
         ]);
 
         return redirect()->back()->with('success', "Test email sent to {$validated['test_email']}. Check your inbox.");
     }
 }
-

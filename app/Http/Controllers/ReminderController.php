@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Setting;
 use App\Models\StudentDetail;
 use App\Models\StudentReminder;
 use App\Models\UniversityReminderBatch;
@@ -236,6 +237,8 @@ class ReminderController extends Controller
      */
     public function studentDestroy(int $id): RedirectResponse
     {
+        abort_unless(Setting::enabled('feature_delete_enabled'), 403, 'Deleting records is currently disabled by an administrator.');
+
         $record = StudentReminder::findOrFail($id);
         $record->delete();
 

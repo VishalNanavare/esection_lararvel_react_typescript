@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Regularization;
+use App\Models\Setting;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -128,6 +129,8 @@ class RegularizationController extends Controller
      */
     public function destroy(int $id): RedirectResponse
     {
+        abort_unless(Setting::enabled('feature_delete_enabled'), 403, 'Deleting records is currently disabled by an administrator.');
+
         $record = Regularization::findOrFail($id);
         $record->delete();
 
@@ -143,7 +146,7 @@ class RegularizationController extends Controller
 
         $headers = [
             'Content-Type' => 'text/csv',
-            'Content-Disposition' => 'attachment; filename="regularization_history_' . date('Ymd_His') . '.csv"',
+            'Content-Disposition' => 'attachment; filename="regularization_history_'.date('Ymd_His').'.csv"',
         ];
 
         return response()->stream(function () use ($records) {
