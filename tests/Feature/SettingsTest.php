@@ -1,5 +1,6 @@
 <?php
 
+use App\Mail\RawHtmlMail;
 use App\Models\AcademicYear;
 use App\Models\Course;
 use App\Models\Setting;
@@ -8,6 +9,7 @@ use App\Models\User;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 
 beforeEach(function () {
     $this->admin = User::create([
@@ -232,4 +234,27 @@ test('backup password is stored reversibly encrypted, not one-way hashed', funct
 
     expect($stored)->not->toBe('BackupSecret123');
     expect(Crypt::decryptString($stored))->toBe('BackupSecret123');
+});
+
+test('test mail button actually attempts delivery', function () {
+    Mail::fake();
+    Setting::set('mail_smtp_host', 'smtp.example.com', 'mail', $this->admin->id);
+    Setting::set('mail_from_email', 'noreply@example.com', 'mail', $this->admin->id);
+
+    $response = $this->actingAs($this->admin)->post('/settings/mail/test', [
+        'test_email' => 'operator@example.com',
+    ]);
+
+    $response->assertRedirect();
+    $response->assertSessionHas('success');
+    Mail::assertSent(RawHtmlMail::class, fn ($mail) => $mail->hasTo('operator@example.com'));
+});
+
+test('test mail button reports failure when SMTP is not configured', function () {
+    $response = $this->actingAs($this->admin)->post('/settings/mail/test', [
+        'test_email' => 'operator@example.com',
+    ]);
+
+    $response->assertRedirect();
+    $response->assertSessionHas('error');
 });

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Mail\RawHtmlMail;
 use App\Models\AcademicYear;
 use App\Models\ActivityLog;
 use App\Models\BackupHistory;
@@ -15,6 +16,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -1115,6 +1117,23 @@ class SettingsController extends Controller
         $validated = $request->validate([
             'test_email' => 'required|email|max:255',
         ]);
+
+        if (! Setting::isMailConfigured()) {
+            return redirect()->back()->with('error', 'Set the SMTP server and "from" address first, then save, then send a test.');
+        }
+
+        try {
+            Setting::applyMailerConfig();
+
+            Mail::mailer(Setting::MAIL_MAILER_NAME)
+                ->to($validated['test_email'])
+                ->send(new RawHtmlMail(
+                    '<p>This is a test message from E-Section.</p><p>If you are reading it, your SMTP settings are working.</p>',
+                    'E-Section test email'
+                ));
+        } catch (\Throwable $e) {
+            return redirect()->back()->with('error', 'The test email could not be sent: '.mb_substr($e->getMessage(), 0, 500));
+        }
 
         ActivityLog::create([
             'user_id' => Auth::id(),
