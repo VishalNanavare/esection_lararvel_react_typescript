@@ -80,8 +80,6 @@ class BulkEmailController extends Controller
     private function deliver(string $to, string $toName, string $subject, string $htmlBody): array
     {
         try {
-            Setting::applyMailerConfig();
-
             Mail::mailer(Setting::MAIL_MAILER_NAME)
                 ->to($to, $toName ?: null)
                 ->send(new RawHtmlMail($htmlBody, $subject));
@@ -156,6 +154,8 @@ class BulkEmailController extends Controller
         if (! Setting::isMailConfigured()) {
             return redirect()->route('bulk-email.index')->with('error', 'Email is not configured yet. Set the SMTP server and "from" address in Settings > Email first.');
         }
+
+        Setting::applyMailerConfig();
 
         $batchRef = 'batch_'.date('Ymd_His').'_'.Str::random(4);
         $username = Auth::user()?->username ?? 'admin';
@@ -278,6 +278,8 @@ class BulkEmailController extends Controller
             return redirect()->back()->with('error', 'Email is not configured yet.');
         }
 
+        Setting::applyMailerConfig();
+
         $ok = $this->performRetry($log);
 
         return redirect()->back()->with(
@@ -297,6 +299,8 @@ class BulkEmailController extends Controller
         if (! Setting::isMailConfigured()) {
             return redirect()->back()->with('error', 'Email is not configured yet.');
         }
+
+        Setting::applyMailerConfig();
 
         $failed = EmailLog::where('status', 'failed')->orderBy('id')->take(self::MAX_RECIPIENTS)->get();
 
