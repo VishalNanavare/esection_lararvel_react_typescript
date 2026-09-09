@@ -4,6 +4,7 @@ use App\Models\ConfStudData;
 use App\Models\StudentDetail;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
+use PhpOffice\PhpSpreadsheet\IOFactory;
 
 beforeEach(function () {
     $this->user = User::create([
@@ -91,6 +92,34 @@ test('user can view confirmation history and batch detail', function () {
 
     $detailResponse = $this->actingAs($this->user)->get(route('confirmations.batch.detail', ['arraySpace' => '889900']));
     $detailResponse->assertOk();
+});
+
+test('pending list export includes students with no confirmation record yet', function () {
+    StudentDetail::create([
+        'array_space' => 'test_pending_1',
+        'student_name' => 'Pending Student',
+        'admission_taken_year' => '2025-26',
+        'admission_taken_in' => 'BA',
+        'clg_add' => 'University of Mumbai',
+        'eligibility_case_no' => 'CASE-0001',
+    ]);
+
+    $response = $this->actingAs($this->user)->get('/confirmations/export');
+    $response->assertOk();
+
+    $tmpFile = tempnam(sys_get_temp_dir(), 'xlsx');
+    file_put_contents($tmpFile, $response->streamedContent());
+    $spreadsheet = IOFactory::load($tmpFile);
+    $sheet = $spreadsheet->getActiveSheet();
+    $values = [];
+    foreach ($sheet->getRowIterator() as $row) {
+        foreach ($row->getCellIterator() as $cell) {
+            $values[] = (string) $cell->getValue();
+        }
+    }
+    unlink($tmpFile);
+
+    expect($values)->toContain('Pending Student');
 });
 
 test('user can delete a confirmation record', function () {

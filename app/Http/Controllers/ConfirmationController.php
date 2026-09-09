@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Models\AcademicYear;
 use App\Models\ActivityLog;
 use App\Models\ConfStudData;
-use App\Models\Setting;
 use App\Models\StreamDetail;
 use App\Models\StudentDetail;
 use Illuminate\Http\JsonResponse;
@@ -54,8 +53,8 @@ class ConfirmationController extends Controller
         if ($searchQuery !== '') {
             $query->where(function ($q) use ($searchQuery) {
                 $q->where('student_details.student_name', 'like', "%{$searchQuery}%")
-                  ->orWhere('student_details.eligibility_case_no', 'like', "%{$searchQuery}%")
-                  ->orWhere('student_details.clg_add', 'like', "%{$searchQuery}%");
+                    ->orWhere('student_details.eligibility_case_no', 'like', "%{$searchQuery}%")
+                    ->orWhere('student_details.clg_add', 'like', "%{$searchQuery}%");
             });
         }
 
@@ -136,7 +135,9 @@ class ConfirmationController extends Controller
 
             foreach ($pendingIds as $studentId) {
                 $student = $students->get($studentId);
-                if (!$student) continue;
+                if (! $student) {
+                    continue;
+                }
 
                 $check = $validated['checklist'][$studentId] ?? [];
 
@@ -191,7 +192,7 @@ class ConfirmationController extends Controller
 
             return response()->json([
                 'status' => 'error',
-                'message' => 'Failed to save confirmation: ' . $e->getMessage(),
+                'message' => 'Failed to save confirmation: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -217,8 +218,8 @@ class ConfirmationController extends Controller
         if ($search !== '') {
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('case_no', 'like', "%{$search}%")
-                  ->orWhere('uni_add', 'like', "%{$search}%");
+                    ->orWhere('case_no', 'like', "%{$search}%")
+                    ->orWhere('uni_add', 'like', "%{$search}%");
             });
         }
 
@@ -304,7 +305,7 @@ class ConfirmationController extends Controller
         $selectedStream = trim((string) $request->input('stream', ''));
 
         $query = StudentDetail::query()
-            ->join('conf_stud_data', 'student_details.id', '=', 'conf_stud_data.student_id')
+            ->leftJoin('conf_stud_data', 'student_details.id', '=', 'conf_stud_data.student_id')
             ->select(
                 'student_details.student_name',
                 'student_details.student_nee_name',
@@ -330,14 +331,14 @@ class ConfirmationController extends Controller
 
         $records = $query->orderBy('conf_stud_data.id', 'desc')->get();
 
-        $spreadsheet = new Spreadsheet();
+        $spreadsheet = new Spreadsheet;
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Confirmations');
 
         $headers = [
             'Candidate Name', 'Nee Name', 'Case No.', 'Target University',
             'Academic Year', 'Program', 'Mig / TC', 'Pass / Degree',
-            'Statement of Marks', 'DD No.', 'DD Amount', 'Bank Name', 'DD Date'
+            'Statement of Marks', 'DD No.', 'DD Amount', 'Bank Name', 'DD Date',
         ];
         $sheet->fromArray($headers, null, 'A1');
 
@@ -360,7 +361,7 @@ class ConfirmationController extends Controller
             ];
         }
 
-        if (!empty($rows)) {
+        if (! empty($rows)) {
             $sheet->fromArray($rows, null, 'A2');
         }
 
@@ -368,7 +369,7 @@ class ConfirmationController extends Controller
             $sheet->getColumnDimension($col)->setAutoSize(true);
         }
 
-        $filename = 'confirmations_' . date('Ymd_His') . '.xlsx';
+        $filename = 'confirmations_'.date('Ymd_His').'.xlsx';
 
         return response()->streamDownload(function () use ($spreadsheet) {
             $writer = new Xlsx($spreadsheet);

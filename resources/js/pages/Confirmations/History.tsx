@@ -4,10 +4,10 @@ import { AppLayout } from '../../components/AppLayout';
 
 interface ConfBatchSummary {
     array_space: string;
-    clg_name: string;
-    course: string;
+    uni_add: string;
+    stream: string;
     en_time: string;
-    en_user: string;
+    en_by: string;
     dd_no: string | null;
     dd_amount: string | null;
     student_count: number;
@@ -154,12 +154,12 @@ export const History: React.FC<HistoryProps> = ({ batches, filters }) => {
                                                 </td>
                                                 <td>
                                                     <div className="fw-semibold text-dark text-truncate" style={{ maxWidth: '250px' }}>
-                                                        {b.clg_name}
+                                                        {b.uni_add}
                                                     </div>
                                                 </td>
                                                 <td>
                                                     <span className="badge badge-glass-indigo">
-                                                        {b.course}
+                                                        {b.stream}
                                                     </span>
                                                 </td>
                                                 <td>
@@ -177,7 +177,7 @@ export const History: React.FC<HistoryProps> = ({ batches, filters }) => {
                                                         {b.student_count} Confirmed
                                                     </span>
                                                 </td>
-                                                <td className="small text-muted">{b.en_user || 'Staff'}</td>
+                                                <td className="small text-muted">{b.en_by || 'Staff'}</td>
                                                 <td className="small font-monospace text-muted">{b.en_time}</td>
                                                 <td className="text-end">
                                                     <Link

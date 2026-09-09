@@ -9,9 +9,9 @@ interface ConfRecord {
     student_id: number;
     case_no: string;
     name: string;
-    course: string;
-    clg_name: string;
-    mig_tc: string;
+    stream: string;
+    uni_add: string;
+    mig_TC: string;
     p_degree: string;
     s_marks: string;
     letter_no_date: string | null;
@@ -25,7 +25,7 @@ interface ConfRecord {
     bank_name: string | null;
     dd_date: string | null;
     en_time: string;
-    en_user: string;
+    en_by: string;
 }
 
 interface BatchDetailProps {
@@ -85,9 +85,9 @@ export const BatchDetail: React.FC<BatchDetailProps> = ({ arraySpace, confirmati
                                     Confirmation Batch <span className="text-indigo">#{arraySpace}</span>
                                 </h3>
                                 <div className="text-muted small">
-                                    <strong>University:</strong> {firstRecord?.clg_name || 'N/A'} |{' '}
-                                    <strong>Program:</strong> {firstRecord?.course || 'N/A'} |{' '}
-                                    <strong>Operator:</strong> {firstRecord?.en_user || 'Staff'}
+                                    <strong>University:</strong> {firstRecord?.uni_add || 'N/A'} |{' '}
+                                    <strong>Program:</strong> {firstRecord?.stream || 'N/A'} |{' '}
+                                    <strong>Operator:</strong> {firstRecord?.en_by || 'Staff'}
                                 </div>
                             </div>
                             <div className="d-flex align-items-center gap-2">
@@ -161,8 +161,8 @@ export const BatchDetail: React.FC<BatchDetailProps> = ({ arraySpace, confirmati
                                                     </span>
                                                 </td>
                                                 <td className="text-center">
-                                                    <span className={`badge ${c.mig_tc === 'Yes' ? 'badge-glass-emerald' : 'badge-glass-rose'}`}>
-                                                        {c.mig_tc}
+                                                    <span className={`badge ${c.mig_TC === 'Yes' ? 'badge-glass-emerald' : 'badge-glass-rose'}`}>
+                                                        {c.mig_TC}
                                                     </span>
                                                 </td>
                                                 <td className="text-center">
