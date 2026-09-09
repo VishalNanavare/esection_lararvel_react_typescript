@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Head, router, Link } from '@inertiajs/react';
+import { Head, router, Link, usePage } from '@inertiajs/react';
 import { AppLayout } from '../../components/AppLayout';
+import { SharedProps } from '../../types';
 import Swal from 'sweetalert2';
 
 interface AcademicYear {
@@ -14,6 +15,9 @@ interface Props {
 }
 
 export default function AcademicYears({ years }: Props) {
+    const { props } = usePage<SharedProps>();
+    const canDelete = props.features.delete;
+
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [editId, setEditId] = useState<number | null>(null);
@@ -199,7 +203,7 @@ export default function AcademicYears({ years }: Props) {
                                                 >
                                                     <i className="fa fa-edit"></i> Edit
                                                 </button>
-                                                {!y.is_current && (
+                                                {!y.is_current && canDelete && (
                                                     <button
                                                         type="button"
                                                         onClick={() => handleDelete(y.id, y.year_label)}

@@ -115,6 +115,15 @@ test('admin can create, activate and delete academic years', function () {
     $this->assertDatabaseMissing('academic_years', ['id' => $year->id]);
 });
 
+test('academic years page shares features.delete for the delete-button gate', function () {
+    Setting::set('feature_delete_enabled', '0', 'feature', $this->admin->id);
+
+    $response = $this->actingAs($this->admin)->get('/settings/academic-years');
+
+    $response->assertOk();
+    $response->assertInertia(fn ($page) => $page->where('features.delete', false));
+});
+
 test('admin can manage courses and stream divisions', function () {
     $this->actingAs($this->admin)->post('/settings/courses', [
         'name' => 'Master of Science (Data Science)',
