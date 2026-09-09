@@ -1,12 +1,12 @@
 <?php
 
 use App\Models\AcademicYear;
-use App\Models\AccessPage;
 use App\Models\Course;
 use App\Models\Setting;
 use App\Models\StreamDetail;
 use App\Models\User;
-use App\Models\UserPageAccess;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Hash;
 
 beforeEach(function () {
@@ -50,8 +50,8 @@ test('admin can update institute details', function () {
 });
 
 test('admin can upload valid letterhead and logo', function () {
-    $letterhead = \Illuminate\Http\UploadedFile::fake()->image('header.png', 1486, 368);
-    $logo = \Illuminate\Http\UploadedFile::fake()->image('seal.png', 300, 300);
+    $letterhead = UploadedFile::fake()->image('header.png', 1486, 368);
+    $logo = UploadedFile::fake()->image('seal.png', 300, 300);
 
     $response = $this->actingAs($this->admin)->post('/settings/institute', [
         'institute_name' => 'IDOL University of Mumbai',
@@ -75,7 +75,7 @@ test('admin can upload valid letterhead and logo', function () {
 });
 
 test('letterhead with invalid dimensions is rejected', function () {
-    $badLetterhead = \Illuminate\Http\UploadedFile::fake()->image('bad.png', 800, 600);
+    $badLetterhead = UploadedFile::fake()->image('bad.png', 800, 600);
 
     $response = $this->actingAs($this->admin)->post('/settings/institute', [
         'institute_name' => 'IDOL University of Mumbai',
@@ -192,4 +192,35 @@ test('admin can manage access rights matrix', function () {
 
 test('admin can view activity audit log', function () {
     $this->actingAs($this->admin)->get('/settings/activity-log')->assertOk();
+});
+
+test('SMTP password is stored encrypted, not in plaintext', function () {
+    $this->actingAs($this->admin)->post('/settings/mail', [
+        'mail_smtp_host' => 'smtp.example.com',
+        'mail_smtp_port' => '587',
+        'mail_smtp_user' => 'user@example.com',
+        'mail_smtp_password' => 'SuperSecret123',
+        'mail_smtp_crypto' => 'tls',
+        'mail_from_email' => 'noreply@example.com',
+        'mail_from_name' => 'E Section',
+        'mail_batch_size' => '25',
+        'mail_batch_pause' => '5',
+    ]);
+
+    $stored = Setting::get('mail_smtp_password');
+
+    expect($stored)->not->toBe('SuperSecret123');
+    expect(Crypt::decryptString($stored))->toBe('SuperSecret123');
+});
+
+test('backup password is stored reversibly encrypted, not one-way hashed', function () {
+    $this->actingAs($this->admin)->post('/settings/backup/password', [
+        'backup_password' => 'BackupSecret123',
+        'backup_password_confirm' => 'BackupSecret123',
+    ]);
+
+    $stored = Setting::get('backup_password');
+
+    expect($stored)->not->toBe('BackupSecret123');
+    expect(Crypt::decryptString($stored))->toBe('BackupSecret123');
 });

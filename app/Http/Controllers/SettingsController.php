@@ -13,6 +13,7 @@ use App\Models\UserPageAccess;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Hash;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -880,7 +881,7 @@ class SettingsController extends Controller
     public function backup(): Response
     {
         $history = BackupHistory::orderBy('id', 'desc')->take(50)->get();
-        $passwordConfigured = ! empty(Setting::get('backup_password_hash', ''));
+        $passwordConfigured = ! empty(Setting::get('backup_password', ''));
         $retentionCount = (int) Setting::get('backup_retention_count', '10');
 
         return Inertia::render('Settings/Backup', [
@@ -953,7 +954,7 @@ class SettingsController extends Controller
             'backup_password_confirm' => 'required|same:backup_password',
         ]);
 
-        Setting::set('backup_password_hash', Hash::make($validated['backup_password']), 'backup', Auth::id());
+        Setting::set('backup_password', Crypt::encryptString($validated['backup_password']), 'backup', Auth::id());
 
         ActivityLog::create([
             'user_id' => Auth::id(),
@@ -1060,8 +1061,11 @@ class SettingsController extends Controller
 
         $userId = Auth::id();
         foreach ($validated as $k => $v) {
-            if ($k === 'mail_smtp_password' && empty($v)) {
-                continue;
+            if ($k === 'mail_smtp_password') {
+                if (empty($v)) {
+                    continue;
+                }
+                $v = Crypt::encryptString((string) $v);
             }
             Setting::set($k, (string) $v, 'mail', $userId);
         }
