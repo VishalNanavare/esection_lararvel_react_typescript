@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Setting;
 use App\Models\StudentDetail;
 use App\Models\StudentReminder;
 use App\Models\UniversityReminderBatch;
@@ -140,4 +141,13 @@ test('staff can store and view candidate direct document reminders', function ()
     // Delete
     $this->actingAs($this->user)->delete("/reminders/student/{$reminder->id}")->assertRedirect();
     $this->assertDatabaseMissing('student_reminders', ['id' => $reminder->id]);
+});
+
+test('candidate reminder history does not expose delete when feature_delete_enabled is off', function () {
+    Setting::set('feature_delete_enabled', '0', 'feature', $this->user->id);
+
+    $response = $this->actingAs($this->user)->get('/reminders/student/history');
+
+    $response->assertOk();
+    $response->assertInertia(fn ($page) => $page->where('features.delete', false));
 });

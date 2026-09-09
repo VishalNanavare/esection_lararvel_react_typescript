@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Head, router, Link } from '@inertiajs/react';
+import { Head, router, Link, usePage } from '@inertiajs/react';
 import { AppLayout } from '../../components/AppLayout';
+import { SharedProps } from '../../types';
 import Swal from 'sweetalert2';
 
 interface StudentReminderRecord {
@@ -36,6 +37,9 @@ interface Props {
 }
 
 export default function StudentHistory({ records, filters }: Props) {
+    const { props } = usePage<SharedProps>();
+    const canDelete = props.features.delete;
+
     const [search, setSearch] = useState(filters.search || '');
 
     const handleSearch = (e: React.FormEvent) => {
@@ -171,14 +175,16 @@ export default function StudentHistory({ records, filters }: Props) {
                                                         >
                                                             <i className="fa fa-print"></i> Print
                                                         </a>
-                                                        <button
-                                                            type="button"
-                                                            className="btn btn-sm btn-glass text-danger"
-                                                            onClick={() => handleDelete(r.id, r.student_name)}
-                                                            title="Delete"
-                                                        >
-                                                            <i className="fa fa-trash"></i>
-                                                        </button>
+                                                        {canDelete && (
+                                                            <button
+                                                                type="button"
+                                                                className="btn btn-sm btn-glass text-danger"
+                                                                onClick={() => handleDelete(r.id, r.student_name)}
+                                                                title="Delete"
+                                                            >
+                                                                <i className="fa fa-trash"></i>
+                                                            </button>
+                                                        )}
                                                     </td>
                                                 </tr>
                                             );

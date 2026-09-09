@@ -12,8 +12,8 @@ interface BatchDetailProps {
 
 export const BatchDetail: React.FC<BatchDetailProps> = ({ arraySpace, students }) => {
     const { props } = usePage<SharedProps>();
-    const { features, auth } = props;
-    const canDelete = features.delete || auth.user?.role === 'admin';
+    const { features } = props;
+    const canDelete = features.delete;
 
     const [editingStudent, setEditingStudent] = useState<Student | null>(null);
     const [editName, setEditName] = useState('');

@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Regularization;
+use App\Models\Setting;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 
@@ -75,4 +76,19 @@ test('can delete regularization record', function () {
     $response = $this->actingAs($this->user)->delete("/regularization/{$record->id}");
     $response->assertRedirect();
     $this->assertDatabaseMissing('regularizations', ['id' => $record->id]);
+});
+
+test('history page does not expose delete when feature_delete_enabled is off', function () {
+    Setting::set('feature_delete_enabled', '0', 'feature', $this->user->id);
+
+    Regularization::create([
+        'student_name' => 'Toggle UI Test',
+        'gender' => 'Mr.',
+        'admission_letter_for' => 'The Controller of Examinations',
+    ]);
+
+    $response = $this->actingAs($this->user)->get('/regularization/history');
+
+    $response->assertOk();
+    $response->assertInertia(fn ($page) => $page->where('features.delete', false));
 });
