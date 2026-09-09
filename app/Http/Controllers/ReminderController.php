@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\CollegeDetail;
 use App\Models\StudentDetail;
 use App\Models\StudentReminder;
 use App\Models\UniversityReminderBatch;
@@ -10,6 +9,7 @@ use App\Models\UniversityReminderNote;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -50,6 +50,7 @@ class ReminderController extends Controller
         // Attach note counts
         $students->getCollection()->transform(function ($item) use ($noteCounts) {
             $item->reminder_note_count = $noteCounts[$item->id] ?? 0;
+
             return $item;
         });
 
@@ -250,7 +251,7 @@ class ReminderController extends Controller
 
         $headers = [
             'Content-Type' => 'text/csv',
-            'Content-Disposition' => 'attachment; filename="candidate_reminders_' . date('Ymd_His') . '.csv"',
+            'Content-Disposition' => 'attachment; filename="candidate_reminders_'.date('Ymd_His').'.csv"',
         ];
 
         return response()->stream(function () use ($records) {
@@ -302,7 +303,7 @@ class ReminderController extends Controller
 
         $headers = [
             'Content-Type' => 'text/csv',
-            'Content-Disposition' => 'attachment; filename="reminders_university_' . date('Ymd_His') . '.csv"',
+            'Content-Disposition' => 'attachment; filename="reminders_university_'.date('Ymd_His').'.csv"',
         ];
 
         return response()->stream(function () use ($students, $noteCounts) {
@@ -329,7 +330,9 @@ class ReminderController extends Controller
     public function universityHistoryExport(Request $request): StreamedResponse
     {
         $search = trim((string) $request->input('search', ''));
-        $query = UniversityReminderBatch::withCount('students');
+        $query = UniversityReminderBatch::withCount(['notes as candidate_count' => function ($q) {
+            $q->select(DB::raw('COUNT(DISTINCT student_id)'));
+        }]);
 
         if ($search !== '') {
             $query->where('university_name', 'like', "%{$search}%")
@@ -340,7 +343,7 @@ class ReminderController extends Controller
 
         $headers = [
             'Content-Type' => 'text/csv',
-            'Content-Disposition' => 'attachment; filename="reminders_university_history_' . date('Ymd_His') . '.csv"',
+            'Content-Disposition' => 'attachment; filename="reminders_university_history_'.date('Ymd_His').'.csv"',
         ];
 
         return response()->stream(function () use ($batches) {
@@ -352,7 +355,7 @@ class ReminderController extends Controller
                     $b->university_name,
                     $b->academic_year,
                     $b->admission_taken_in ?: '-',
-                    $b->students_count,
+                    $b->candidate_count,
                     $b->created_at ? $b->created_at->format('d/m/Y H:i') : '-',
                 ]);
             }

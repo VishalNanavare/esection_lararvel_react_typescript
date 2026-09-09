@@ -86,6 +86,38 @@ test('staff can view university reminder batches history and batch detail', func
     $this->actingAs($this->user)->get("/reminders/university/batches/{$batch->id}")->assertOk();
 });
 
+test('university reminder history export does not crash and reports distinct candidate counts', function () {
+    $batch = UniversityReminderBatch::create([
+        'academic_year' => '2025-26',
+        'university_name' => 'University of Mumbai',
+        'admission_taken_in' => 'BA',
+        'head_name' => 'The Controller of Examinations',
+        'created_by' => 'esection1',
+    ]);
+
+    // Two notes for the same student (a 1st and 2nd reminder) plus one for a different student.
+    UniversityReminderNote::create([
+        'batch_id' => $batch->id, 'student_id' => 1, 'note_text' => '1st Reminder',
+        'note_date' => now()->toDateString(), 'created_by' => 'esection1', 'created_at' => now(),
+    ]);
+    UniversityReminderNote::create([
+        'batch_id' => $batch->id, 'student_id' => 1, 'note_text' => '2nd Reminder',
+        'note_date' => now()->toDateString(), 'created_by' => 'esection1', 'created_at' => now(),
+    ]);
+    UniversityReminderNote::create([
+        'batch_id' => $batch->id, 'student_id' => 2, 'note_text' => '1st Reminder',
+        'note_date' => now()->toDateString(), 'created_by' => 'esection1', 'created_at' => now(),
+    ]);
+
+    $response = $this->actingAs($this->user)->get('/reminders/university/history/export');
+
+    $response->assertOk();
+    $csv = $response->streamedContent();
+    expect($csv)->toContain('University of Mumbai');
+    // 2 distinct students, not 3 notes.
+    expect($csv)->toContain(',2,');
+});
+
 test('staff can store and view candidate direct document reminders', function () {
     $response = $this->actingAs($this->user)->post('/reminders/student', [
         'student_name' => 'Sunil Joshi',
