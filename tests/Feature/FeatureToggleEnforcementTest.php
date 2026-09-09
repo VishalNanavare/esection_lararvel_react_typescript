@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\ConfStudData;
 use App\Models\Regularization;
 use App\Models\Setting;
 use App\Models\StudentDetail;
@@ -62,4 +63,36 @@ test('deleting a regularization record is blocked when the toggle is off', funct
 
     $response->assertStatus(403);
     expect(Regularization::find($record->id))->not->toBeNull();
+});
+
+test('deleting a confirmation record is blocked when the toggle is off', function () {
+    Setting::set('feature_delete_enabled', '0', 'feature', $this->admin->id);
+
+    $student = StudentDetail::create([
+        'array_space' => 'toggle_test_conf_1',
+        'student_name' => 'Confirmation Delete Me',
+        'admission_taken_year' => '2025-26',
+        'admission_taken_in' => 'BA',
+        'clg_add' => 'University of Mumbai',
+        'eligibility_case_no' => 'CASE-0004',
+    ]);
+
+    $confirmation = ConfStudData::create([
+        'student_id' => $student->id,
+        'case_no' => $student->eligibility_case_no,
+        'name' => $student->student_name,
+        'stream' => $student->admission_taken_in,
+        'uni_add' => $student->clg_add,
+        'mig_TC' => 'Yes',
+        'p_degree' => 'Yes',
+        's_marks' => 'Yes',
+        'array_space' => 'toggle_conf_batch_1',
+        'en_time' => now(),
+        'en_by' => $this->admin->username,
+    ]);
+
+    $response = $this->actingAs($this->admin)->deleteJson(route('confirmations.destroy', ['id' => $confirmation->id]));
+
+    $response->assertStatus(403);
+    expect(ConfStudData::find($confirmation->id))->not->toBeNull();
 });

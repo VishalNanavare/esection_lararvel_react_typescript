@@ -122,6 +122,41 @@ test('pending list export includes students with no confirmation record yet', fu
     expect($values)->toContain('Pending Student');
 });
 
+test('export includes the Mig / TC value for a confirmed candidate', function () {
+    ConfStudData::create([
+        'student_id' => $this->student->id,
+        'case_no' => $this->student->eligibility_case_no,
+        'name' => $this->student->student_name,
+        'stream' => $this->student->admission_taken_in,
+        'uni_add' => $this->student->clg_add,
+        'mig_TC' => 'Yes',
+        'p_degree' => 'No',
+        's_marks' => 'Yes',
+        'array_space' => 'mig_tc_export_batch',
+        'en_time' => now(),
+        'en_by' => 'confirm_staff',
+    ]);
+
+    $response = $this->actingAs($this->user)->get('/confirmations/export');
+    $response->assertOk();
+
+    $tmpFile = tempnam(sys_get_temp_dir(), 'xlsx');
+    file_put_contents($tmpFile, $response->streamedContent());
+    $spreadsheet = IOFactory::load($tmpFile);
+    $sheet = $spreadsheet->getActiveSheet();
+    $rows = $sheet->toArray();
+    unlink($tmpFile);
+
+    $headerRow = $rows[0];
+    $migTcColumn = array_search('Mig / TC', $headerRow, true);
+    $caseNoColumn = array_search('Case No.', $headerRow, true);
+
+    $dataRow = collect($rows)->first(fn ($row) => $row[$caseNoColumn] === $this->student->eligibility_case_no);
+
+    expect($dataRow)->not->toBeNull();
+    expect($dataRow[$migTcColumn])->toBe('Yes');
+});
+
 test('user can delete a confirmation record', function () {
     $conf = ConfStudData::create([
         'student_id' => $this->student->id,

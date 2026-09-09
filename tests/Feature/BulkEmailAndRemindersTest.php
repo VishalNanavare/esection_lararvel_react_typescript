@@ -5,7 +5,7 @@ use Illuminate\Support\Facades\Hash;
 
 beforeEach(function () {
     $this->admin = User::create([
-        'username' => 'admin_test_reminder_' . uniqid(),
+        'username' => 'admin_test_reminder_'.uniqid(),
         'full_name' => 'System Administrator',
         'password' => Hash::make('secret123'),
         'role' => 'admin',
@@ -56,4 +56,21 @@ test('bulk email compose and logs screens are accessible by admin', function () 
 
     $logRes = $this->actingAs($this->admin)->get('/bulk-email/log');
     $logRes->assertStatus(200);
+});
+
+test('bulk email module is blocked for non-admin staff', function () {
+    $staff = User::create([
+        'username' => 'bulk_email_staff_'.uniqid(),
+        'full_name' => 'Non-Admin Staff',
+        'password' => Hash::make('secret123'),
+        'role' => 'staff',
+        'is_active' => true,
+    ]);
+
+    $response = $this->actingAs($staff)->get('/bulk-email');
+    $response->assertRedirect(route('dashboard'));
+    $response->assertSessionHas('error');
+
+    $logRes = $this->actingAs($staff)->get('/bulk-email/log');
+    $logRes->assertRedirect(route('dashboard'));
 });

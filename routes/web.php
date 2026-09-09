@@ -43,7 +43,7 @@ Route::middleware('auth')->group(function () {
     | Student Verification & Batch Entry
     |--------------------------------------------------------------------------
     */
-    Route::get('/students/new', [StudentController::class, 'newForm'])->name('students.new')->middleware('access:students.view');
+    Route::get('/students/new', [StudentController::class, 'newForm'])->name('students.new')->middleware('access:students.create');
     Route::post('/students/batch', [StudentController::class, 'storeBatch'])->name('students.batch.store')->middleware('access:students.create');
     Route::get('/students/history', [StudentController::class, 'history'])->name('students.history')->middleware('access:students.view');
     Route::get('/students/history/export', [StudentController::class, 'exportHistory'])->name('students.history.export')->middleware('access:students.export');
@@ -53,7 +53,7 @@ Route::middleware('auth')->group(function () {
     Route::delete('/students/{id}', [StudentController::class, 'destroy'])->name('students.destroy')->middleware('access:students.delete');
     Route::get('/students/import', [StudentController::class, 'importForm'])->name('students.import')->middleware('access:students.import');
     Route::post('/students/read-candidate-sheet', [StudentController::class, 'readCandidateSheet'])->name('students.read.sheet')->middleware('access:students.import');
-    Route::post('/students/new/readSheet', [StudentController::class, 'readCandidateSheet'])->middleware('access:students.import');
+    Route::post('/students/new/readSheet', [StudentController::class, 'readCandidateSheet'])->middleware('access:students.create');
 
     /*
     |--------------------------------------------------------------------------
@@ -83,7 +83,7 @@ Route::middleware('auth')->group(function () {
     | Student Eligibility Regularization
     |--------------------------------------------------------------------------
     */
-    Route::get('/regularization', [RegularizationController::class, 'index'])->name('regularization.index')->middleware('access:regularization.view');
+    Route::get('/regularization', [RegularizationController::class, 'index'])->name('regularization.index')->middleware('access:regularization.create');
     Route::post('/regularization', [RegularizationController::class, 'store'])->name('regularization.store')->middleware('access:regularization.create');
     Route::get('/regularization/history', [RegularizationController::class, 'history'])->name('regularization.history')->middleware('access:regularization.view');
     Route::get('/regularization/export', [RegularizationController::class, 'export'])->name('regularization.export')->middleware('access:regularization.export');
@@ -116,11 +116,13 @@ Route::middleware('auth')->group(function () {
     | Bulk Email Dispatch & Send Logs
     |--------------------------------------------------------------------------
     */
-    Route::get('/bulk-email', [BulkEmailController::class, 'index'])->name('bulk-email.index');
-    Route::post('/bulk-email/send', [BulkEmailController::class, 'send'])->name('bulk-email.send');
-    Route::get('/bulk-email/log', [BulkEmailController::class, 'log'])->name('bulk-email.log');
-    Route::post('/bulk-email/retry/{id}', [BulkEmailController::class, 'retry'])->name('bulk-email.retry');
-    Route::post('/bulk-email/retry-all', [BulkEmailController::class, 'retryAll'])->name('bulk-email.retry-all');
+    Route::middleware('admin')->group(function () {
+        Route::get('/bulk-email', [BulkEmailController::class, 'index'])->name('bulk-email.index');
+        Route::post('/bulk-email/send', [BulkEmailController::class, 'send'])->name('bulk-email.send');
+        Route::get('/bulk-email/log', [BulkEmailController::class, 'log'])->name('bulk-email.log');
+        Route::post('/bulk-email/retry/{id}', [BulkEmailController::class, 'retry'])->name('bulk-email.retry');
+        Route::post('/bulk-email/retry-all', [BulkEmailController::class, 'retryAll'])->name('bulk-email.retry-all');
+    });
 
     /*
     |--------------------------------------------------------------------------

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\AcademicYear;
 use App\Models\ActivityLog;
 use App\Models\ConfStudData;
+use App\Models\Setting;
 use App\Models\StreamDetail;
 use App\Models\StudentDetail;
 use Illuminate\Http\JsonResponse;
@@ -283,6 +284,8 @@ class ConfirmationController extends Controller
      */
     public function destroy(int $id): JsonResponse|RedirectResponse
     {
+        abort_unless(Setting::enabled('feature_delete_enabled'), 403, 'Deleting records is currently disabled by an administrator.');
+
         $record = ConfStudData::findOrFail($id);
         $caseNo = $record->case_no;
         $record->delete();
@@ -351,7 +354,7 @@ class ConfirmationController extends Controller
                 $r->clg_add,
                 $r->admission_taken_year,
                 $r->admission_taken_in,
-                $r->mig_tc,
+                $r->mig_TC,
                 $r->p_degree,
                 $r->s_marks,
                 $r->dd_no,

@@ -5,6 +5,7 @@ use App\Models\CollegeDetail;
 use App\Models\StreamDetail;
 use App\Models\StudentDetail;
 use App\Models\User;
+use App\Models\UserPageAccess;
 use Illuminate\Support\Facades\Hash;
 
 beforeEach(function () {
@@ -40,6 +41,30 @@ beforeEach(function () {
 test('user can view the new student form', function () {
     $response = $this->actingAs($this->user)->get(route('students.new'));
     $response->assertOk();
+});
+
+test('staff with students.create (not students.import) can use the New Batch Entry inline Excel-fill picker', function () {
+    $staff = User::create([
+        'username' => 'batch_entry_staff',
+        'full_name' => 'Batch Entry Staff',
+        'password' => Hash::make('secret123'),
+        'role' => 'staff',
+        'is_active' => true,
+    ]);
+
+    UserPageAccess::create([
+        'user_id' => $staff->id,
+        'page_key' => 'students.create',
+        'granted_by' => $staff->id,
+        'granted_at' => now(),
+    ]);
+
+    // No file attached: a 403 would mean access:students.import blocked the request
+    // before reaching validation; a 422 proves the students.create permission let it through.
+    $response = $this->actingAs($staff)->postJson('/students/new/readSheet', []);
+
+    $response->assertStatus(422);
+    $response->assertJsonValidationErrors('candidate_sheet');
 });
 
 test('user can get next case number via API', function () {
