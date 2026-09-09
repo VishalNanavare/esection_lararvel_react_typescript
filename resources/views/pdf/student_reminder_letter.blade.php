@@ -42,7 +42,7 @@
     </div>
 
     <div class="subject">
-        Subject: {{ $subject ?? 'Reminder for submission of pending eligibility verification documents' }}
+        Subject: {!! $subject ?? 'Reminder for submission of pending eligibility verification documents' !!}
     </div>
 
     <div>

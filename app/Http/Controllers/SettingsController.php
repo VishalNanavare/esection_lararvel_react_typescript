@@ -754,11 +754,12 @@ class SettingsController extends Controller
     }
 
     /**
-     * Letter Templates screen.
+     * Letter template definitions: slug => label/tokens/default text.
+     * Shared with PdfController so admin edits actually reach the PDFs.
      */
-    public function letterTemplates(): Response
+    public static function getLetterTemplateDefinitions(): array
     {
-        $definitions = [
+        return [
             'dispatch' => [
                 'label' => 'Eligibility Verification Dispatch Letter',
                 'tokens' => ['course', 'academic_year'],
@@ -802,6 +803,14 @@ class SettingsController extends Controller
                 'default_closing' => '',
             ],
         ];
+    }
+
+    /**
+     * Letter Templates screen.
+     */
+    public function letterTemplates(): Response
+    {
+        $definitions = self::getLetterTemplateDefinitions();
 
         $templates = [];
         foreach ($definitions as $slug => $def) {

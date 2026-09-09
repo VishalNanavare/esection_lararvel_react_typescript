@@ -63,7 +63,7 @@
     </div>
 
     <div class="subject">
-        Subject: {{ $subject ?? 'Eligibility confirmation reports of students admitted to IDOL' }}
+        Subject: {!! $subject ?? 'Eligibility confirmation reports of students admitted to IDOL' !!}
     </div>
 
     <div class="content">

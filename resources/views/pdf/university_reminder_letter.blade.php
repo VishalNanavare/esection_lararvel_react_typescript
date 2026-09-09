@@ -44,7 +44,7 @@
     </div>
 
     <div class="subject">
-        Subject: {{ $subject ?? "REMINDER: Verification of Marksheet / Passing Certificate ({$batch->admission_taken_in})" }}
+        Subject: {!! $subject ?? "REMINDER: Verification of Marksheet / Passing Certificate ({$batch->admission_taken_in})" !!}
     </div>
 
     <div>

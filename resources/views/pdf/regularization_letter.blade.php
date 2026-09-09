@@ -41,7 +41,7 @@
     </div>
 
     <div class="subject">
-        Subject: {{ $subject ?? 'Eligibility Regularization of student admitted to IDOL' }}
+        Subject: {!! $subject ?? 'Eligibility Regularization of student admitted to IDOL' !!}
     </div>
 
     @if (!empty($record->admission_letter_for))

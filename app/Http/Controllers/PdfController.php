@@ -24,14 +24,49 @@ class PdfController extends Controller
         return [
             'instituteUniversityTitle' => $settings['institute_university_title'] ?? 'UNIVERSITY OF MUMBAI',
             'instituteName' => $settings['institute_name'] ?? 'INSTITUTE OF DISTANCE AND OPEN LEARNING (IDOL)',
-            'instituteAddress' => $settings['institute_address'] ?? "Dr. Shankar Dayal Sharma Bhavan, Vidyanagari, Santacruz (E), Mumbai - 400 098.",
+            'instituteAddress' => $settings['institute_address'] ?? 'Dr. Shankar Dayal Sharma Bhavan, Vidyanagari, Santacruz (E), Mumbai - 400 098.',
             'instituteSignatoryName' => $settings['institute_signatory_name'] ?? ($settings['signatory_name'] ?? ''),
             'instituteSignatoryDesignation' => $settings['institute_signatory_designation'] ?? ($settings['signatory_designation'] ?? 'Deputy Registrar / Assistant Registrar'),
-            'instituteSignatureSpaceLines' => !empty($settings['institute_signature_space_lines']) ? (int) $settings['institute_signature_space_lines'] : 3,
-            'instituteLogoPath' => !empty($settings['institute_logo_path']) ? public_path($settings['institute_logo_path']) : null,
-            'instituteLetterheadPath' => !empty($settings['institute_letterhead_path']) ? public_path($settings['institute_letterhead_path']) : null,
+            'instituteSignatureSpaceLines' => ! empty($settings['institute_signature_space_lines']) ? (int) $settings['institute_signature_space_lines'] : 3,
+            'instituteLogoPath' => ! empty($settings['institute_logo_path']) ? public_path($settings['institute_logo_path']) : null,
+            'instituteLetterheadPath' => ! empty($settings['institute_letterhead_path']) ? public_path($settings['institute_letterhead_path']) : null,
             'footerDepartment' => $settings['footer_department'] ?? 'IDOL Eligibility Section',
         ];
+    }
+
+    /**
+     * Renders a letter-template slug's subject/body/closing, substituting
+     * {token} placeholders with bolded, escaped values — mirrors
+     * esection_ci4's LetterTemplateService::render() exactly: escape first,
+     * then substitute, on all three fields including the subject line.
+     */
+    private function renderLetterTemplate(string $slug, array $tokenValues): array
+    {
+        $definitions = SettingsController::getLetterTemplateDefinitions();
+        $def = $definitions[$slug] ?? [
+            'default_subject' => '',
+            'default_body' => '',
+            'default_closing' => '',
+        ];
+
+        $fields = [
+            'subject' => Setting::get("letter_{$slug}_subject", $def['default_subject']),
+            'body' => Setting::get("letter_{$slug}_body", $def['default_body']),
+            'closing' => Setting::get("letter_{$slug}_closing", $def['default_closing']),
+        ];
+
+        $replacements = [];
+        foreach ($tokenValues as $token => $value) {
+            $replacements['{'.$token.'}'] = '<strong>'.e((string) $value).'</strong>';
+        }
+
+        $result = [];
+        foreach (['subject', 'body', 'closing'] as $field) {
+            $text = nl2br(e($fields[$field]));
+            $result[$field] = strtr($text, $replacements);
+        }
+
+        return $result;
     }
 
     /**
@@ -53,7 +88,12 @@ class PdfController extends Controller
             'fees' => $first->fees,
         ];
 
-        $data = array_merge($this->getInstituteSettings(), [
+        $rendered = $this->renderLetterTemplate('dispatch', [
+            'course' => $first->admission_taken_in ?? '',
+            'academic_year' => $first->admission_taken_year ?? '',
+        ]);
+
+        $data = array_merge($this->getInstituteSettings(), $rendered, [
             'arraySpace' => $arraySpace,
             'firstRow' => $firstRow,
             'students' => $students,
@@ -87,13 +127,17 @@ class PdfController extends Controller
             'fees' => $fees,
         ];
 
-        $data = array_merge($this->getInstituteSettings(), [
+        $rendered = $this->renderLetterTemplate('dispatch_accounts', [
+            'academic_year' => $first->admission_taken_year ?? '',
+        ]);
+
+        $data = array_merge($this->getInstituteSettings(), $rendered, [
             'arraySpace' => $arraySpace,
             'firstRow' => $firstRow,
             'students' => $students,
             'fees' => $fees,
             'ddAmount' => $totalFees,
-            'ddAmountWords' => $this->numberToWords((int) $totalFees) . ' Rupees Only',
+            'ddAmountWords' => $this->numberToWords((int) $totalFees).' Rupees Only',
             'date' => date('d/m/Y'),
         ]);
 
@@ -113,7 +157,16 @@ class PdfController extends Controller
             abort(404, 'No confirmation records found for this batch.');
         }
 
-        $data = array_merge($this->getInstituteSettings(), [
+        $first = $records->first();
+        $count = $records->count();
+
+        $rendered = $this->renderLetterTemplate('confirmation_eligibility', [
+            'academic_year' => $first->acd_year ?? '',
+            'course' => $first->stream ?? '',
+            'student_count_phrase' => '( '.$count.' ) '.($count === 1 ? 'student' : 'students'),
+        ]);
+
+        $data = array_merge($this->getInstituteSettings(), $rendered, [
             'arraySpace' => $arraySpace,
             'records' => $records,
             'date' => date('d/m/Y'),
@@ -131,7 +184,13 @@ class PdfController extends Controller
     {
         $record = Regularization::findOrFail($id);
 
-        $data = array_merge($this->getInstituteSettings(), [
+        $rendered = $this->renderLetterTemplate('regularization', [
+            'student_name' => $record->student_name,
+            'eligibility_case_no' => $record->eligibility_case_no ?? '',
+            'passing_course' => $record->passing_course ?? '',
+        ]);
+
+        $data = array_merge($this->getInstituteSettings(), $rendered, [
             'record' => $record,
             'date' => date('d/m/Y'),
         ]);
@@ -158,7 +217,15 @@ class PdfController extends Controller
             $student->notes = $notes->where('student_id', $student->id)->values();
         }
 
-        $data = array_merge($this->getInstituteSettings(), [
+        $latestNoteText = optional($students->first())->notes?->last()?->note_text ?? '1st Reminder';
+
+        $rendered = $this->renderLetterTemplate('university_reminder', [
+            'reminder_type' => $latestNoteText,
+            'course' => $batch->admission_taken_in ?? '',
+            'academic_year' => $batch->academic_year ?? '',
+        ]);
+
+        $data = array_merge($this->getInstituteSettings(), $rendered, [
             'batch' => $batch,
             'students' => $students,
             'date' => date('d/m/Y'),
@@ -176,7 +243,12 @@ class PdfController extends Controller
     {
         $record = StudentReminder::findOrFail($id);
 
-        $data = array_merge($this->getInstituteSettings(), [
+        $rendered = $this->renderLetterTemplate('student_reminder', [
+            'course_name' => $record->course_name ?? '',
+            'missing_doc' => $record->missing_doc ?? '',
+        ]);
+
+        $data = array_merge($this->getInstituteSettings(), $rendered, [
             'record' => $record,
             'date' => date('d/m/Y'),
         ]);
@@ -205,21 +277,21 @@ class PdfController extends Controller
         }
 
         if ($number < 100) {
-            return $words[10 * (int) ($number / 10)] . ($number % 10 > 0 ? ' ' . $words[$number % 10] : '');
+            return $words[10 * (int) ($number / 10)].($number % 10 > 0 ? ' '.$words[$number % 10] : '');
         }
 
         if ($number < 1000) {
-            return $words[(int) ($number / 100)] . ' Hundred' . ($number % 100 > 0 ? ' and ' . $this->numberToWords($number % 100) : '');
+            return $words[(int) ($number / 100)].' Hundred'.($number % 100 > 0 ? ' and '.$this->numberToWords($number % 100) : '');
         }
 
         if ($number < 100000) {
-            return $this->numberToWords((int) ($number / 1000)) . ' Thousand' . ($number % 1000 > 0 ? ' ' . $this->numberToWords($number % 1000) : '');
+            return $this->numberToWords((int) ($number / 1000)).' Thousand'.($number % 1000 > 0 ? ' '.$this->numberToWords($number % 1000) : '');
         }
 
         if ($number < 10000000) {
-            return $this->numberToWords((int) ($number / 100000)) . ' Lakh' . ($number % 100000 > 0 ? ' ' . $this->numberToWords($number % 100000) : '');
+            return $this->numberToWords((int) ($number / 100000)).' Lakh'.($number % 100000 > 0 ? ' '.$this->numberToWords($number % 100000) : '');
         }
 
-        return $this->numberToWords((int) ($number / 10000000)) . ' Crore' . ($number % 10000000 > 0 ? ' ' . $this->numberToWords($number % 10000000) : '');
+        return $this->numberToWords((int) ($number / 10000000)).' Crore'.($number % 10000000 > 0 ? ' '.$this->numberToWords($number % 10000000) : '');
     }
 }

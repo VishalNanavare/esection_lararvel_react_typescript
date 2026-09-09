@@ -117,7 +117,7 @@
     </div>
 
     <div class="subject">
-        Subject: {{ $subject ?? 'Verification of Statement of Marks / Passing Certificates of students admitted in IDOL' }}
+        Subject: {!! $subject ?? 'Verification of Statement of Marks / Passing Certificates of students admitted in IDOL' !!}
     </div>
 
     <div class="content">
