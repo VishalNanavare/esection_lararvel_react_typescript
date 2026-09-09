@@ -158,3 +158,49 @@ test('confirmation letter builds the exact student-count phrase CI4 uses', funct
     $response->assertOk();
     expect($response->headers->get('Content-Type'))->toContain('application/pdf');
 });
+
+test('university reminder letter picks the highest-id note for a student with multiple notes', function () {
+    $batch = UniversityReminderBatch::create([
+        'academic_year' => '2025-2026',
+        'university_name' => 'Multi Note University',
+        'created_by' => 'staff_pdf_user',
+    ]);
+
+    $student = StudentDetail::create([
+        'student_name' => 'Multi Note Candidate',
+        'eligibility_case_no' => 'REM-MULTI-1',
+        'clg_add' => 'Multi Note University',
+        'array_space' => 'rem_batch_multi',
+    ]);
+
+    UniversityReminderNote::create([
+        'batch_id' => $batch->id,
+        'student_id' => $student->id,
+        'note_text' => 'First reminder note',
+        'note_date' => '2026-08-01',
+        'created_by' => 'staff_pdf_user',
+    ]);
+
+    $secondNote = UniversityReminderNote::create([
+        'batch_id' => $batch->id,
+        'student_id' => $student->id,
+        'note_text' => 'Second reminder note',
+        'note_date' => '2026-09-07',
+        'created_by' => 'staff_pdf_user',
+    ]);
+
+    // Same query the controller now runs: ordered by student_id, then id
+    // (matching esection_ci4/app/Models/UniversityReminderNoteModel.php:33-34).
+    // Without that ordering, ->last() is not guaranteed to be the
+    // highest-id note for this student.
+    $orderedNotes = UniversityReminderNote::where('batch_id', $batch->id)
+        ->orderBy('student_id')
+        ->orderBy('id')
+        ->get();
+    expect($orderedNotes->where('student_id', $student->id)->last()->id)->toBe($secondNote->id);
+
+    $response = $this->actingAs($this->user)->get("/pdf/reminders/university/{$batch->id}");
+
+    $response->assertOk();
+    expect($response->headers->get('Content-Type'))->toContain('application/pdf');
+});

@@ -208,7 +208,7 @@ class PdfController extends Controller
         $batch = UniversityReminderBatch::findOrFail($batchId);
 
         // Fetch notes for this batch grouped by student
-        $notes = UniversityReminderNote::where('batch_id', $batchId)->get();
+        $notes = UniversityReminderNote::where('batch_id', $batchId)->orderBy('student_id')->orderBy('id')->get();
         $studentIds = $notes->pluck('student_id')->unique();
 
         $students = StudentDetail::whereIn('id', $studentIds)->get();
