@@ -2,7 +2,15 @@
 
 use App\Http\Controllers\ApiController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\BulkEmailController;
+use App\Http\Controllers\ConfirmationController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\PdfController;
+use App\Http\Controllers\RegularizationController;
+use App\Http\Controllers\ReminderController;
+use App\Http\Controllers\SettingsController;
+use App\Http\Controllers\StudentController;
+use App\Http\Controllers\UniversityController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -35,53 +43,53 @@ Route::middleware('auth')->group(function () {
     | Student Verification & Batch Entry
     |--------------------------------------------------------------------------
     */
-    Route::get('/students/new', [\App\Http\Controllers\StudentController::class, 'newForm'])->name('students.new');
-    Route::post('/students/batch', [\App\Http\Controllers\StudentController::class, 'storeBatch'])->name('students.batch.store');
-    Route::get('/students/history', [\App\Http\Controllers\StudentController::class, 'history'])->name('students.history');
-    Route::get('/students/history/export', [\App\Http\Controllers\StudentController::class, 'exportHistory'])->name('students.history.export');
-    Route::get('/students/batches/{arraySpace}', [\App\Http\Controllers\StudentController::class, 'batchDetail'])->name('students.batch.detail');
-    Route::get('/students/batch/{arraySpace}', [\App\Http\Controllers\StudentController::class, 'batchDetail']);
-    Route::put('/students/{id}', [\App\Http\Controllers\StudentController::class, 'update'])->name('students.update');
-    Route::delete('/students/{id}', [\App\Http\Controllers\StudentController::class, 'destroy'])->name('students.destroy');
-    Route::get('/students/import', [\App\Http\Controllers\StudentController::class, 'importForm'])->name('students.import');
-    Route::post('/students/read-candidate-sheet', [\App\Http\Controllers\StudentController::class, 'readCandidateSheet'])->name('students.read.sheet');
-    Route::post('/students/new/readSheet', [\App\Http\Controllers\StudentController::class, 'readCandidateSheet']);
+    Route::get('/students/new', [StudentController::class, 'newForm'])->name('students.new')->middleware('access:students.view');
+    Route::post('/students/batch', [StudentController::class, 'storeBatch'])->name('students.batch.store')->middleware('access:students.create');
+    Route::get('/students/history', [StudentController::class, 'history'])->name('students.history')->middleware('access:students.view');
+    Route::get('/students/history/export', [StudentController::class, 'exportHistory'])->name('students.history.export')->middleware('access:students.export');
+    Route::get('/students/batches/{arraySpace}', [StudentController::class, 'batchDetail'])->name('students.batch.detail')->middleware('access:students.view');
+    Route::get('/students/batch/{arraySpace}', [StudentController::class, 'batchDetail'])->middleware('access:students.view');
+    Route::put('/students/{id}', [StudentController::class, 'update'])->name('students.update')->middleware('access:students.edit');
+    Route::delete('/students/{id}', [StudentController::class, 'destroy'])->name('students.destroy')->middleware('access:students.delete');
+    Route::get('/students/import', [StudentController::class, 'importForm'])->name('students.import')->middleware('access:students.import');
+    Route::post('/students/read-candidate-sheet', [StudentController::class, 'readCandidateSheet'])->name('students.read.sheet')->middleware('access:students.import');
+    Route::post('/students/new/readSheet', [StudentController::class, 'readCandidateSheet'])->middleware('access:students.import');
 
     /*
     |--------------------------------------------------------------------------
     | Demand Draft (DD) Confirmations
     |--------------------------------------------------------------------------
     */
-    Route::get('/confirmations', [\App\Http\Controllers\ConfirmationController::class, 'index'])->name('confirmations.index');
-    Route::post('/confirmations/store', [\App\Http\Controllers\ConfirmationController::class, 'store'])->name('confirmations.store');
-    Route::get('/confirmations/history', [\App\Http\Controllers\ConfirmationController::class, 'history'])->name('confirmations.history');
-    Route::get('/confirmations/export', [\App\Http\Controllers\ConfirmationController::class, 'export'])->name('confirmations.export');
-    Route::get('/confirmations/batches/{arraySpace}', [\App\Http\Controllers\ConfirmationController::class, 'batchDetail'])->name('confirmations.batch.detail');
-    Route::delete('/confirmations/{id}', [\App\Http\Controllers\ConfirmationController::class, 'destroy'])->name('confirmations.destroy');
+    Route::get('/confirmations', [ConfirmationController::class, 'index'])->name('confirmations.index')->middleware('access:confirmations.view');
+    Route::post('/confirmations/store', [ConfirmationController::class, 'store'])->name('confirmations.store')->middleware('access:confirmations.create');
+    Route::get('/confirmations/history', [ConfirmationController::class, 'history'])->name('confirmations.history')->middleware('access:confirmations.view');
+    Route::get('/confirmations/export', [ConfirmationController::class, 'export'])->name('confirmations.export')->middleware('access:confirmations.export');
+    Route::get('/confirmations/batches/{arraySpace}', [ConfirmationController::class, 'batchDetail'])->name('confirmations.batch.detail')->middleware('access:confirmations.view');
+    Route::delete('/confirmations/{id}', [ConfirmationController::class, 'destroy'])->name('confirmations.destroy')->middleware('access:confirmations.delete');
 
     /*
     |--------------------------------------------------------------------------
     | University Master Directory
     |--------------------------------------------------------------------------
     */
-    Route::get('/universities', [\App\Http\Controllers\UniversityController::class, 'index'])->name('universities.index');
-    Route::post('/universities', [\App\Http\Controllers\UniversityController::class, 'store'])->name('universities.store');
-    Route::put('/universities/{id}', [\App\Http\Controllers\UniversityController::class, 'update'])->name('universities.update');
-    Route::post('/universities/{id}/toggle', [\App\Http\Controllers\UniversityController::class, 'toggleActive'])->name('universities.toggle');
-    Route::get('/universities/export', [\App\Http\Controllers\UniversityController::class, 'export'])->name('universities.export');
+    Route::get('/universities', [UniversityController::class, 'index'])->name('universities.index')->middleware('access:universities.view');
+    Route::post('/universities', [UniversityController::class, 'store'])->name('universities.store')->middleware('access:universities.create');
+    Route::put('/universities/{id}', [UniversityController::class, 'update'])->name('universities.update')->middleware('access:universities.edit');
+    Route::post('/universities/{id}/toggle', [UniversityController::class, 'toggleActive'])->name('universities.toggle')->middleware('access:universities.toggle');
+    Route::get('/universities/export', [UniversityController::class, 'export'])->name('universities.export')->middleware('access:universities.export');
 
     /*
     |--------------------------------------------------------------------------
     | Student Eligibility Regularization
     |--------------------------------------------------------------------------
     */
-    Route::get('/regularization', [\App\Http\Controllers\RegularizationController::class, 'index'])->name('regularization.index');
-    Route::post('/regularization', [\App\Http\Controllers\RegularizationController::class, 'store'])->name('regularization.store');
-    Route::get('/regularization/history', [\App\Http\Controllers\RegularizationController::class, 'history'])->name('regularization.history');
-    Route::get('/regularization/export', [\App\Http\Controllers\RegularizationController::class, 'export'])->name('regularization.export');
-    Route::put('/regularization/{id}', [\App\Http\Controllers\RegularizationController::class, 'update'])->name('regularization.update');
-    Route::delete('/regularization/{id}', [\App\Http\Controllers\RegularizationController::class, 'destroy'])->name('regularization.destroy');
-    Route::post('/regularization/generateLetter', [\App\Http\Controllers\RegularizationController::class, 'store']);
+    Route::get('/regularization', [RegularizationController::class, 'index'])->name('regularization.index')->middleware('access:regularization.view');
+    Route::post('/regularization', [RegularizationController::class, 'store'])->name('regularization.store')->middleware('access:regularization.create');
+    Route::get('/regularization/history', [RegularizationController::class, 'history'])->name('regularization.history')->middleware('access:regularization.view');
+    Route::get('/regularization/export', [RegularizationController::class, 'export'])->name('regularization.export')->middleware('access:regularization.export');
+    Route::put('/regularization/{id}', [RegularizationController::class, 'update'])->name('regularization.update')->middleware('access:regularization.edit');
+    Route::delete('/regularization/{id}', [RegularizationController::class, 'destroy'])->name('regularization.destroy')->middleware('access:regularization.delete');
+    Route::post('/regularization/generateLetter', [RegularizationController::class, 'store'])->middleware('access:regularization.create');
 
     /*
     |--------------------------------------------------------------------------
@@ -89,87 +97,89 @@ Route::middleware('auth')->group(function () {
     |--------------------------------------------------------------------------
     */
     Route::redirect('/reminders', '/reminders/university');
-    Route::get('/reminders/university', [\App\Http\Controllers\ReminderController::class, 'universityIndex'])->name('reminders.university');
-    Route::post('/reminders/university', [\App\Http\Controllers\ReminderController::class, 'storeUniversityReminder'])->name('reminders.university.store');
-    Route::post('/reminders/generateUniversityReminder', [\App\Http\Controllers\ReminderController::class, 'storeUniversityReminder']);
-    Route::get('/reminders/university/export', [\App\Http\Controllers\ReminderController::class, 'universityExport'])->name('reminders.university.export');
-    Route::get('/reminders/university/history', [\App\Http\Controllers\ReminderController::class, 'universityHistory'])->name('reminders.university.history');
-    Route::get('/reminders/university/history/export', [\App\Http\Controllers\ReminderController::class, 'universityHistoryExport'])->name('reminders.university.history.export');
-    Route::get('/reminders/university/batches/{batchId}', [\App\Http\Controllers\ReminderController::class, 'universityBatchDetail'])->name('reminders.university.batch.detail');
-    Route::get('/reminders/student', [\App\Http\Controllers\ReminderController::class, 'studentIndex'])->name('reminders.student');
-    Route::post('/reminders/student', [\App\Http\Controllers\ReminderController::class, 'storeStudentReminder'])->name('reminders.student.store');
-    Route::post('/reminders/generateStudentReminder', [\App\Http\Controllers\ReminderController::class, 'storeStudentReminder']);
-    Route::get('/reminders/student/history', [\App\Http\Controllers\ReminderController::class, 'studentHistory'])->name('reminders.student.history');
-    Route::get('/reminders/student/export', [\App\Http\Controllers\ReminderController::class, 'studentExport'])->name('reminders.student.export');
-    Route::delete('/reminders/student/{id}', [\App\Http\Controllers\ReminderController::class, 'studentDestroy'])->name('reminders.student.destroy');
+    Route::get('/reminders/university', [ReminderController::class, 'universityIndex'])->name('reminders.university')->middleware('access:reminders_university.view');
+    Route::post('/reminders/university', [ReminderController::class, 'storeUniversityReminder'])->name('reminders.university.store')->middleware('access:reminders_university.create');
+    Route::post('/reminders/generateUniversityReminder', [ReminderController::class, 'storeUniversityReminder'])->middleware('access:reminders_university.create');
+    Route::get('/reminders/university/export', [ReminderController::class, 'universityExport'])->name('reminders.university.export')->middleware('access:reminders_university.export');
+    Route::get('/reminders/university/history', [ReminderController::class, 'universityHistory'])->name('reminders.university.history')->middleware('access:reminders_university.view');
+    Route::get('/reminders/university/history/export', [ReminderController::class, 'universityHistoryExport'])->name('reminders.university.history.export')->middleware('access:reminders_university.export');
+    Route::get('/reminders/university/batches/{batchId}', [ReminderController::class, 'universityBatchDetail'])->name('reminders.university.batch.detail')->middleware('access:reminders_university.view');
+    Route::get('/reminders/student', [ReminderController::class, 'studentIndex'])->name('reminders.student')->middleware('access:reminders_student.view');
+    Route::post('/reminders/student', [ReminderController::class, 'storeStudentReminder'])->name('reminders.student.store')->middleware('access:reminders_student.create');
+    Route::post('/reminders/generateStudentReminder', [ReminderController::class, 'storeStudentReminder'])->middleware('access:reminders_student.create');
+    Route::get('/reminders/student/history', [ReminderController::class, 'studentHistory'])->name('reminders.student.history')->middleware('access:reminders_student.view');
+    Route::get('/reminders/student/export', [ReminderController::class, 'studentExport'])->name('reminders.student.export')->middleware('access:reminders_student.export');
+    Route::delete('/reminders/student/{id}', [ReminderController::class, 'studentDestroy'])->name('reminders.student.destroy')->middleware('access:reminders_student.delete');
 
     /*
     |--------------------------------------------------------------------------
     | Bulk Email Dispatch & Send Logs
     |--------------------------------------------------------------------------
     */
-    Route::get('/bulk-email', [\App\Http\Controllers\BulkEmailController::class, 'index'])->name('bulk-email.index');
-    Route::post('/bulk-email/send', [\App\Http\Controllers\BulkEmailController::class, 'send'])->name('bulk-email.send');
-    Route::get('/bulk-email/log', [\App\Http\Controllers\BulkEmailController::class, 'log'])->name('bulk-email.log');
-    Route::post('/bulk-email/retry/{id}', [\App\Http\Controllers\BulkEmailController::class, 'retry'])->name('bulk-email.retry');
-    Route::post('/bulk-email/retry-all', [\App\Http\Controllers\BulkEmailController::class, 'retryAll'])->name('bulk-email.retry-all');
+    Route::get('/bulk-email', [BulkEmailController::class, 'index'])->name('bulk-email.index');
+    Route::post('/bulk-email/send', [BulkEmailController::class, 'send'])->name('bulk-email.send');
+    Route::get('/bulk-email/log', [BulkEmailController::class, 'log'])->name('bulk-email.log');
+    Route::post('/bulk-email/retry/{id}', [BulkEmailController::class, 'retry'])->name('bulk-email.retry');
+    Route::post('/bulk-email/retry-all', [BulkEmailController::class, 'retryAll'])->name('bulk-email.retry-all');
 
     /*
     |--------------------------------------------------------------------------
     | Official PDF Document Generation Engine
     |--------------------------------------------------------------------------
     */
-    Route::get('/pdf/dispatch/{arraySpace}', [\App\Http\Controllers\PdfController::class, 'dispatch'])->name('pdf.dispatch');
-    Route::get('/pdf/accounts/{arraySpace}', [\App\Http\Controllers\PdfController::class, 'accounts'])->name('pdf.accounts');
-    Route::get('/pdf/dispatchAccounts/{arraySpace}', [\App\Http\Controllers\PdfController::class, 'accounts']);
-    Route::get('/pdf/confirmation/{arraySpace}', [\App\Http\Controllers\PdfController::class, 'confirmation'])->name('pdf.confirmation');
-    Route::get('/pdf/regularization/{id}', [\App\Http\Controllers\PdfController::class, 'regularization'])->name('pdf.regularization');
-    Route::get('/pdf/reminders/university/{batchId}', [\App\Http\Controllers\PdfController::class, 'universityReminder'])->name('pdf.reminder.university');
-    Route::get('/pdf/reminders/student/{id}', [\App\Http\Controllers\PdfController::class, 'studentReminder'])->name('pdf.reminder.student');
+    Route::get('/pdf/dispatch/{arraySpace}', [PdfController::class, 'dispatch'])->name('pdf.dispatch')->middleware('access:students.print');
+    Route::get('/pdf/accounts/{arraySpace}', [PdfController::class, 'accounts'])->name('pdf.accounts')->middleware('access:students.print');
+    Route::get('/pdf/dispatchAccounts/{arraySpace}', [PdfController::class, 'accounts'])->middleware('access:students.print');
+    Route::get('/pdf/confirmation/{arraySpace}', [PdfController::class, 'confirmation'])->name('pdf.confirmation')->middleware('access:confirmations.print');
+    Route::get('/pdf/regularization/{id}', [PdfController::class, 'regularization'])->name('pdf.regularization')->middleware('access:regularization.print');
+    Route::get('/pdf/reminders/university/{batchId}', [PdfController::class, 'universityReminder'])->name('pdf.reminder.university')->middleware('access:reminders_university.print');
+    Route::get('/pdf/reminders/student/{id}', [PdfController::class, 'studentReminder'])->name('pdf.reminder.student')->middleware('access:reminders_student.print');
 
     /*
     |--------------------------------------------------------------------------
     | System Settings & Administration
     |--------------------------------------------------------------------------
     */
-    Route::get('/settings', [\App\Http\Controllers\SettingsController::class, 'index'])->name('settings.index');
-    Route::get('/settings/institute', [\App\Http\Controllers\SettingsController::class, 'institute'])->name('settings.institute');
-    Route::post('/settings/institute', [\App\Http\Controllers\SettingsController::class, 'updateInstitute'])->name('settings.institute.update');
-    Route::get('/settings/features', [\App\Http\Controllers\SettingsController::class, 'features'])->name('settings.features');
-    Route::post('/settings/features', [\App\Http\Controllers\SettingsController::class, 'updateFeatures'])->name('settings.features.update');
-    Route::get('/settings/academic-years', [\App\Http\Controllers\SettingsController::class, 'academicYears'])->name('settings.academic-years');
-    Route::post('/settings/academic-years', [\App\Http\Controllers\SettingsController::class, 'storeAcademicYear'])->name('settings.academic-years.store');
-    Route::put('/settings/academic-years/{id}', [\App\Http\Controllers\SettingsController::class, 'updateAcademicYear'])->name('settings.academic-years.update');
-    Route::post('/settings/academic-years/{id}/activate', [\App\Http\Controllers\SettingsController::class, 'setActiveAcademicYear'])->name('settings.academic-years.activate');
-    Route::delete('/settings/academic-years/{id}', [\App\Http\Controllers\SettingsController::class, 'destroyAcademicYear'])->name('settings.academic-years.destroy');
-    Route::get('/settings/courses', [\App\Http\Controllers\SettingsController::class, 'courses'])->name('settings.courses');
-    Route::post('/settings/courses', [\App\Http\Controllers\SettingsController::class, 'storeCourse'])->name('settings.courses.store');
-    Route::put('/settings/courses/{id}', [\App\Http\Controllers\SettingsController::class, 'updateCourse'])->name('settings.courses.update');
-    Route::post('/settings/courses/{id}/toggle', [\App\Http\Controllers\SettingsController::class, 'toggleCourse'])->name('settings.courses.toggle');
-    Route::delete('/settings/courses/{id}', [\App\Http\Controllers\SettingsController::class, 'destroyCourse'])->name('settings.courses.destroy');
-    Route::post('/settings/streams', [\App\Http\Controllers\SettingsController::class, 'storeStream'])->name('settings.streams.store');
-    Route::delete('/settings/streams/{id}', [\App\Http\Controllers\SettingsController::class, 'destroyStream'])->name('settings.streams.destroy');
-    Route::get('/settings/numbering', [\App\Http\Controllers\SettingsController::class, 'numbering'])->name('settings.numbering');
-    Route::post('/settings/numbering', [\App\Http\Controllers\SettingsController::class, 'updateNumbering'])->name('settings.numbering.update');
-    Route::get('/settings/users', [\App\Http\Controllers\SettingsController::class, 'users'])->name('settings.users');
-    Route::post('/settings/users', [\App\Http\Controllers\SettingsController::class, 'storeUser'])->name('settings.users.store');
-    Route::put('/settings/users/{id}', [\App\Http\Controllers\SettingsController::class, 'updateUser'])->name('settings.users.update');
-    Route::post('/settings/users/{id}/toggle', [\App\Http\Controllers\SettingsController::class, 'toggleUser'])->name('settings.users.toggle');
-    Route::get('/settings/access-rights', [\App\Http\Controllers\SettingsController::class, 'accessRights'])->name('settings.access-rights');
-    Route::post('/settings/access-rights', [\App\Http\Controllers\SettingsController::class, 'updateAccessRights'])->name('settings.access-rights.update');
-    Route::get('/settings/letter-templates', [\App\Http\Controllers\SettingsController::class, 'letterTemplates'])->name('settings.letter-templates');
-    Route::post('/settings/letter-templates/footer', [\App\Http\Controllers\SettingsController::class, 'updateLetterFooter'])->name('settings.letter-templates.footer');
-    Route::post('/settings/letter-templates/{slug}', [\App\Http\Controllers\SettingsController::class, 'updateLetterTemplate'])->name('settings.letter-templates.update');
-    Route::get('/settings/backup', [\App\Http\Controllers\SettingsController::class, 'backup'])->name('settings.backup');
-    Route::post('/settings/backup/sql', [\App\Http\Controllers\SettingsController::class, 'runBackupSql'])->name('settings.backup.sql');
-    Route::post('/settings/backup/excel', [\App\Http\Controllers\SettingsController::class, 'runBackupExcel'])->name('settings.backup.excel');
-    Route::post('/settings/backup/password', [\App\Http\Controllers\SettingsController::class, 'updateBackupPassword'])->name('settings.backup.password');
-    Route::post('/settings/backup/retention', [\App\Http\Controllers\SettingsController::class, 'updateBackupRetention'])->name('settings.backup.retention');
-    Route::get('/settings/mail', [\App\Http\Controllers\SettingsController::class, 'mail'])->name('settings.mail');
-    Route::post('/settings/mail', [\App\Http\Controllers\SettingsController::class, 'updateMail'])->name('settings.mail.update');
-    Route::post('/settings/mail/test', [\App\Http\Controllers\SettingsController::class, 'testMail'])->name('settings.mail.test');
-    Route::post('/settings/mail/templates/{slug}', [\App\Http\Controllers\SettingsController::class, 'updateEmailTemplate'])->name('settings.mail.template.update');
-    Route::get('/settings/activity-log', [\App\Http\Controllers\SettingsController::class, 'activityLog'])->name('settings.activity-log');
+    Route::middleware('admin')->group(function () {
+        Route::get('/settings', [SettingsController::class, 'index'])->name('settings.index');
+        Route::get('/settings/institute', [SettingsController::class, 'institute'])->name('settings.institute');
+        Route::post('/settings/institute', [SettingsController::class, 'updateInstitute'])->name('settings.institute.update');
+        Route::get('/settings/features', [SettingsController::class, 'features'])->name('settings.features');
+        Route::post('/settings/features', [SettingsController::class, 'updateFeatures'])->name('settings.features.update');
+        Route::get('/settings/academic-years', [SettingsController::class, 'academicYears'])->name('settings.academic-years');
+        Route::post('/settings/academic-years', [SettingsController::class, 'storeAcademicYear'])->name('settings.academic-years.store');
+        Route::put('/settings/academic-years/{id}', [SettingsController::class, 'updateAcademicYear'])->name('settings.academic-years.update');
+        Route::post('/settings/academic-years/{id}/activate', [SettingsController::class, 'setActiveAcademicYear'])->name('settings.academic-years.activate');
+        Route::delete('/settings/academic-years/{id}', [SettingsController::class, 'destroyAcademicYear'])->name('settings.academic-years.destroy');
+        Route::get('/settings/courses', [SettingsController::class, 'courses'])->name('settings.courses');
+        Route::post('/settings/courses', [SettingsController::class, 'storeCourse'])->name('settings.courses.store');
+        Route::put('/settings/courses/{id}', [SettingsController::class, 'updateCourse'])->name('settings.courses.update');
+        Route::post('/settings/courses/{id}/toggle', [SettingsController::class, 'toggleCourse'])->name('settings.courses.toggle');
+        Route::delete('/settings/courses/{id}', [SettingsController::class, 'destroyCourse'])->name('settings.courses.destroy');
+        Route::post('/settings/streams', [SettingsController::class, 'storeStream'])->name('settings.streams.store');
+        Route::delete('/settings/streams/{id}', [SettingsController::class, 'destroyStream'])->name('settings.streams.destroy');
+        Route::get('/settings/numbering', [SettingsController::class, 'numbering'])->name('settings.numbering');
+        Route::post('/settings/numbering', [SettingsController::class, 'updateNumbering'])->name('settings.numbering.update');
+        Route::get('/settings/users', [SettingsController::class, 'users'])->name('settings.users');
+        Route::post('/settings/users', [SettingsController::class, 'storeUser'])->name('settings.users.store');
+        Route::put('/settings/users/{id}', [SettingsController::class, 'updateUser'])->name('settings.users.update');
+        Route::post('/settings/users/{id}/toggle', [SettingsController::class, 'toggleUser'])->name('settings.users.toggle');
+        Route::get('/settings/access-rights', [SettingsController::class, 'accessRights'])->name('settings.access-rights');
+        Route::post('/settings/access-rights', [SettingsController::class, 'updateAccessRights'])->name('settings.access-rights.update');
+        Route::get('/settings/letter-templates', [SettingsController::class, 'letterTemplates'])->name('settings.letter-templates');
+        Route::post('/settings/letter-templates/footer', [SettingsController::class, 'updateLetterFooter'])->name('settings.letter-templates.footer');
+        Route::post('/settings/letter-templates/{slug}', [SettingsController::class, 'updateLetterTemplate'])->name('settings.letter-templates.update');
+        Route::get('/settings/backup', [SettingsController::class, 'backup'])->name('settings.backup');
+        Route::post('/settings/backup/sql', [SettingsController::class, 'runBackupSql'])->name('settings.backup.sql');
+        Route::post('/settings/backup/excel', [SettingsController::class, 'runBackupExcel'])->name('settings.backup.excel');
+        Route::post('/settings/backup/password', [SettingsController::class, 'updateBackupPassword'])->name('settings.backup.password');
+        Route::post('/settings/backup/retention', [SettingsController::class, 'updateBackupRetention'])->name('settings.backup.retention');
+        Route::get('/settings/mail', [SettingsController::class, 'mail'])->name('settings.mail');
+        Route::post('/settings/mail', [SettingsController::class, 'updateMail'])->name('settings.mail.update');
+        Route::post('/settings/mail/test', [SettingsController::class, 'testMail'])->name('settings.mail.test');
+        Route::post('/settings/mail/templates/{slug}', [SettingsController::class, 'updateEmailTemplate'])->name('settings.mail.template.update');
+        Route::get('/settings/activity-log', [SettingsController::class, 'activityLog'])->name('settings.activity-log');
+    });
 
     /*
     |--------------------------------------------------------------------------
