@@ -982,6 +982,34 @@ class SettingsController extends Controller
     }
 
     /**
+     * Email template definitions: slug => label/tokens/default text.
+     * Shared with BulkEmailController so admin edits actually reach sends.
+     */
+    public static function getEmailTemplateDefinitions(): array
+    {
+        return [
+            'university_reminder' => [
+                'label' => 'University Verification Reminder',
+                'tokens' => ['university_name', 'academic_year', 'course', 'pending_count'],
+                'default_subject' => 'Pending Eligibility Verification - {university_name} ({academic_year})',
+                'default_body' => "Respected Sir/Madam,\n\nThis is a reminder regarding the eligibility verification of candidates admitted to {course} for the academic year {academic_year}.\n\nAs per our records, {pending_count} case(s) referred to {university_name} are still awaiting verification of the marksheets/certificates submitted by the candidates.\n\nYou are requested to verify the said documents and communicate the outcome to this office at the earliest, so that the admissions can be regularised.\n\nThank you for your co-operation.",
+            ],
+            'student_document_reminder' => [
+                'label' => 'Candidate Document Reminder',
+                'tokens' => ['student_name', 'case_no', 'course', 'missing_document'],
+                'default_subject' => 'Documents Pending for Eligibility - Case {case_no}',
+                'default_body' => "Dear {student_name},\n\nYour eligibility case ({case_no}) for admission to {course} cannot be processed further because the following document(s) are still awaited:\n\n{missing_document}\n\nYou are requested to submit the above document(s) to the IDOL Eligibility Section at the earliest. Admission remains provisional until the eligibility is confirmed.\n\nIf you have already submitted these documents, please ignore this message.",
+            ],
+            'password_reset' => [
+                'label' => 'Password Reset',
+                'tokens' => ['full_name', 'username', 'reset_link', 'valid_for'],
+                'default_subject' => 'Reset your E-Section password',
+                'default_body' => "Dear {full_name},\n\nA password reset was requested for your E-Section account ({username}).\n\nUse the link below to choose a new password. It is valid for {valid_for}.\n\n{reset_link}\n\nIf you did not request this, you can ignore this message -- your password will not change.",
+            ],
+        ];
+    }
+
+    /**
      * Email / SMTP Settings screen.
      */
     public function mail(): Response
@@ -1003,26 +1031,7 @@ class SettingsController extends Controller
         }
         $mailSettings['password_configured'] = ! empty(Setting::get('mail_smtp_password', ''));
 
-        $emailTemplatesDef = [
-            'university_reminder' => [
-                'label' => 'University Verification Reminder',
-                'tokens' => ['university_name', 'academic_year', 'course', 'pending_count'],
-                'default_subject' => 'Pending Eligibility Verification - {university_name} ({academic_year})',
-                'default_body' => "Respected Sir/Madam,\n\nThis is a reminder regarding the eligibility verification of candidates admitted to {course} for the academic year {academic_year}.\n\nAs per our records, {pending_count} case(s) referred to {university_name} are still awaiting verification of the marksheets/certificates submitted by the candidates.\n\nYou are requested to verify the said documents and communicate the outcome to this office at the earliest, so that the admissions can be regularised.\n\nThank you for your co-operation.",
-            ],
-            'student_document_reminder' => [
-                'label' => 'Candidate Document Reminder',
-                'tokens' => ['student_name', 'case_no', 'course', 'missing_document'],
-                'default_subject' => 'Documents Pending for Eligibility - Case {case_no}',
-                'default_body' => "Dear {student_name},\n\nYour eligibility case ({case_no}) for admission to {course} cannot be processed further because the following document(s) are still awaited:\n\n{missing_document}\n\nYou are requested to submit the above document(s) to the IDOL Eligibility Section at the earliest. Admission remains provisional until the eligibility is confirmed.\n\nIf you have already submitted these documents, please ignore this message.",
-            ],
-            'password_reset' => [
-                'label' => 'Password Reset',
-                'tokens' => ['full_name', 'username', 'reset_link', 'valid_for'],
-                'default_subject' => 'Reset your E-Section password',
-                'default_body' => "Dear {full_name},\n\nA password reset was requested for your E-Section account ({username}).\n\nUse the link below to choose a new password. It is valid for {valid_for}.\n\n{reset_link}\n\nIf you did not request this, you can ignore this message -- your password will not change.",
-            ],
-        ];
+        $emailTemplatesDef = self::getEmailTemplateDefinitions();
 
         $templates = [];
         foreach ($emailTemplatesDef as $slug => $def) {

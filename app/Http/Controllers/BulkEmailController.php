@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Mail\RawHtmlMail;
 use App\Models\CollegeDetail;
 use App\Models\EmailLog;
 use App\Models\Setting;
@@ -9,6 +10,7 @@ use App\Models\StudentDetail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -18,12 +20,85 @@ class BulkEmailController extends Controller
     public const MAX_RECIPIENTS = 500;
 
     /**
+     * Substitutes {token} placeholders for one recipient — the single
+     * render point used by send() and retry(), so a retry with a corrected
+     * template can never drift from what a fresh send would produce.
+     * Mirrors esection_ci4's EmailTemplateService::render(): the subject
+     * gets plain (unescaped) values, the body gets nl2br(escape()) applied
+     * to the template text first, then escaped (not bolded) substitutions.
+     */
+    private function renderEmailTemplate(string $slug, array $tokenValues): array
+    {
+        $definitions = SettingsController::getEmailTemplateDefinitions();
+        $def = $definitions[$slug] ?? ['default_subject' => '', 'default_body' => ''];
+
+        $subject = Setting::get("email_{$slug}_subject", $def['default_subject']);
+        $body = Setting::get("email_{$slug}_body", $def['default_body']);
+
+        $subjectReplacements = [];
+        $bodyReplacements = [];
+        foreach ($tokenValues as $token => $value) {
+            $subjectReplacements['{'.$token.'}'] = (string) $value;
+            $bodyReplacements['{'.$token.'}'] = e((string) $value);
+        }
+
+        return [
+            'subject' => strtr($subject, $subjectReplacements),
+            'body' => strtr(nl2br(e($body)), $bodyReplacements),
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function tokenValuesFor(string $audience, array $recipient): array
+    {
+        $meta = $recipient['meta'] ?? [];
+
+        if ($audience === 'university') {
+            return [
+                'university_name' => $recipient['name'],
+                'academic_year' => '',
+                'course' => '',
+                'pending_count' => '',
+            ];
+        }
+
+        return [
+            'student_name' => $recipient['name'],
+            'case_no' => (string) ($meta['eligibility_case_no'] ?? ''),
+            'course' => (string) ($meta['admission_taken_in'] ?? ''),
+            'missing_document' => 'the pending document(s)',
+        ];
+    }
+
+    /**
+     * The one place a message actually leaves the system.
+     *
+     * @return array{ok: bool, error: string}
+     */
+    private function deliver(string $to, string $toName, string $subject, string $htmlBody): array
+    {
+        try {
+            Setting::applyMailerConfig();
+
+            Mail::mailer(Setting::MAIL_MAILER_NAME)
+                ->to($to, $toName ?: null)
+                ->send(new RawHtmlMail($htmlBody, $subject));
+
+            return ['ok' => true, 'error' => ''];
+        } catch (\Throwable $e) {
+            return ['ok' => false, 'error' => mb_substr($e->getMessage(), 0, 1000)];
+        }
+    }
+
+    /**
      * Compose screen and recipient preview.
      */
     public function index(Request $request): Response
     {
         $audience = trim((string) $request->input('audience', 'university'));
-        if (!in_array($audience, ['university', 'student'], true)) {
+        if (! in_array($audience, ['university', 'student'], true)) {
             $audience = 'university';
         }
 
@@ -38,9 +113,7 @@ class BulkEmailController extends Controller
             $preview = $this->resolveRecipients($audience, $filters);
         }
 
-        $mailHost = Setting::get('mail_host', '');
-        $mailUser = Setting::get('mail_username', '');
-        $mailReady = !empty($mailHost) && !empty($mailUser);
+        $mailReady = Setting::isMailConfigured();
 
         $templateLabel = $audience === 'university'
             ? 'University Verification Reminder'
@@ -77,15 +150,27 @@ class BulkEmailController extends Controller
             return redirect()->route('bulk-email.index')->with('error', 'No sendable recipients found.');
         }
 
-        $batchRef = 'batch_' . date('Ymd_His') . '_' . Str::random(4);
-        $subject = $slug === 'university_reminder'
-            ? 'Urgent: Student Eligibility Verification Reminder — University of Mumbai'
-            : 'Document Submission Reminder — IDOL University of Mumbai';
+        if (! Setting::enabled('feature_bulk_email_enabled')) {
+            return redirect()->route('bulk-email.index')->with('error', 'Bulk email is currently disabled. Ask an administrator to enable it in Settings > Feature Toggles.');
+        }
+        if (! Setting::isMailConfigured()) {
+            return redirect()->route('bulk-email.index')->with('error', 'Email is not configured yet. Set the SMTP server and "from" address in Settings > Email first.');
+        }
+
+        $batchRef = 'batch_'.date('Ymd_His').'_'.Str::random(4);
+        $username = Auth::user()?->username ?? 'admin';
+        $batchSize = (int) Setting::get('mail_batch_size', '25');
+        $pause = (int) Setting::get('mail_batch_pause', '5');
 
         $sentCount = 0;
-        $username = Auth::user()?->username ?? 'admin';
+        $failedCount = 0;
+        $processed = 0;
+        $total = count($sendable);
 
         foreach ($sendable as $item) {
+            $rendered = $this->renderEmailTemplate($slug, $this->tokenValuesFor($audience, $item));
+            $result = $this->deliver($item['email'], $item['name'] ?? '', $rendered['subject'], $rendered['body']);
+
             EmailLog::create([
                 'batch_ref' => $batchRef,
                 'template_slug' => $slug,
@@ -93,16 +178,28 @@ class BulkEmailController extends Controller
                 'recipient_id' => $item['id'] ?? null,
                 'recipient_name' => $item['name'] ?? '',
                 'recipient_email' => $item['email'] ?? '',
-                'subject' => $subject,
-                'status' => 'sent',
+                'subject' => mb_substr($rendered['subject'], 0, 255),
+                'status' => $result['ok'] ? 'sent' : 'failed',
+                'error_message' => $result['ok'] ? null : $result['error'],
                 'attempts' => 1,
                 'sent_by' => $username,
                 'created_at' => now(),
             ]);
-            $sentCount++;
+
+            $result['ok'] ? $sentCount++ : $failedCount++;
+            $processed++;
+
+            if ($pause > 0 && $batchSize > 0 && $processed % $batchSize === 0 && $processed < $total) {
+                sleep($pause);
+            }
         }
 
-        return redirect()->route('bulk-email.log')->with('success', "Dispatched {$sentCount} email(s) successfully.");
+        $message = "Dispatched {$sentCount} email(s) successfully.";
+        if ($failedCount > 0) {
+            $message .= " {$failedCount} failed — check the log for details.";
+        }
+
+        return redirect()->route('bulk-email.log')->with($failedCount > 0 && $sentCount === 0 ? 'error' : 'success', $message);
     }
 
     /**
@@ -128,17 +225,65 @@ class BulkEmailController extends Controller
     }
 
     /**
+     * Re-delivers one previously failed message and updates its log row in
+     * place, re-rendering from whatever the template says right now — so
+     * fixing the wording and retrying actually sends the corrected message.
+     * Returns false (and leaves the row alone) if the toggle is off, mail
+     * isn't configured, or the row is already marked sent.
+     */
+    private function performRetry(EmailLog $log): bool
+    {
+        if (! Setting::enabled('feature_bulk_email_enabled')) {
+            return false;
+        }
+        if ($log->status === 'sent') {
+            return false;
+        }
+        if (! Setting::isMailConfigured()) {
+            return false;
+        }
+
+        $rendered = $this->renderEmailTemplate(
+            (string) $log->template_slug,
+            $this->tokenValuesFor((string) $log->recipient_type, [
+                'name' => (string) $log->recipient_name,
+                'meta' => [],
+            ])
+        );
+
+        $result = $this->deliver((string) $log->recipient_email, (string) $log->recipient_name, $rendered['subject'], $rendered['body']);
+
+        $log->status = $result['ok'] ? 'sent' : 'failed';
+        $log->error_message = $result['ok'] ? null : $result['error'];
+        $log->attempts += 1;
+        $log->save();
+
+        return $result['ok'];
+    }
+
+    /**
      * Retry a single failed email.
      */
     public function retry(int $id): RedirectResponse
     {
         $log = EmailLog::findOrFail($id);
-        $log->status = 'sent';
-        $log->attempts += 1;
-        $log->error_message = null;
-        $log->save();
 
-        return redirect()->back()->with('success', "Retried email to {$log->recipient_email}.");
+        if ($log->status === 'sent') {
+            return redirect()->back()->with('error', 'That email was already delivered successfully.');
+        }
+        if (! Setting::enabled('feature_bulk_email_enabled')) {
+            return redirect()->back()->with('error', 'Bulk email is currently disabled. Ask an administrator to enable it in Settings > Feature Toggles.');
+        }
+        if (! Setting::isMailConfigured()) {
+            return redirect()->back()->with('error', 'Email is not configured yet.');
+        }
+
+        $ok = $this->performRetry($log);
+
+        return redirect()->back()->with(
+            $ok ? 'success' : 'error',
+            $ok ? "Retried email to {$log->recipient_email} — delivered." : "Retry failed for {$log->recipient_email}: {$log->error_message}"
+        );
     }
 
     /**
@@ -146,12 +291,23 @@ class BulkEmailController extends Controller
      */
     public function retryAll(): RedirectResponse
     {
-        $count = EmailLog::where('status', 'failed')->update([
-            'status' => 'sent',
-            'error_message' => null,
-        ]);
+        if (! Setting::enabled('feature_bulk_email_enabled')) {
+            return redirect()->back()->with('error', 'Bulk email is currently disabled. Ask an administrator to enable it in Settings > Feature Toggles.');
+        }
+        if (! Setting::isMailConfigured()) {
+            return redirect()->back()->with('error', 'Email is not configured yet.');
+        }
 
-        return redirect()->back()->with('success', "Retried {$count} failed email(s).");
+        $failed = EmailLog::where('status', 'failed')->orderBy('id')->take(self::MAX_RECIPIENTS)->get();
+
+        $succeeded = 0;
+        foreach ($failed as $log) {
+            if ($this->performRetry($log)) {
+                $succeeded++;
+            }
+        }
+
+        return redirect()->back()->with('success', "Retried {$failed->count()} failed email(s), {$succeeded} succeeded.");
     }
 
     /**
@@ -165,7 +321,7 @@ class BulkEmailController extends Controller
 
         if ($audience === 'university') {
             $query = CollegeDetail::query();
-            if (!empty($filters['state'])) {
+            if (! empty($filters['state'])) {
                 $query->where('States', $filters['state']);
             }
             $colleges = $query->orderBy('Name', 'asc')->get();
@@ -176,17 +332,20 @@ class BulkEmailController extends Controller
 
                 if ($rawEmail === '') {
                     $skipped[] = ['name' => $name, 'email' => '', 'reason' => 'No email address on record'];
+
                     continue;
                 }
 
-                if (!filter_var($rawEmail, FILTER_VALIDATE_EMAIL)) {
+                if (! filter_var($rawEmail, FILTER_VALIDATE_EMAIL)) {
                     $skipped[] = ['name' => $name, 'email' => $rawEmail, 'reason' => 'Not a valid email address'];
+
                     continue;
                 }
 
                 $key = strtolower($rawEmail);
                 if (isset($seen[$key])) {
                     $skipped[] = ['name' => $name, 'email' => $rawEmail, 'reason' => 'Duplicate address (already in list)'];
+
                     continue;
                 }
                 $seen[$key] = true;
@@ -195,15 +354,15 @@ class BulkEmailController extends Controller
                     'id' => $c->id,
                     'name' => $name,
                     'email' => $rawEmail,
-                    'meta' => $c->States ?? '',
+                    'meta' => ['state' => $c->States ?? ''],
                 ];
             }
         } else {
             $query = StudentDetail::query();
-            if (!empty($filters['year'])) {
+            if (! empty($filters['year'])) {
                 $query->where('admission_taken_year', $filters['year']);
             }
-            if (!empty($filters['stream'])) {
+            if (! empty($filters['stream'])) {
                 $query->where('admission_taken_in', $filters['stream']);
             }
             $students = $query->orderBy('student_name', 'asc')->get();
@@ -214,17 +373,20 @@ class BulkEmailController extends Controller
 
                 if ($rawEmail === '') {
                     $skipped[] = ['name' => $name, 'email' => '', 'reason' => 'No email address on record'];
+
                     continue;
                 }
 
-                if (!filter_var($rawEmail, FILTER_VALIDATE_EMAIL)) {
+                if (! filter_var($rawEmail, FILTER_VALIDATE_EMAIL)) {
                     $skipped[] = ['name' => $name, 'email' => $rawEmail, 'reason' => 'Not a valid email address'];
+
                     continue;
                 }
 
                 $key = strtolower($rawEmail);
                 if (isset($seen[$key])) {
                     $skipped[] = ['name' => $name, 'email' => $rawEmail, 'reason' => 'Duplicate address (already in list)'];
+
                     continue;
                 }
                 $seen[$key] = true;
@@ -233,7 +395,10 @@ class BulkEmailController extends Controller
                     'id' => $s->id,
                     'name' => $name,
                     'email' => $rawEmail,
-                    'meta' => $s->eligibility_case_no ?? '',
+                    'meta' => [
+                        'eligibility_case_no' => $s->eligibility_case_no ?? '',
+                        'admission_taken_in' => $s->admission_taken_in ?? '',
+                    ],
                 ];
             }
         }

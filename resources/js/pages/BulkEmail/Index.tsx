@@ -7,7 +7,11 @@ interface Recipient {
     id: number;
     name: string;
     email: string;
-    meta?: string;
+    meta?: {
+        state?: string;
+        eligibility_case_no?: string;
+        admission_taken_in?: string;
+    };
 }
 
 interface Skipped {
@@ -336,7 +340,9 @@ export default function Index({
                                                                 {r.email}
                                                             </span>
                                                         </td>
-                                                        <td className="small text-muted">{r.meta || '-'}</td>
+                                                        <td className="small text-muted">
+                                                            {(audience === 'university' ? r.meta?.state : r.meta?.eligibility_case_no) || '-'}
+                                                        </td>
                                                     </tr>
                                                 ))}
                                             </tbody>
