@@ -13,11 +13,16 @@ class ImportReferenceDatabase extends Command
 
     public function handle(): int
     {
-        $sqlPath = '/opt/homebrew/var/www/esection/esection_ci4/31-08-2026 idol_e_section.sql';
+        $sqlPath = database_path('sql/idol_e_section.sql');
 
         if (!File::exists($sqlPath)) {
-            $this->error("SQL file not found at: {$sqlPath}");
-            return Command::FAILURE;
+            $legacyPath = '/opt/homebrew/var/www/esection/esection_ci4/31-08-2026 idol_e_section.sql';
+            if (File::exists($legacyPath)) {
+                $sqlPath = $legacyPath;
+            } else {
+                $this->error("SQL file not found at: {$sqlPath}");
+                return Command::FAILURE;
+            }
         }
 
         $this->info("Reading reference SQL dump: {$sqlPath}");

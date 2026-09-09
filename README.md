@@ -140,13 +140,25 @@ DB_PASSWORD=your_password
 ```
 
 ### 6. Run Database Migrations & Seeders
+You can populate the database using either of the two methods:
+
+**Method A (Recommended): Migrations & Built-in Seeder**
 ```bash
 php artisan migrate --seed
+```
+*This runs all schema migrations and automatically imports all reference data (469 universities, academic years, streams, courses, settings, and user access matrix) from `database/sql/idol_e_section.sql`.*
+
+**Method B: Direct MySQL Import**
+```bash
+mysql -u root -p laravel_esection < database/sql/laravel_esection.sql
 ```
 
 Default credentials:
 - **Username**: `admin`
-- **Password**: `admin` (or password configured in `UserSeeder`)
+- **Password**: `qwerty@123` (or accounts `esection1` to `esection6` with passwords `esection1#123` ... `esection6#123`)
+
+Sample Candidate Import Template:
+- A ready-to-use candidate Excel sheet is provided at `database/data/sample_candidates_template.xlsx` (also accessible via `public/templates/sample_candidates_template.xlsx`) for testing the "Fill Candidates from Excel" modal.
 
 ### 7. Compile Frontend Assets
 For local development:
