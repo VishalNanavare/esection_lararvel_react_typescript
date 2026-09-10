@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\SanitizesSpreadsheetCells;
 use App\Models\AcademicYear;
 use App\Models\ActivityLog;
 use App\Models\ConfStudData;
@@ -21,6 +22,8 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ConfirmationController extends Controller
 {
+    use SanitizesSpreadsheetCells;
+
     /** Mirrors esection_ci4's ConfirmationService::CONF_FROM_OPTIONS exactly. */
     private const CONF_FROM_OPTIONS = ['Ranade Bhavan', 'Dr Babasaheb Ambedkar Bhavan', 'other'];
 
@@ -329,7 +332,7 @@ class ConfirmationController extends Controller
 
         $rows = [];
         foreach ($records as $r) {
-            $rows[] = [
+            $rows[] = $this->sanitizeRow([
                 $r->student_name,
                 $r->student_nee_name ?: '—',
                 $r->eligibility_case_no,
@@ -337,7 +340,7 @@ class ConfirmationController extends Controller
                 $r->admission_taken_year,
                 $r->admission_taken_in,
                 $r->confirmation_id ? 'Confirmed' : 'Pending',
-            ];
+            ]);
         }
 
         if (! empty($rows)) {

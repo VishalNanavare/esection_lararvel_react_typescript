@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\SanitizesSpreadsheetCells;
 use App\Models\CollegeDetail;
 use App\Models\Setting;
 use Illuminate\Http\RedirectResponse;
@@ -12,6 +13,8 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class UniversityController extends Controller
 {
+    use SanitizesSpreadsheetCells;
+
     /**
      * Display the university directory list with optional filters.
      */
@@ -161,7 +164,7 @@ class UniversityController extends Controller
             fputcsv($handle, ['ID', 'University Name', 'State', 'Head Title', 'Fees', 'In Favour Of', 'Address', 'Email', 'Mobile', 'Status']);
 
             foreach ($colleges as $c) {
-                fputcsv($handle, [
+                fputcsv($handle, $this->sanitizeRow([
                     $c->id,
                     $c->Name,
                     $c->States,
@@ -172,7 +175,7 @@ class UniversityController extends Controller
                     $c->email_id,
                     $c->mobile_no,
                     $c->is_active ? 'Active' : 'Inactive',
-                ]);
+                ]));
             }
             fclose($handle);
         }, 200, $headers);

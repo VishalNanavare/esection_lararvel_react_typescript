@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\SanitizesSpreadsheetCells;
 use App\Models\AcademicYear;
 use App\Models\ActivityLog;
 use App\Models\Setting;
@@ -21,6 +22,8 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class StudentController extends Controller
 {
+    use SanitizesSpreadsheetCells;
+
     /**
      * Render the New Student Verification Form.
      */
@@ -548,14 +551,14 @@ class StudentController extends Controller
                     : (strtotime($b->en_time) ? date('d/m/Y H:i', strtotime($b->en_time)) : $b->en_time);
             }
 
-            $dataRows[] = [
+            $dataRows[] = $this->sanitizeRow([
                 $b->array_space,
                 preg_replace('~\s*<br\s*/?>\s*~i', ', ', (string) $b->clg_add),
                 $b->admission_taken_in,
                 $b->admission_taken_year,
                 (int) $b->student_count,
                 $created,
-            ];
+            ]);
         }
 
         if (! empty($dataRows)) {

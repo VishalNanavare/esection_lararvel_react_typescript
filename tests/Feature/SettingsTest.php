@@ -78,6 +78,53 @@ test('admin can upload valid letterhead and logo', function () {
     @unlink(public_path($logoPath));
 });
 
+test('a PNG polyglot with a trailing PHP payload is re-encoded and never stored with the payload intact', function () {
+    // Regression test for the file-upload RCE: getimagesize() and the
+    // mimes validation rule both only look at the image header, so a
+    // "polyglot" file - a genuine PNG with an executable payload appended
+    // after the image data - still passes as a legitimate 300x300 PNG.
+    // The old code just move()'d the raw uploaded bytes as-is, so the
+    // payload survived byte-for-byte inside a file placed in the public
+    // web root. The fix decodes the upload into a GD image resource and
+    // re-encodes it from scratch, which keeps only real pixel data and
+    // discards anything appended after it.
+    $image = imagecreatetruecolor(300, 300);
+    ob_start();
+    imagepng($image);
+    $pngBytes = ob_get_clean();
+    imagedestroy($image);
+
+    $payloadMarker = '<?php echo "PWNED_'.uniqid().'"; ?>';
+    $polyglotBytes = $pngBytes.$payloadMarker;
+
+    $tmpPath = tempnam(sys_get_temp_dir(), 'polyglot');
+    file_put_contents($tmpPath, $polyglotBytes);
+    // A benign client filename: the point of this test is that the
+    // payload is stripped from the file's CONTENT, not that the filename
+    // itself is suspicious (Laravel's own mimes validation already blocks
+    // a .php-named upload outright, regardless of this fix).
+    $logo = new UploadedFile($tmpPath, 'logo.png', 'image/png', null, true);
+
+    $response = $this->actingAs($this->admin)->post('/settings/institute', [
+        'institute_name' => 'IDOL University of Mumbai',
+        'logo' => $logo,
+    ]);
+    @unlink($tmpPath);
+
+    $response->assertRedirect();
+    $response->assertSessionDoesntHaveErrors('logo');
+    $logoPath = Setting::get('institute_logo_path');
+
+    expect($logoPath)->not->toBeNull();
+    expect($logoPath)->toEndWith('.png');
+
+    $storedContents = file_get_contents(public_path($logoPath));
+    expect($storedContents)->not->toContain('<?php');
+    expect($storedContents)->not->toContain($payloadMarker);
+
+    @unlink(public_path($logoPath));
+});
+
 test('letterhead with invalid dimensions is rejected', function () {
     $badLetterhead = UploadedFile::fake()->image('bad.png', 800, 600);
 

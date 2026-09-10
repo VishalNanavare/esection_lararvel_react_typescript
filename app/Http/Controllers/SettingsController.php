@@ -14,6 +14,7 @@ use App\Models\User;
 use App\Models\UserPageAccess;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Hash;
@@ -86,52 +87,19 @@ class SettingsController extends Controller
             }
         }
 
-        $uploadDir = public_path('uploads/institute');
-        if (! is_dir($uploadDir)) {
-            mkdir($uploadDir, 0755, true);
-        }
-
         // Validate and store Logo if present
         if ($request->hasFile('logo')) {
-            $logoFile = $request->file('logo');
-            $dims = @getimagesize($logoFile->getRealPath());
-            if ($dims === false) {
-                return redirect()->back()->withErrors(['logo' => 'The uploaded file could not be read as an image.']);
-            }
-            [$w, $h] = $dims;
-            if ($w !== 300 || $h !== 300) {
-                return redirect()->back()->withErrors([
-                    'logo' => "The image must be exactly 300x300 pixels (uploaded file is {$w}x{$h}px).",
-                ]);
-            }
-            $oldLogo = Setting::get('institute_logo_path');
-            $filename = time().'_'.bin2hex(random_bytes(8)).'.'.$logoFile->getClientOriginalExtension();
-            $logoFile->move($uploadDir, $filename);
-            Setting::set('institute_logo_path', 'uploads/institute/'.$filename, 'institute', $userId);
-            if ($oldLogo && file_exists(public_path($oldLogo)) && $oldLogo !== 'uploads/institute/'.$filename) {
-                @unlink(public_path($oldLogo));
+            $result = $this->storeInstituteImage($request->file('logo'), 300, 300, 'logo', 'institute_logo_path', $userId);
+            if ($result instanceof RedirectResponse) {
+                return $result;
             }
         }
 
         // Validate and store Letterhead if present
         if ($request->hasFile('letterhead')) {
-            $letterheadFile = $request->file('letterhead');
-            $dims = @getimagesize($letterheadFile->getRealPath());
-            if ($dims === false) {
-                return redirect()->back()->withErrors(['letterhead' => 'The uploaded file could not be read as an image.']);
-            }
-            [$w, $h] = $dims;
-            if ($w !== 1486 || $h !== 368) {
-                return redirect()->back()->withErrors([
-                    'letterhead' => "The image must be exactly 1486x368 pixels (uploaded file is {$w}x{$h}px).",
-                ]);
-            }
-            $oldLetterhead = Setting::get('institute_letterhead_path');
-            $filename = time().'_'.bin2hex(random_bytes(8)).'.'.$letterheadFile->getClientOriginalExtension();
-            $letterheadFile->move($uploadDir, $filename);
-            Setting::set('institute_letterhead_path', 'uploads/institute/'.$filename, 'institute', $userId);
-            if ($oldLetterhead && file_exists(public_path($oldLetterhead)) && $oldLetterhead !== 'uploads/institute/'.$filename) {
-                @unlink(public_path($oldLetterhead));
+            $result = $this->storeInstituteImage($request->file('letterhead'), 1486, 368, 'letterhead', 'institute_letterhead_path', $userId);
+            if ($result instanceof RedirectResponse) {
+                return $result;
             }
         }
 
@@ -144,6 +112,87 @@ class SettingsController extends Controller
         ]);
 
         return redirect()->back()->with('success', 'Institute details updated successfully.');
+    }
+
+    /**
+     * Validates dimensions and re-encodes an uploaded institute image
+     * before saving it under the web-served uploads directory.
+     *
+     * Re-encoding (not just validating and moving the original bytes) is
+     * the point: `getimagesize()` and Laravel's `mimes:` rule both only
+     * check that the file PARSES as a valid image — they say nothing
+     * about extra bytes appended after the image data or hidden inside
+     * ancillary chunks (a "PNG polyglot" can carry a PHP payload and still
+     * pass both checks). Decoding into a GD resource and re-encoding from
+     * scratch discards anything that isn't actual pixel data, and the
+     * stored extension is derived from the detected image type — never
+     * from the client-supplied filename, which is fully attacker-controlled
+     * and previously let a polyglot named "shell.php" be saved with a
+     * `.php` extension inside the public web root.
+     *
+     * @return RedirectResponse|null a redirect back with an error on
+     *                               failure, or null on success
+     */
+    private function storeInstituteImage(
+        UploadedFile $file,
+        int $expectedWidth,
+        int $expectedHeight,
+        string $fieldLabel,
+        string $settingKey,
+        ?int $userId
+    ): ?RedirectResponse {
+        $dims = @getimagesize($file->getRealPath());
+        if ($dims === false) {
+            return redirect()->back()->withErrors([$fieldLabel => 'The uploaded file could not be read as an image.']);
+        }
+
+        [$width, $height, $type] = $dims;
+        if ($width !== $expectedWidth || $height !== $expectedHeight) {
+            return redirect()->back()->withErrors([
+                $fieldLabel => "The image must be exactly {$expectedWidth}x{$expectedHeight} pixels (uploaded file is {$width}x{$height}px).",
+            ]);
+        }
+
+        $extension = match ($type) {
+            IMAGETYPE_PNG => 'png',
+            IMAGETYPE_JPEG => 'jpg',
+            default => null,
+        };
+        if ($extension === null) {
+            return redirect()->back()->withErrors([$fieldLabel => 'Only PNG and JPEG images are accepted.']);
+        }
+
+        $image = $extension === 'png'
+            ? @imagecreatefrompng($file->getRealPath())
+            : @imagecreatefromjpeg($file->getRealPath());
+        if ($image === false) {
+            return redirect()->back()->withErrors([$fieldLabel => 'The uploaded file could not be decoded as a valid image.']);
+        }
+
+        $uploadDir = public_path('uploads/institute');
+        if (! is_dir($uploadDir)) {
+            mkdir($uploadDir, 0755, true);
+        }
+
+        $filename = time().'_'.bin2hex(random_bytes(8)).'.'.$extension;
+        $destination = $uploadDir.'/'.$filename;
+
+        if ($extension === 'png') {
+            imagesavealpha($image, true);
+            imagepng($image, $destination);
+        } else {
+            imagejpeg($image, $destination, 90);
+        }
+        imagedestroy($image);
+
+        $oldPath = Setting::get($settingKey);
+        Setting::set($settingKey, 'uploads/institute/'.$filename, 'institute', $userId);
+
+        if ($oldPath && file_exists(public_path($oldPath)) && $oldPath !== 'uploads/institute/'.$filename) {
+            @unlink(public_path($oldPath));
+        }
+
+        return null;
     }
 
     /**

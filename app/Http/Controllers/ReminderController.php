@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\SanitizesSpreadsheetCells;
 use App\Models\Setting;
 use App\Models\StudentDetail;
 use App\Models\StudentReminder;
@@ -17,6 +18,8 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ReminderController extends Controller
 {
+    use SanitizesSpreadsheetCells;
+
     /**
      * University Marksheet Reminder Portal - Student Selection Screen.
      */
@@ -264,7 +267,7 @@ class ReminderController extends Controller
             fputcsv($handle, ['ID', 'Candidate Name', 'Case No', 'Course', 'Missing Documents', 'Created By', 'Created At']);
 
             foreach ($records as $r) {
-                fputcsv($handle, [
+                fputcsv($handle, $this->sanitizeRow([
                     $r->id,
                     $r->student_name,
                     $r->eligibility_case_no,
@@ -272,7 +275,7 @@ class ReminderController extends Controller
                     $r->missing_doc,
                     $r->created_by,
                     $r->created_at,
-                ]);
+                ]));
             }
             fclose($handle);
         }, 200, $headers);
@@ -319,13 +322,13 @@ class ReminderController extends Controller
 
             foreach ($students as $s) {
                 $count = $noteCounts[$s->id] ?? 0;
-                fputcsv($handle, [
+                fputcsv($handle, $this->sanitizeRow([
                     $s->student_name,
                     $s->eligibility_case_no,
                     $s->clg_add,
                     $s->admission_taken_year,
                     $count > 0 ? "{$count} prior notice(s)" : 'None yet',
-                ]);
+                ]));
             }
             fclose($handle);
         }, 200, $headers);
@@ -360,13 +363,13 @@ class ReminderController extends Controller
             fputcsv($handle, ['University', 'Academic Year', 'Course', 'Candidates', 'Started']);
 
             foreach ($batches as $b) {
-                fputcsv($handle, [
+                fputcsv($handle, $this->sanitizeRow([
                     $b->university_name,
                     $b->academic_year,
                     $b->admission_taken_in ?: '-',
                     $b->candidate_count,
                     $b->created_at ? $b->created_at->format('d/m/Y H:i') : '-',
-                ]);
+                ]));
             }
             fclose($handle);
         }, 200, $headers);

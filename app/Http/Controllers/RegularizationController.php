@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\SanitizesSpreadsheetCells;
 use App\Models\Regularization;
 use App\Models\Setting;
 use Illuminate\Http\RedirectResponse;
@@ -13,6 +14,8 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class RegularizationController extends Controller
 {
+    use SanitizesSpreadsheetCells;
+
     /**
      * Show regularization form.
      */
@@ -156,7 +159,7 @@ class RegularizationController extends Controller
             fputcsv($handle, ['ID', 'Gender', 'Student Name', 'Case No', 'Admitted Course', 'Academic Year', 'University', 'Letter For', 'Letter Date', 'Created By', 'Created At']);
 
             foreach ($records as $r) {
-                fputcsv($handle, [
+                fputcsv($handle, $this->sanitizeRow([
                     $r->id,
                     $r->gender,
                     $r->student_name,
@@ -168,7 +171,7 @@ class RegularizationController extends Controller
                     $r->admission_letter_date?->format('Y-m-d'),
                     $r->created_by,
                     $r->created_at?->format('Y-m-d H:i:s'),
-                ]);
+                ]));
             }
             fclose($handle);
         }, 200, $headers);
