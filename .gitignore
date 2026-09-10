@@ -70,3 +70,6 @@ Thumbs.db
 
 # Local git worktrees
 /.worktrees
+
+# Real data dumps must never be committed — DatabaseSeeder ships dummy data instead
+/database/sql/*.sql

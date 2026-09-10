@@ -140,18 +140,10 @@ DB_PASSWORD=your_password
 ```
 
 ### 6. Run Database Migrations & Seeders
-You can populate the database using either of the two methods:
-
-**Method A (Recommended): Migrations & Built-in Seeder**
 ```bash
 php artisan migrate --seed
 ```
-*This runs all schema migrations and automatically imports all reference data (469 universities, academic years, streams, courses, settings, and user access matrix) from `database/sql/idol_e_section.sql`.*
-
-**Method B: Direct MySQL Import**
-```bash
-mysql -u root -p laravel_esection < database/sql/laravel_esection.sql
-```
+*This runs all schema migrations and populates the database with ready-to-use dummy data: the permission catalog, three academic years, a handful of courses/streams, five sample universities, app settings (no SMTP credentials included — configure your own under Settings > Email), and a few demo student/confirmation/regularization/reminder records so every screen has something to show. No real institutional data ships with this repository.*
 
 Default credentials:
 - **Username**: `admin`
