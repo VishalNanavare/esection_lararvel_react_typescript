@@ -39,6 +39,7 @@ interface Props {
 export default function StudentHistory({ records, filters }: Props) {
     const { props } = usePage<SharedProps>();
     const canDelete = props.features.delete;
+    const canExport = props.features.export;
 
     const [search, setSearch] = useState(filters.search || '');
 
@@ -88,13 +89,15 @@ export default function StudentHistory({ records, filters }: Props) {
                                 </p>
                             </div>
                             <div className="d-flex gap-2">
-                                <a
-                                    href="/reminders/student/export"
-                                    className="btn btn-glass"
-                                    title="Export to CSV"
-                                >
-                                    <i className="fa fa-file-excel-o me-1 text-emerald"></i> Export CSV
-                                </a>
+                                {canExport && (
+                                    <a
+                                        href="/reminders/student/export"
+                                        className="btn btn-glass"
+                                        title="Export to CSV"
+                                    >
+                                        <i className="fa fa-file-excel-o me-1 text-emerald"></i> Export CSV
+                                    </a>
+                                )}
                                 <Link href="/reminders/student" className="btn btn-indigo">
                                     <i className="fa fa-plus me-1"></i> Issue New Notice
                                 </Link>

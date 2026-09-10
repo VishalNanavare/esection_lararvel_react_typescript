@@ -61,7 +61,7 @@ export const Index: React.FC<IndexProps> = ({
     const permissions = auth.permissions || [];
     const isAdmin = auth.user?.role === 'admin';
     const canCreate = isAdmin || permissions.includes('confirmations.create');
-    const canExport = isAdmin || permissions.includes('confirmations.export');
+    const canExport = (isAdmin || permissions.includes('confirmations.export')) && features.export;
 
     const [filterYear, setFilterYear] = useState(filters.year || '');
     const [filterStream, setFilterStream] = useState(filters.stream || '');

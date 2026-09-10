@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Head, router, Link } from '@inertiajs/react';
+import { Head, router, Link, usePage } from '@inertiajs/react';
+import { SharedProps } from '../../types';
 import { AppLayout } from '../../components/AppLayout';
 import Swal from 'sweetalert2';
 
@@ -42,6 +43,8 @@ interface Props {
 }
 
 export default function University({ students, filters }: Props) {
+    const { props } = usePage<SharedProps>();
+    const canExport = props.features.export;
     const [year, setYear] = useState(filters.acd_year || '');
     const [stream, setStream] = useState(filters.stream || '');
     const [university, setUniversity] = useState(filters.clg_add || '');
@@ -196,9 +199,11 @@ export default function University({ students, filters }: Props) {
                                 </p>
                             </div>
                             <div className="d-flex gap-2">
-                                <a href={exportUrl} className="btn btn-glass">
-                                    <i className="fa fa-file-excel-o me-1"></i> Export to Excel
-                                </a>
+                                {canExport && (
+                                    <a href={exportUrl} className="btn btn-glass">
+                                        <i className="fa fa-file-excel-o me-1"></i> Export to Excel
+                                    </a>
+                                )}
                                 <Link href="/reminders/university/history" className="btn btn-glass">
                                     <i className="fa fa-history me-1"></i> Reminder History
                                 </Link>

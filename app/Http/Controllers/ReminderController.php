@@ -250,6 +250,8 @@ class ReminderController extends Controller
      */
     public function studentExport(): StreamedResponse
     {
+        abort_unless(Setting::enabled('feature_export_enabled'), 403, 'Exporting records is currently disabled by an administrator.');
+
         $records = StudentReminder::orderBy('id', 'desc')->get();
 
         $headers = [
@@ -281,6 +283,8 @@ class ReminderController extends Controller
      */
     public function universityExport(Request $request): StreamedResponse
     {
+        abort_unless(Setting::enabled('feature_export_enabled'), 403, 'Exporting records is currently disabled by an administrator.');
+
         $selectedYear = trim((string) $request->input('acd_year', ''));
         $selectedStream = trim((string) $request->input('stream', ''));
         $selectedColg = trim((string) $request->input('clg_add', ''));
@@ -332,6 +336,8 @@ class ReminderController extends Controller
      */
     public function universityHistoryExport(Request $request): StreamedResponse
     {
+        abort_unless(Setting::enabled('feature_export_enabled'), 403, 'Exporting records is currently disabled by an administrator.');
+
         $search = trim((string) $request->input('search', ''));
         $query = UniversityReminderBatch::withCount(['notes as candidate_count' => function ($q) {
             $q->select(DB::raw('COUNT(DISTINCT student_id)'));

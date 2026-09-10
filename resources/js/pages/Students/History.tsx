@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Link, router } from '@inertiajs/react';
+import { Link, router, usePage } from '@inertiajs/react';
 import { AppLayout } from '../../components/AppLayout';
+import { SharedProps } from '../../types';
 import flatpickr from 'flatpickr';
 import 'flatpickr/dist/flatpickr.min.css';
 
@@ -61,6 +62,9 @@ interface HistoryProps {
 }
 
 export const History: React.FC<HistoryProps> = ({ batches, filterOptions, filters }) => {
+    const { props } = usePage<SharedProps>();
+    const canExport = props.features.export;
+
     const [year, setYear] = useState(filters.year || '');
     const [university, setUniversity] = useState(filters.university || '');
     const [course, setCourse] = useState(filters.course || '');
@@ -230,9 +234,11 @@ export const History: React.FC<HistoryProps> = ({ batches, filterOptions, filter
                                 </p>
                             </div>
                             <div className="d-flex align-items-center gap-2">
-                                <a href={exportUrl} className="btn btn-glass me-1">
-                                    <i className="fa fa-file-excel-o me-1"></i> Export to Excel
-                                </a>
+                                {canExport && (
+                                    <a href={exportUrl} className="btn btn-glass me-1">
+                                        <i className="fa fa-file-excel-o me-1"></i> Export to Excel
+                                    </a>
+                                )}
                                 <Link href="/students/new" className="btn btn-glass">
                                     <i className="fa fa-arrow-left me-1"></i> Back to New Entry Form
                                 </Link>

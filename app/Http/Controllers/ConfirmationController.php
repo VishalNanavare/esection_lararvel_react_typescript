@@ -304,6 +304,8 @@ class ConfirmationController extends Controller
      */
     public function export(Request $request): StreamedResponse
     {
+        abort_unless(Setting::enabled('feature_export_enabled'), 403, 'Exporting records is currently disabled by an administrator.');
+
         $selectedYear = trim((string) $request->input('year', ''));
         $selectedStream = trim((string) $request->input('stream', ''));
 

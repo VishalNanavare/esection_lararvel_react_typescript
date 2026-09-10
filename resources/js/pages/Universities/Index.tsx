@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Head, router, Link } from '@inertiajs/react';
+import { Head, router, Link, usePage } from '@inertiajs/react';
 import { AppLayout } from '../../components/AppLayout';
+import { SharedProps } from '../../types';
 import Swal from 'sweetalert2';
 
 interface College {
@@ -53,6 +54,8 @@ const INDIAN_STATES = [
 ];
 
 export default function Index({ colleges, states, filters }: Props) {
+    const { props } = usePage<SharedProps>();
+    const canExport = props.features.export;
     const [nameFilter, setNameFilter] = useState(filters.name || '');
     const [stateFilter, setStateFilter] = useState(filters.state || '');
 
@@ -243,13 +246,15 @@ export default function Index({ colleges, states, filters }: Props) {
                                 </p>
                             </div>
                             <div className="d-flex gap-2">
-                                <a
-                                    href={`/universities/export?name=${encodeURIComponent(nameFilter)}&state=${encodeURIComponent(stateFilter)}`}
-                                    className="btn btn-glass"
-                                    title="Export current view to CSV"
-                                >
-                                    <i className="fa fa-file-excel-o me-1 text-emerald"></i> Export CSV
-                                </a>
+                                {canExport && (
+                                    <a
+                                        href={`/universities/export?name=${encodeURIComponent(nameFilter)}&state=${encodeURIComponent(stateFilter)}`}
+                                        className="btn btn-glass"
+                                        title="Export current view to CSV"
+                                    >
+                                        <i className="fa fa-file-excel-o me-1 text-emerald"></i> Export CSV
+                                    </a>
+                                )}
                                 <button
                                     type="button"
                                     className="btn btn-indigo"

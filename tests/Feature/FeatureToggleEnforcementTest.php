@@ -5,6 +5,7 @@ use App\Models\Regularization;
 use App\Models\Setting;
 use App\Models\StudentDetail;
 use App\Models\User;
+use Illuminate\Http\UploadedFile;
 
 beforeEach(function () {
     $this->admin = User::create([
@@ -95,4 +96,41 @@ test('deleting a confirmation record is blocked when the toggle is off', functio
 
     $response->assertStatus(403);
     expect(ConfStudData::find($confirmation->id))->not->toBeNull();
+});
+
+test('exporting is blocked on every module when feature_export_enabled is off', function () {
+    Setting::set('feature_export_enabled', '0', 'feature', $this->admin->id);
+
+    $this->actingAs($this->admin)->get('/students/history/export')->assertStatus(403);
+    $this->actingAs($this->admin)->get('/confirmations/export')->assertStatus(403);
+    $this->actingAs($this->admin)->get('/regularization/export')->assertStatus(403);
+    $this->actingAs($this->admin)->get('/reminders/student/export')->assertStatus(403);
+    $this->actingAs($this->admin)->get('/reminders/university/export')->assertStatus(403);
+    $this->actingAs($this->admin)->get('/reminders/university/history/export')->assertStatus(403);
+    $this->actingAs($this->admin)->get('/universities/export')->assertStatus(403);
+});
+
+test('exporting succeeds on every module when feature_export_enabled is on (default)', function () {
+    $this->actingAs($this->admin)->get('/students/history/export')->assertOk();
+    $this->actingAs($this->admin)->get('/confirmations/export')->assertOk();
+    $this->actingAs($this->admin)->get('/regularization/export')->assertOk();
+    $this->actingAs($this->admin)->get('/reminders/student/export')->assertOk();
+    $this->actingAs($this->admin)->get('/reminders/university/export')->assertOk();
+    $this->actingAs($this->admin)->get('/reminders/university/history/export')->assertOk();
+    $this->actingAs($this->admin)->get('/universities/export')->assertOk();
+});
+
+test('importing is blocked when feature_import_enabled is off', function () {
+    Setting::set('feature_import_enabled', '0', 'feature', $this->admin->id);
+
+    $this->actingAs($this->admin)->get('/students/import')->assertStatus(403);
+
+    $file = UploadedFile::fake()->create('candidates.xlsx', 10);
+    $this->actingAs($this->admin)
+        ->post('/students/read-candidate-sheet', ['candidate_sheet' => $file])
+        ->assertStatus(403);
+});
+
+test('importing succeeds when feature_import_enabled is on (default)', function () {
+    $this->actingAs($this->admin)->get('/students/import')->assertOk();
 });

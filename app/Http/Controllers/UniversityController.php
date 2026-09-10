@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\CollegeDetail;
+use App\Models\Setting;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -117,10 +118,11 @@ class UniversityController extends Controller
     public function toggleActive(int $id): RedirectResponse
     {
         $college = CollegeDetail::findOrFail($id);
-        $college->is_active = !$college->is_active;
+        $college->is_active = ! $college->is_active;
         $college->save();
 
         $statusStr = $college->is_active ? 'activated' : 'deactivated';
+
         return redirect()->back()->with('success', "University '{$college->Name}' {$statusStr} successfully.");
     }
 
@@ -129,6 +131,8 @@ class UniversityController extends Controller
      */
     public function export(Request $request): StreamedResponse
     {
+        abort_unless(Setting::enabled('feature_export_enabled'), 403, 'Exporting records is currently disabled by an administrator.');
+
         $nameFilter = trim((string) $request->input('name', ''));
         $stateFilter = trim((string) $request->input('state', ''));
 
@@ -146,7 +150,7 @@ class UniversityController extends Controller
 
         $headers = [
             'Content-Type' => 'text/csv',
-            'Content-Disposition' => 'attachment; filename="universities_directory_' . date('Ymd_His') . '.csv"',
+            'Content-Disposition' => 'attachment; filename="universities_directory_'.date('Ymd_His').'.csv"',
             'Pragma' => 'no-cache',
             'Cache-Control' => 'must-revalidate, post-check=0, pre-check=0',
             'Expires' => '0',

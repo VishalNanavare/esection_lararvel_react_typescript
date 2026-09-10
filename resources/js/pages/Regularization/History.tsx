@@ -48,6 +48,7 @@ interface Props {
 export default function History({ records, filters }: Props) {
     const { props } = usePage<SharedProps>();
     const canDelete = props.features.delete;
+    const canExport = props.features.export;
 
     const [name, setName] = useState(filters.name || '');
     const [caseNo, setCaseNo] = useState(filters.case_no || '');
@@ -113,13 +114,15 @@ export default function History({ records, filters }: Props) {
                                 </p>
                             </div>
                             <div className="d-flex gap-2">
-                                <a
-                                    href="/regularization/export"
-                                    className="btn btn-glass"
-                                    title="Export all regularization letters"
-                                >
-                                    <i className="fa fa-file-excel-o me-1 text-emerald"></i> Export CSV
-                                </a>
+                                {canExport && (
+                                    <a
+                                        href="/regularization/export"
+                                        className="btn btn-glass"
+                                        title="Export all regularization letters"
+                                    >
+                                        <i className="fa fa-file-excel-o me-1 text-emerald"></i> Export CSV
+                                    </a>
+                                )}
                                 <Link href="/regularization" className="btn btn-indigo">
                                     <i className="fa fa-plus me-1"></i> New Regularization
                                 </Link>

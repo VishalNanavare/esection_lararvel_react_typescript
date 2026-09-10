@@ -354,6 +354,8 @@ class StudentController extends Controller
      */
     public function readCandidateSheet(Request $request): JsonResponse
     {
+        abort_unless(Setting::enabled('feature_import_enabled'), 403, 'Importing records is currently disabled by an administrator.');
+
         $request->validate([
             'candidate_sheet' => 'required|file|mimes:xlsx,xls|max:5120',
         ]);
@@ -465,6 +467,8 @@ class StudentController extends Controller
      */
     public function exportHistory(Request $request): StreamedResponse
     {
+        abort_unless(Setting::enabled('feature_export_enabled'), 403, 'Exporting records is currently disabled by an administrator.');
+
         $year = trim((string) $request->input('year', ''));
         $university = trim((string) $request->input('university', ''));
         $course = trim((string) $request->input('course', ''));
@@ -575,6 +579,8 @@ class StudentController extends Controller
 
     public function importForm(): Response
     {
+        abort_unless(Setting::enabled('feature_import_enabled'), 403, 'Importing records is currently disabled by an administrator.');
+
         return Inertia::render('Students/Import', [
             'title' => 'Import Candidates from Excel',
         ]);

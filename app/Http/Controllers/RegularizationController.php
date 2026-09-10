@@ -142,6 +142,8 @@ class RegularizationController extends Controller
      */
     public function export(Request $request): StreamedResponse
     {
+        abort_unless(Setting::enabled('feature_export_enabled'), 403, 'Exporting records is currently disabled by an administrator.');
+
         $records = Regularization::orderBy('id', 'desc')->get();
 
         $headers = [
