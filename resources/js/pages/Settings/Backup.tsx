@@ -36,6 +36,27 @@ export default function Backup({
     const [isRunningSql, setIsRunningSql] = useState(false);
     const [isRunningExcel, setIsRunningExcel] = useState(false);
 
+    const handleDeleteBackup = (id: number, filename: string) => {
+        Swal.fire({
+            title: 'Delete Backup?',
+            text: `Are you sure you want to permanently delete "${filename}"? This cannot be undone.`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#e11d48',
+            cancelButtonColor: '#64748b',
+            confirmButtonText: 'Yes, delete!',
+        }).then((res) => {
+            if (res.isConfirmed) {
+                router.delete(`/settings/backup/${id}`, {
+                    preserveScroll: true,
+                    onSuccess: () => {
+                        Swal.fire('Deleted!', 'Backup file removed.', 'success');
+                    },
+                });
+            }
+        });
+    };
+
     const handleRunSql = (e: React.FormEvent) => {
         e.preventDefault();
         setIsRunningSql(true);
@@ -322,12 +343,13 @@ export default function Backup({
                                         <th>File</th>
                                         <th>Size</th>
                                         <th>Created By</th>
+                                        <th className="text-end">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {history.length === 0 ? (
                                         <tr>
-                                            <td colSpan={5} className="text-center text-muted py-4">
+                                            <td colSpan={6} className="text-center text-muted py-4">
                                                 No backups created yet.
                                             </td>
                                         </tr>
@@ -343,6 +365,23 @@ export default function Backup({
                                                 <td className="fw-semibold text-dark">{item.filename}</td>
                                                 <td className="small">{formatBytes(item.file_size)}</td>
                                                 <td className="small text-muted">{item.created_by || 'System'}</td>
+                                                <td className="text-end">
+                                                    <a
+                                                        href={`/settings/backup/${item.id}/download`}
+                                                        className="btn btn-sm btn-glass text-indigo me-1"
+                                                        title="Download backup"
+                                                    >
+                                                        <i className="fa fa-download"></i>
+                                                    </a>
+                                                    <button
+                                                        type="button"
+                                                        className="btn btn-sm btn-glass text-danger"
+                                                        onClick={() => handleDeleteBackup(item.id, item.filename)}
+                                                        title="Delete backup"
+                                                    >
+                                                        <i className="fa fa-trash"></i>
+                                                    </button>
+                                                </td>
                                             </tr>
                                         ))
                                     )}

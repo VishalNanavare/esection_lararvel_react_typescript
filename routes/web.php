@@ -174,6 +174,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/settings/backup', [SettingsController::class, 'backup'])->name('settings.backup');
         Route::post('/settings/backup/sql', [SettingsController::class, 'runBackupSql'])->name('settings.backup.sql');
         Route::post('/settings/backup/excel', [SettingsController::class, 'runBackupExcel'])->name('settings.backup.excel');
+        Route::get('/settings/backup/{id}/download', [SettingsController::class, 'downloadBackup'])->name('settings.backup.download');
+        Route::delete('/settings/backup/{id}', [SettingsController::class, 'destroyBackup'])->name('settings.backup.destroy');
         Route::post('/settings/backup/password', [SettingsController::class, 'updateBackupPassword'])->name('settings.backup.password');
         Route::post('/settings/backup/retention', [SettingsController::class, 'updateBackupRetention'])->name('settings.backup.retention');
         Route::get('/settings/mail', [SettingsController::class, 'mail'])->name('settings.mail');

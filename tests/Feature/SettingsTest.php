@@ -2,6 +2,7 @@
 
 use App\Mail\RawHtmlMail;
 use App\Models\AcademicYear;
+use App\Models\BackupHistory;
 use App\Models\Course;
 use App\Models\Setting;
 use App\Models\StreamDetail;
@@ -10,6 +11,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Process;
 
 beforeEach(function () {
     $this->admin = User::create([
@@ -234,6 +236,112 @@ test('backup password is stored reversibly encrypted, not one-way hashed', funct
 
     expect($stored)->not->toBe('BackupSecret123');
     expect(Crypt::decryptString($stored))->toBe('BackupSecret123');
+});
+
+test('SQL backup creates a real, password-protected archive that can be downloaded and deleted', function () {
+    Process::fake([
+        '*mysqldump*' => Process::result(output: "-- fake mysql dump\nCREATE TABLE demo (id INT);\n"),
+    ]);
+
+    $this->actingAs($this->admin)->post('/settings/backup/password', [
+        'backup_password' => 'ZipSecret123',
+        'backup_password_confirm' => 'ZipSecret123',
+    ]);
+
+    $response = $this->actingAs($this->admin)->post('/settings/backup/sql');
+    $response->assertRedirect();
+    $response->assertSessionHas('success');
+
+    $backup = BackupHistory::where('type', 'sql')->latest('id')->first();
+    expect($backup)->not->toBeNull();
+    expect($backup->file_size)->toBeGreaterThan(0);
+    expect(file_exists($backup->file_path))->toBeTrue();
+    expect($backup->filename)->toEndWith('.zip');
+
+    // Confirm it is genuinely encrypted: unreadable without the password, readable with it.
+    $zip = new ZipArchive;
+    expect($zip->open($backup->file_path))->toBeTrue();
+    expect($zip->getFromIndex(0))->toBeFalse();
+    $zip->setPassword('ZipSecret123');
+    expect($zip->getFromIndex(0))->toContain('CREATE TABLE demo');
+    $zip->close();
+
+    // Download streams the real file.
+    $downloadResponse = $this->actingAs($this->admin)->get("/settings/backup/{$backup->id}/download");
+    $downloadResponse->assertOk();
+
+    // Delete removes both the row and the file from disk.
+    $filePath = $backup->file_path;
+    $deleteResponse = $this->actingAs($this->admin)->delete("/settings/backup/{$backup->id}");
+    $deleteResponse->assertRedirect();
+    expect(BackupHistory::find($backup->id))->toBeNull();
+    expect(file_exists($filePath))->toBeFalse();
+});
+
+test('SQL backup is not encrypted when no backup password has been configured', function () {
+    Process::fake([
+        '*mysqldump*' => Process::result(output: "-- fake mysql dump\nCREATE TABLE demo (id INT);\n"),
+    ]);
+
+    $this->actingAs($this->admin)->post('/settings/backup/sql');
+
+    $backup = BackupHistory::where('type', 'sql')->latest('id')->first();
+    $zip = new ZipArchive;
+    $zip->open($backup->file_path);
+    expect($zip->getFromIndex(0))->toContain('CREATE TABLE demo');
+    $zip->close();
+    unlink($backup->file_path);
+});
+
+test('SQL backup fails gracefully and flashes an error when mysqldump fails', function () {
+    Process::fake([
+        '*mysqldump*' => Process::result(output: '', errorOutput: 'mysqldump: command not found', exitCode: 127),
+    ]);
+
+    $response = $this->actingAs($this->admin)->post('/settings/backup/sql');
+
+    $response->assertRedirect();
+    $response->assertSessionHas('error');
+    expect(BackupHistory::where('type', 'sql')->count())->toBe(0);
+});
+
+test('Excel reference backup creates a real archive excluding secret settings', function () {
+    Setting::set('mail_smtp_password', Crypt::encryptString('should-not-appear'), 'mail', $this->admin->id);
+
+    $response = $this->actingAs($this->admin)->post('/settings/backup/excel');
+    $response->assertRedirect();
+    $response->assertSessionHas('success');
+
+    $backup = BackupHistory::where('type', 'excel')->latest('id')->first();
+    expect($backup)->not->toBeNull();
+    expect($backup->file_size)->toBeGreaterThan(0);
+    expect(file_exists($backup->file_path))->toBeTrue();
+
+    $zip = new ZipArchive;
+    $zip->open($backup->file_path);
+    $xlsxContent = $zip->getFromIndex(0);
+    expect($xlsxContent)->not->toContain('should-not-appear');
+    $zip->close();
+    unlink($backup->file_path);
+});
+
+test('old backups beyond the retention count are deleted automatically', function () {
+    Process::fake([
+        '*mysqldump*' => Process::result(output: "-- fake dump\n"),
+    ]);
+
+    $this->actingAs($this->admin)->post('/settings/backup/retention', ['backup_retention_count' => 2]);
+
+    $paths = [];
+    foreach (range(1, 3) as $i) {
+        $this->actingAs($this->admin)->post('/settings/backup/sql');
+        usleep(1100000); // ensure distinct filenames/timestamps between runs
+    }
+
+    expect(BackupHistory::count())->toBe(2);
+    BackupHistory::all()->each(fn (BackupHistory $b) => expect(file_exists($b->file_path))->toBeTrue());
+
+    BackupHistory::all()->each(fn (BackupHistory $b) => unlink($b->file_path));
 });
 
 test('test mail button actually attempts delivery', function () {

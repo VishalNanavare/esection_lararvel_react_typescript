@@ -6,6 +6,7 @@ use App\Mail\RawHtmlMail;
 use App\Models\AcademicYear;
 use App\Models\ActivityLog;
 use App\Models\BackupHistory;
+use App\Models\CollegeDetail;
 use App\Models\Course;
 use App\Models\Setting;
 use App\Models\StreamDetail;
@@ -17,8 +18,12 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Process;
 use Inertia\Inertia;
 use Inertia\Response;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class SettingsController extends Controller
 {
@@ -889,7 +894,7 @@ class SettingsController extends Controller
         return Inertia::render('Settings/Backup', [
             'history' => $history,
             'passwordConfigured' => $passwordConfigured,
-            'encryptionAvailable' => true,
+            'encryptionAvailable' => class_exists(\ZipArchive::class) && defined('ZipArchive::EM_AES_256'),
             'retentionCount' => $retentionCount > 0 ? $retentionCount : 10,
             'minPasswordLength' => 8,
             'maxRetention' => 50,
@@ -897,53 +902,223 @@ class SettingsController extends Controller
     }
 
     /**
-     * Create SQL Backup.
+     * Create a real SQL database backup via mysqldump, zipped and
+     * password-protected when a backup password is configured.
      */
     public function runBackupSql(Request $request): RedirectResponse
     {
-        $filename = 'backup_'.date('Y-m-d_His').'.sql';
+        $timestamp = date('Y-m-d_His');
+        $sqlFilename = "backup_{$timestamp}.sql";
+        $zipFilename = "backup_{$timestamp}.zip";
+        $sqlPath = $this->backupFilePath($sqlFilename);
+
+        // Always the 'mysql' connection specifically — mysqldump backs up
+        // the real application database regardless of which Eloquent
+        // connection is currently active (e.g. sqlite in the test suite).
+        $db = config('database.connections.mysql');
+
+        $result = Process::env(array_filter(['MYSQL_PWD' => (string) ($db['password'] ?? '')]))
+            ->run([
+                'mysqldump',
+                '--host='.$db['host'],
+                '--port='.$db['port'],
+                '--user='.$db['username'],
+                '--no-tablespaces',
+                '--single-transaction',
+                $db['database'],
+            ]);
+
+        if (! $result->successful() || trim($result->output()) === '') {
+            return redirect()->back()->with('error', 'Database backup failed: '.trim($result->errorOutput() ?: 'mysqldump produced no output. Is it installed on the server?'));
+        }
+
+        file_put_contents($sqlPath, $result->output());
+
+        $zipPath = $this->zipBackupFile($sqlPath, $zipFilename);
+
         BackupHistory::create([
-            'filename' => $filename,
+            'filename' => $zipFilename,
             'type' => 'sql',
-            'file_size' => 1024 * 512,
+            'file_size' => filesize($zipPath),
+            'file_path' => $zipPath,
             'created_by' => Auth::user()?->username ?? 'staff',
             'created_at' => now(),
         ]);
+
+        $this->enforceBackupRetention();
 
         ActivityLog::create([
             'user_id' => Auth::id(),
             'username' => Auth::user()?->username ?? 'staff',
             'action' => 'backup.sql',
-            'description' => 'Created SQL database backup '.$filename,
+            'description' => 'Created SQL database backup '.$zipFilename,
             'ip_address' => $request->ip(),
         ]);
 
-        return redirect()->back()->with('success', "System backup created: {$filename}");
+        return redirect()->back()->with('success', "System backup created: {$zipFilename}");
     }
 
     /**
-     * Create Excel Reference Backup.
+     * Export the reference tables (universities, courses, streams, academic
+     * years, non-secret settings) to a real .xlsx file, zipped and
+     * password-protected when a backup password is configured.
      */
     public function runBackupExcel(Request $request): RedirectResponse
     {
-        $filename = 'reference_data_'.date('Y-m-d_His').'.xlsx';
+        $timestamp = date('Y-m-d_His');
+        $xlsxFilename = "reference_data_{$timestamp}.xlsx";
+        $zipFilename = "reference_data_{$timestamp}.zip";
+        $xlsxPath = $this->backupFilePath($xlsxFilename);
+
+        $spreadsheet = new Spreadsheet;
+        $spreadsheet->removeSheetByIndex(0);
+
+        $tables = [
+            'universities' => CollegeDetail::query()->orderBy('id')->get(),
+            'courses' => Course::query()->orderBy('id')->get(),
+            'streams' => StreamDetail::query()->orderBy('id')->get(),
+            'academic_years' => AcademicYear::query()->orderBy('id')->get(),
+        ];
+
+        foreach ($tables as $sheetName => $rows) {
+            $sheet = $spreadsheet->createSheet();
+            $sheet->setTitle($sheetName);
+
+            if ($rows->isEmpty()) {
+                continue;
+            }
+
+            $sheet->fromArray(array_keys($rows->first()->attributesToArray()), null, 'A1');
+            $sheet->fromArray($rows->map->attributesToArray()->values()->toArray(), null, 'A2');
+        }
+
+        // Settings, excluding secrets — an admin exporting reference data
+        // should never end up with encrypted credential blobs in a shared file.
+        $settingsSheet = $spreadsheet->createSheet();
+        $settingsSheet->setTitle('settings');
+        $settingsSheet->fromArray(['setting_key', 'setting_value', 'setting_group'], null, 'A1');
+        $settingsRows = Setting::query()
+            ->whereNotIn('setting_key', ['mail_smtp_password', 'backup_password'])
+            ->orderBy('setting_key')
+            ->get(['setting_key', 'setting_value', 'setting_group'])
+            ->map(fn (Setting $s) => [$s->setting_key, $s->setting_value, $s->setting_group])
+            ->toArray();
+        if (! empty($settingsRows)) {
+            $settingsSheet->fromArray($settingsRows, null, 'A2');
+        }
+
+        (new Xlsx($spreadsheet))->save($xlsxPath);
+
+        $zipPath = $this->zipBackupFile($xlsxPath, $zipFilename);
+
         BackupHistory::create([
-            'filename' => $filename,
+            'filename' => $zipFilename,
             'type' => 'excel',
-            'file_size' => 1024 * 128,
+            'file_size' => filesize($zipPath),
+            'file_path' => $zipPath,
             'created_by' => Auth::user()?->username ?? 'staff',
             'created_at' => now(),
         ]);
+
+        $this->enforceBackupRetention();
 
         ActivityLog::create([
             'user_id' => Auth::id(),
             'username' => Auth::user()?->username ?? 'staff',
             'action' => 'backup.excel',
-            'description' => 'Created Excel reference data backup '.$filename,
+            'description' => 'Created Excel reference data backup '.$zipFilename,
             'ip_address' => $request->ip(),
         ]);
 
-        return redirect()->back()->with('success', "Excel reference data backup created: {$filename}");
+        return redirect()->back()->with('success', "Excel reference data backup created: {$zipFilename}");
+    }
+
+    /**
+     * Download a previously created backup archive.
+     */
+    public function downloadBackup(int $id): BinaryFileResponse|RedirectResponse
+    {
+        $backup = BackupHistory::findOrFail($id);
+
+        if (! $backup->file_path || ! file_exists($backup->file_path)) {
+            return redirect()->back()->with('error', 'That backup file no longer exists on disk.');
+        }
+
+        return response()->download($backup->file_path, $backup->filename);
+    }
+
+    /**
+     * Delete a backup archive and its history row.
+     */
+    public function destroyBackup(int $id): RedirectResponse
+    {
+        $backup = BackupHistory::findOrFail($id);
+
+        if ($backup->file_path && file_exists($backup->file_path)) {
+            unlink($backup->file_path);
+        }
+        $backup->delete();
+
+        ActivityLog::create([
+            'user_id' => Auth::id(),
+            'username' => Auth::user()?->username ?? 'staff',
+            'action' => 'backup.delete',
+            'description' => 'Deleted backup '.$backup->filename,
+            'ip_address' => request()->ip(),
+        ]);
+
+        return redirect()->back()->with('success', 'Backup deleted.');
+    }
+
+    /** Where backup files live — private storage, never web-accessible. */
+    private function backupFilePath(string $filename): string
+    {
+        $dir = storage_path('app/private/backups');
+        if (! is_dir($dir)) {
+            mkdir($dir, 0755, true);
+        }
+
+        return $dir.'/'.$filename;
+    }
+
+    /**
+     * Zips $sourceFile into a sibling archive named $zipFilename, encrypting
+     * it with the configured backup password when one is set, then removes
+     * the uncompressed source. Returns the zip's absolute path.
+     */
+    private function zipBackupFile(string $sourceFile, string $zipFilename): string
+    {
+        $zipPath = $this->backupFilePath($zipFilename);
+        $entryName = basename($sourceFile);
+
+        $zip = new \ZipArchive;
+        $zip->open($zipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE);
+        $zip->addFile($sourceFile, $entryName);
+
+        $encryptedPassword = Setting::get('backup_password', '');
+        if ($encryptedPassword !== '') {
+            $zip->setPassword(Crypt::decryptString($encryptedPassword));
+            $zip->setEncryptionName($entryName, \ZipArchive::EM_AES_256);
+        }
+
+        $zip->close();
+        unlink($sourceFile);
+
+        return $zipPath;
+    }
+
+    /** Deletes the oldest backup files/rows beyond the configured retention count. */
+    private function enforceBackupRetention(): void
+    {
+        $retention = (int) Setting::get('backup_retention_count', '10');
+        $retention = $retention > 0 ? $retention : 10;
+
+        BackupHistory::orderBy('id', 'desc')->get()->slice($retention)->each(function (BackupHistory $old) {
+            if ($old->file_path && file_exists($old->file_path)) {
+                unlink($old->file_path);
+            }
+            $old->delete();
+        });
     }
 
     /**

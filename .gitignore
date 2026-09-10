@@ -73,3 +73,4 @@ Thumbs.db
 
 # Real data dumps must never be committed — DatabaseSeeder ships dummy data instead
 /database/sql/*.sql
+/storage/app/private/backups
