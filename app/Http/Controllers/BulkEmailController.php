@@ -155,7 +155,11 @@ class BulkEmailController extends Controller
             return redirect()->route('bulk-email.index')->with('error', 'Email is not configured yet. Set the SMTP server and "from" address in Settings > Email first.');
         }
 
-        Setting::applyMailerConfig();
+        try {
+            Setting::applyMailerConfig();
+        } catch (\Throwable $e) {
+            return redirect()->route('bulk-email.index')->with('error', 'Email settings could not be loaded: '.mb_substr($e->getMessage(), 0, 300));
+        }
 
         $batchRef = 'batch_'.date('Ymd_His').'_'.Str::random(4);
         $username = Auth::user()?->username ?? 'admin';
@@ -278,7 +282,11 @@ class BulkEmailController extends Controller
             return redirect()->back()->with('error', 'Email is not configured yet.');
         }
 
-        Setting::applyMailerConfig();
+        try {
+            Setting::applyMailerConfig();
+        } catch (\Throwable $e) {
+            return redirect()->back()->with('error', 'Email settings could not be loaded: '.mb_substr($e->getMessage(), 0, 300));
+        }
 
         $ok = $this->performRetry($log);
 
@@ -300,7 +308,11 @@ class BulkEmailController extends Controller
             return redirect()->back()->with('error', 'Email is not configured yet.');
         }
 
-        Setting::applyMailerConfig();
+        try {
+            Setting::applyMailerConfig();
+        } catch (\Throwable $e) {
+            return redirect()->back()->with('error', 'Email settings could not be loaded: '.mb_substr($e->getMessage(), 0, 300));
+        }
 
         $failed = EmailLog::where('status', 'failed')->orderBy('id')->take(self::MAX_RECIPIENTS)->get();
 

@@ -165,3 +165,33 @@ test('retrying a failed email re-sends and flips status to sent', function () {
     expect($log->error_message)->toBeNull();
     expect($log->attempts)->toBe(2);
 });
+
+test('bulk email send fails closed with a flash error when the stored password cannot be decrypted', function () {
+    Mail::fake();
+    Setting::set('mail_smtp_host', 'smtp.example.com', 'mail', $this->admin->id);
+    Setting::set('mail_from_email', 'noreply@example.com', 'mail', $this->admin->id);
+    // Simulate a pre-encryption plaintext password (or a password encrypted
+    // under a since-rotated APP_KEY) — either way, Crypt::decryptString()
+    // throws on this value.
+    Setting::set('mail_smtp_password', 'not-actually-encrypted', 'mail', $this->admin->id);
+
+    StudentDetail::create([
+        'array_space' => 'bulk_mail_decrypt_test',
+        'student_name' => 'Decrypt Fail Student',
+        'email' => 'decryptfail@example.com',
+        'eligibility_case_no' => 'CASE-9002',
+        'admission_taken_year' => '2025-26',
+        'admission_taken_in' => 'BCom',
+        'clg_add' => 'University of Mumbai',
+    ]);
+
+    $response = $this->actingAs($this->admin)->post('/bulk-email/send', [
+        'audience' => 'student',
+        'template_slug' => 'student_document_reminder',
+    ]);
+
+    $response->assertRedirect(route('bulk-email.index'));
+    $response->assertSessionHas('error');
+    Mail::assertNothingSent();
+    expect(EmailLog::where('recipient_email', 'decryptfail@example.com')->exists())->toBeFalse();
+});
