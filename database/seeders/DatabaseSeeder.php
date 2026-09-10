@@ -222,14 +222,14 @@ class DatabaseSeeder extends Seeder
     private function seedSettings(): void
     {
         $defaults = [
-            'institute_name' => 'Institute of Distance and Open Learning (IDOL)',
-            'institute_address' => 'Dr. Shankar Dayal Sharma Bhavan, Vidyanagari, Santacruz (East), Mumbai - 400 098.',
-            'institute_contact' => 'eligibility@idol.mu.ac.in | 022-26526091',
+            'institute_name' => 'Institute of Distance and Open Learning (Sample Institute)',
+            'institute_address' => '1 Sample Institute Road, Demo City - 100 000.',
+            'institute_contact' => 'eligibility@sample-institute.test | 000-0000000',
             'institute_signatory_name' => '',
             'institute_signatory_designation' => 'Deputy Registrar / Assistant Registrar',
             'institute_signature_space_lines' => '3',
-            'institute_university_title' => 'UNIVERSITY OF MUMBAI',
-            'footer_department' => 'IDOL Eligibility Section',
+            'institute_university_title' => 'SAMPLE STATE UNIVERSITY',
+            'footer_department' => 'Eligibility Section',
             'feature_export_enabled' => '1',
             'feature_import_enabled' => '1',
             'feature_bulk_email_enabled' => '1',
