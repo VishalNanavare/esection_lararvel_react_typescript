@@ -61,7 +61,7 @@ Route::middleware('auth')->group(function () {
 
     /*
     |--------------------------------------------------------------------------
-    | Demand Draft (DD) Confirmations
+    | Eligibility Confirmations
     |--------------------------------------------------------------------------
     */
     Route::get('/confirmations', [ConfirmationController::class, 'index'])->name('confirmations.index')->middleware('access:confirmations.view');

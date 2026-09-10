@@ -17,8 +17,6 @@ interface CandidateWithConf {
     conf_mig_tc: string | null;
     conf_p_degree: string | null;
     conf_s_marks: string | null;
-    conf_dd_no: string | null;
-    conf_dd_amount: string | null;
 }
 
 interface OptionItem {
@@ -85,11 +83,6 @@ export const Index: React.FC<IndexProps> = ({
         >
     >({});
 
-    // Global DD payment inputs for the batch
-    const [ddNo, setDdNo] = useState('');
-    const [ddAmount, setDdAmount] = useState('');
-    const [bankName, setBankName] = useState('');
-    const [ddDate, setDdDate] = useState(new Date().toISOString().split('T')[0]);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const handleFilterSubmit = (e: React.FormEvent) => {
@@ -169,10 +162,6 @@ export const Index: React.FC<IndexProps> = ({
                 body: JSON.stringify({
                     student_ids: selectedStudentIds,
                     checklist: checklistData,
-                    dd_no: ddNo,
-                    dd_amount: ddAmount ? parseFloat(ddAmount) : null,
-                    bank_name: bankName,
-                    dd_date: ddDate,
                 }),
             });
 
@@ -208,7 +197,7 @@ export const Index: React.FC<IndexProps> = ({
     )}&stream=${encodeURIComponent(filterStream)}`;
 
     return (
-        <AppLayout title="Demand Draft (DD) Payment Confirmation Portal - E-Section">
+        <AppLayout title="Eligibility Confirmation Portal - E-Section">
             <div className="row">
                 <div className="col-12">
                     <div className="glass-card p-4 mb-4">
@@ -481,9 +470,8 @@ export const Index: React.FC<IndexProps> = ({
                                                                                 }
                                                                             >
                                                                                 <option value="">Select source</option>
-                                                                                <option value="IDOL">IDOL</option>
-                                                                                <option value="University">University</option>
-                                                                                <option value="College">College</option>
+                                                                                <option value="Ranade Bhavan">Ranade Bhavan</option>
+                                                                                <option value="Dr Babasaheb Ambedkar Bhavan">Dr Babasaheb Ambedkar Bhavan</option>
                                                                                 <option value="other">Other</option>
                                                                             </select>
                                                                         </div>
@@ -511,12 +499,8 @@ export const Index: React.FC<IndexProps> = ({
                                                                                 }
                                                                             >
                                                                                 <option value="">None</option>
-                                                                                <option value="Migration Certificate Verification">
-                                                                                    Migration Certificate Verification
-                                                                                </option>
-                                                                                <option value="Degree Certificate Verification">
-                                                                                    Degree Certificate Verification
-                                                                                </option>
+                                                                                <option value="old">Old</option>
+                                                                                <option value="TC">TC</option>
                                                                             </select>
                                                                         </div>
                                                                         <div className="col-md-3">
@@ -529,8 +513,8 @@ export const Index: React.FC<IndexProps> = ({
                                                                                 }
                                                                             >
                                                                                 <option value="">No name change</option>
-                                                                                <option value="Father Name Change">Father Name Change</option>
-                                                                                <option value="Self Name Change">Self Name Change</option>
+                                                                                <option value="Gazette">Gazette</option>
+                                                                                <option value="Marriage Certificate">Marriage Certificate</option>
                                                                             </select>
                                                                         </div>
                                                                     </div>
@@ -545,71 +529,24 @@ export const Index: React.FC<IndexProps> = ({
                                 </table>
                             </div>
 
-                            {/* DD Payment Details and Confirmation Action Bar */}
+                            {/* Confirmation Action Bar */}
                             {canCreate && selectedStudentIds.length > 0 && (
-                                <div className="p-3 bg-light rounded-3 border mb-4">
-                                    <h6 className="fw-bold mb-3 text-dark">
-                                        <i className="fa fa-credit-card me-2 text-indigo"></i> Demand Draft (DD) Payment Details for Batch
-                                    </h6>
-                                    <div className="row g-3">
-                                        <div className="col-sm-6 col-md-3">
-                                            <label className="form-label small text-muted">DD Number</label>
-                                            <input
-                                                type="text"
-                                                className="form-control form-control-sm"
-                                                placeholder="e.g. 123456"
-                                                value={ddNo}
-                                                onChange={(e) => setDdNo(e.target.value)}
-                                            />
-                                        </div>
-                                        <div className="col-sm-6 col-md-3">
-                                            <label className="form-label small text-muted">DD Amount (₹)</label>
-                                            <input
-                                                type="number"
-                                                step="0.01"
-                                                className="form-control form-control-sm"
-                                                placeholder="e.g. 500.00"
-                                                value={ddAmount}
-                                                onChange={(e) => setDdAmount(e.target.value)}
-                                            />
-                                        </div>
-                                        <div className="col-sm-6 col-md-3">
-                                            <label className="form-label small text-muted">Bank Name</label>
-                                            <input
-                                                type="text"
-                                                className="form-control form-control-sm"
-                                                placeholder="e.g. State Bank of India"
-                                                value={bankName}
-                                                onChange={(e) => setBankName(e.target.value)}
-                                            />
-                                        </div>
-                                        <div className="col-sm-6 col-md-3">
-                                            <label className="form-label small text-muted">DD Date</label>
-                                            <input
-                                                type="date"
-                                                className="form-control form-control-sm"
-                                                value={ddDate}
-                                                onChange={(e) => setDdDate(e.target.value)}
-                                            />
-                                        </div>
-                                        <div className="col-12 text-end pt-2">
-                                            <button
-                                                type="submit"
-                                                className="btn btn-emerald px-4"
-                                                disabled={isSubmitting}
-                                            >
-                                                {isSubmitting ? (
-                                                    <>
-                                                        <i className="fa fa-spinner fa-spin me-2"></i> Saving Confirmations...
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <i className="fa fa-check me-2"></i> Confirm Eligibility for {selectedStudentIds.length} Candidate(s)
-                                                    </>
-                                                )}
-                                            </button>
-                                        </div>
-                                    </div>
+                                <div className="p-3 bg-light rounded-3 border mb-4 text-end">
+                                    <button
+                                        type="submit"
+                                        className="btn btn-emerald px-4"
+                                        disabled={isSubmitting}
+                                    >
+                                        {isSubmitting ? (
+                                            <>
+                                                <i className="fa fa-spinner fa-spin me-2"></i> Saving Confirmations...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <i className="fa fa-check me-2"></i> Confirm Eligibility for {selectedStudentIds.length} Candidate(s)
+                                            </>
+                                        )}
+                                    </button>
                                 </div>
                             )}
                         </form>

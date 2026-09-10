@@ -111,7 +111,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats, metrics, recent_act
                             )}
                             {can('confirmations.view') && (
                                 <Link href="/confirmations" className="btn btn-emerald">
-                                    <i className="fa fa-check-square-o me-1"></i> DD Confirmation
+                                    <i className="fa fa-check-square-o me-1"></i> Confirmations
                                 </Link>
                             )}
                         </div>

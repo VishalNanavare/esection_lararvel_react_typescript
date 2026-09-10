@@ -107,10 +107,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ isRail, isMobileOpen, onCloseM
                             <Link
                                 href="/confirmations"
                                 className={`nav-link ${isActive('/confirmations') ? 'active' : ''}`}
-                                title="DD Confirmation"
+                                title="Eligibility Confirmation"
                             >
                                 <i className="fa fa-check-square-o me-3 w-5 text-center"></i>
-                                {!isRail && <span className="link-text">DD Confirmation</span>}
+                                {!isRail && <span className="link-text">Confirmations</span>}
                             </Link>
                         </li>
                     )}

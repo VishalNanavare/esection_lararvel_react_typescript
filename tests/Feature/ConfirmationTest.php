@@ -32,7 +32,7 @@ test('user can view confirmations page', function () {
     $response->assertOk();
 });
 
-test('user can store a confirmation record', function () {
+test('user can store a confirmation record with the eligibility checklist', function () {
     $payload = [
         'student_ids' => [$this->student->id],
         'checklist' => [
@@ -42,16 +42,12 @@ test('user can store a confirmation record', function () {
                 's_marks' => 'Yes',
                 'letter_no_date' => 'LT/2026/99',
                 'remark' => 'Verified OK',
-                'conf_from' => 'University',
+                'conf_from' => 'Ranade Bhavan',
                 'conf_from_text' => '',
-                'conf_from_select' => 'Migration Certificate Verification',
-                'etc_data' => '',
+                'conf_from_select' => 'old',
+                'etc_data' => 'Gazette',
             ],
         ],
-        'dd_no' => 'DD888999',
-        'dd_amount' => 500,
-        'bank_name' => 'State Bank of India',
-        'dd_date' => '2026-09-07',
     ];
 
     $response = $this->actingAs($this->user)->postJson(route('confirmations.store'), $payload);
@@ -67,7 +63,59 @@ test('user can store a confirmation record', function () {
         'case_no' => 'CASE-2026/0055',
         'mig_TC' => 'Yes',
         'p_degree' => 'Yes',
-        'dd_no' => 'DD888999',
+        's_marks' => 'Yes',
+        'conf_from' => 'Ranade Bhavan',
+        'conf_from_select' => 'old',
+        'etc_data' => 'Gazette',
+    ]);
+});
+
+test('clarification fields are only kept when Migration/TC is Yes, and only whitelisted values are accepted', function () {
+    $payload = [
+        'student_ids' => [$this->student->id],
+        'checklist' => [
+            $this->student->id => [
+                'mig_tc' => 'No',
+                'p_degree' => 'Yes',
+                's_marks' => 'Yes',
+                'conf_from' => 'Ranade Bhavan',
+                'conf_from_select' => 'old',
+                'etc_data' => 'Gazette',
+            ],
+        ],
+    ];
+
+    $this->actingAs($this->user)->postJson(route('confirmations.store'), $payload)->assertOk();
+
+    $this->assertDatabaseHas('conf_stud_data', [
+        'student_id' => $this->student->id,
+        'mig_TC' => 'No',
+        'conf_from' => '',
+        'conf_from_select' => '',
+        'etc_data' => '',
+    ]);
+});
+
+test('an invalid clarification option value is silently rejected rather than stored', function () {
+    $payload = [
+        'student_ids' => [$this->student->id],
+        'checklist' => [
+            $this->student->id => [
+                'mig_tc' => 'Yes',
+                'conf_from' => 'not-a-real-option',
+                'conf_from_select' => 'also-invalid',
+                'etc_data' => 'invalid-too',
+            ],
+        ],
+    ];
+
+    $this->actingAs($this->user)->postJson(route('confirmations.store'), $payload)->assertOk();
+
+    $this->assertDatabaseHas('conf_stud_data', [
+        'student_id' => $this->student->id,
+        'conf_from' => '',
+        'conf_from_select' => '',
+        'etc_data' => '',
     ]);
 });
 
@@ -122,7 +170,7 @@ test('pending list export includes students with no confirmation record yet', fu
     expect($values)->toContain('Pending Student');
 });
 
-test('export includes the Mig / TC value for a confirmed candidate', function () {
+test('export shows Confirmed status for a candidate with a confirmation record and Pending otherwise', function () {
     ConfStudData::create([
         'student_id' => $this->student->id,
         'case_no' => $this->student->eligibility_case_no,
@@ -132,9 +180,18 @@ test('export includes the Mig / TC value for a confirmed candidate', function ()
         'mig_TC' => 'Yes',
         'p_degree' => 'No',
         's_marks' => 'Yes',
-        'array_space' => 'mig_tc_export_batch',
+        'array_space' => 'status_export_batch',
         'en_time' => now(),
         'en_by' => 'confirm_staff',
+    ]);
+
+    $pendingStudent = StudentDetail::create([
+        'array_space' => 'status_export_pending',
+        'student_name' => 'Not Yet Confirmed',
+        'admission_taken_year' => '2026-2027',
+        'admission_taken_in' => 'F.Y.B.Com',
+        'clg_add' => 'University of Delhi',
+        'eligibility_case_no' => 'CASE-2026/0099',
     ]);
 
     $response = $this->actingAs($this->user)->get('/confirmations/export');
@@ -148,13 +205,16 @@ test('export includes the Mig / TC value for a confirmed candidate', function ()
     unlink($tmpFile);
 
     $headerRow = $rows[0];
-    $migTcColumn = array_search('Mig / TC', $headerRow, true);
+    $statusColumn = array_search('Status', $headerRow, true);
     $caseNoColumn = array_search('Case No.', $headerRow, true);
 
-    $dataRow = collect($rows)->first(fn ($row) => $row[$caseNoColumn] === $this->student->eligibility_case_no);
+    expect($statusColumn)->not->toBeFalse();
 
-    expect($dataRow)->not->toBeNull();
-    expect($dataRow[$migTcColumn])->toBe('Yes');
+    $confirmedRow = collect($rows)->first(fn ($row) => $row[$caseNoColumn] === $this->student->eligibility_case_no);
+    $pendingRow = collect($rows)->first(fn ($row) => $row[$caseNoColumn] === $pendingStudent->eligibility_case_no);
+
+    expect($confirmedRow[$statusColumn])->toBe('Confirmed');
+    expect($pendingRow[$statusColumn])->toBe('Pending');
 });
 
 test('user can delete a confirmation record', function () {

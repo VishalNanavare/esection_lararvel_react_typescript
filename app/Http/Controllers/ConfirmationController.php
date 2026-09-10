@@ -21,6 +21,15 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ConfirmationController extends Controller
 {
+    /** Mirrors esection_ci4's ConfirmationService::CONF_FROM_OPTIONS exactly. */
+    private const CONF_FROM_OPTIONS = ['Ranade Bhavan', 'Dr Babasaheb Ambedkar Bhavan', 'other'];
+
+    /** Mirrors esection_ci4's ConfirmationService::CLARIFICATION_OPTIONS exactly. */
+    private const CLARIFICATION_OPTIONS = ['old', 'TC'];
+
+    /** Mirrors esection_ci4's ConfirmationService::NAME_CHANGE_OPTIONS exactly. */
+    private const NAME_CHANGE_OPTIONS = ['Gazette', 'Marriage Certificate'];
+
     /**
      * Display candidate eligibility confirmation portal.
      */
@@ -36,11 +45,9 @@ class ConfirmationController extends Controller
                 'student_details.*',
                 'conf_stud_data.id as confirmation_id',
                 'conf_stud_data.array_space as confirmation_array_space',
-                'conf_stud_data.mig_tc as conf_mig_tc',
+                'conf_stud_data.mig_TC as conf_mig_tc',
                 'conf_stud_data.p_degree as conf_p_degree',
-                'conf_stud_data.s_marks as conf_s_marks',
-                'conf_stud_data.dd_no as conf_dd_no',
-                'conf_stud_data.dd_amount as conf_dd_amount'
+                'conf_stud_data.s_marks as conf_s_marks'
             );
 
         if ($selectedYear !== '') {
@@ -78,7 +85,7 @@ class ConfirmationController extends Controller
             ]);
 
         return Inertia::render('Confirmations/Index', [
-            'title' => 'Demand Draft (DD) Payment Confirmation Portal',
+            'title' => 'Eligibility Confirmation Portal',
             'students' => $students,
             'academicYears' => $academicYears,
             'streams' => $streams,
@@ -99,10 +106,6 @@ class ConfirmationController extends Controller
             'student_ids' => 'required|array|min:1|max:200',
             'student_ids.*' => 'required|integer',
             'checklist' => 'required|array',
-            'dd_no' => 'nullable|string|max:50',
-            'dd_amount' => 'nullable|numeric|min:0',
-            'bank_name' => 'nullable|string|max:150',
-            'dd_date' => 'nullable|date',
         ]);
 
         $username = Auth::user()?->username ?? 'staff';
@@ -140,11 +143,7 @@ class ConfirmationController extends Controller
                     continue;
                 }
 
-                $check = $validated['checklist'][$studentId] ?? [];
-
-                $migTc = ($check['mig_tc'] ?? '') === 'Yes' ? 'Yes' : 'No';
-                $pDegree = ($check['p_degree'] ?? '') === 'Yes' ? 'Yes' : 'No';
-                $sMarks = ($check['s_marks'] ?? '') === 'Yes' ? 'Yes' : 'No';
+                $check = $this->mapChecklist($validated['checklist'][$studentId] ?? []);
 
                 ConfStudData::create([
                     'student_id' => $student->id,
@@ -153,22 +152,10 @@ class ConfirmationController extends Controller
                     'stream' => $student->admission_taken_in ?? '',
                     'uni_add' => $student->clg_add ?? '',
                     'acd_year' => $student->admission_taken_year ?? '',
-                    'mig_TC' => $migTc,
-                    'p_degree' => $pDegree,
-                    's_marks' => $sMarks,
-                    'letter_no_date' => trim($check['letter_no_date'] ?? ''),
-                    'remark' => trim($check['remark'] ?? ''),
-                    'conf_from' => trim($check['conf_from'] ?? ''),
-                    'conf_from_text' => trim($check['conf_from_text'] ?? ''),
-                    'conf_from_select' => trim($check['conf_from_select'] ?? ''),
-                    'etc_data' => trim($check['etc_data'] ?? ''),
+                    ...$check,
                     'array_space' => $arraySpace,
                     'en_time' => $nowTime,
                     'en_by' => $username,
-                    'dd_no' => $validated['dd_no'] ?? null,
-                    'dd_amount' => $validated['dd_amount'] ?? null,
-                    'bank_name' => $validated['bank_name'] ?? null,
-                    'dd_date' => $validated['dd_date'] ?? null,
                 ]);
 
                 $inserted++;
@@ -318,13 +305,7 @@ class ConfirmationController extends Controller
                 'student_details.clg_add',
                 'student_details.admission_taken_year',
                 'student_details.admission_taken_in',
-                'conf_stud_data.mig_TC',
-                'conf_stud_data.p_degree',
-                'conf_stud_data.s_marks',
-                'conf_stud_data.dd_no',
-                'conf_stud_data.dd_amount',
-                'conf_stud_data.bank_name',
-                'conf_stud_data.dd_date'
+                'conf_stud_data.id as confirmation_id'
             );
 
         if ($selectedYear !== '') {
@@ -334,16 +315,15 @@ class ConfirmationController extends Controller
             $query->where('student_details.admission_taken_in', $selectedStream);
         }
 
-        $records = $query->orderBy('conf_stud_data.id', 'desc')->get();
+        $records = $query->orderBy('student_details.id', 'desc')->get();
 
         $spreadsheet = new Spreadsheet;
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Confirmations');
 
         $headers = [
-            'Candidate Name', 'Nee Name', 'Case No.', 'Target University',
-            'Academic Year', 'Program', 'Mig / TC', 'Pass / Degree',
-            'Statement of Marks', 'DD No.', 'DD Amount', 'Bank Name', 'DD Date',
+            'Candidate', 'Nee Name', 'Case No.', 'Target University',
+            'Academic Year', 'Stream', 'Status',
         ];
         $sheet->fromArray($headers, null, 'A1');
 
@@ -356,13 +336,7 @@ class ConfirmationController extends Controller
                 $r->clg_add,
                 $r->admission_taken_year,
                 $r->admission_taken_in,
-                $r->mig_TC,
-                $r->p_degree,
-                $r->s_marks,
-                $r->dd_no,
-                $r->dd_amount,
-                $r->bank_name,
-                $r->dd_date,
+                $r->confirmation_id ? 'Confirmed' : 'Pending',
             ];
         }
 
@@ -370,7 +344,7 @@ class ConfirmationController extends Controller
             $sheet->fromArray($rows, null, 'A2');
         }
 
-        foreach (range('A', 'M') as $col) {
+        foreach (range('A', 'G') as $col) {
             $sheet->getColumnDimension($col)->setAutoSize(true);
         }
 
@@ -382,5 +356,44 @@ class ConfirmationController extends Controller
         }, $filename, [
             'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         ]);
+    }
+
+    /**
+     * Whitelists and shapes one student's raw checklist submission exactly
+     * like esection_ci4's ConfirmationService::mapChecklist(): the four
+     * clarification fields (conf_from/conf_from_text/conf_from_select/
+     * etc_data) only mean anything when Migration/TC is Yes, so they are
+     * force-cleared otherwise rather than trusting whatever the client sent.
+     *
+     * @param  array<string, mixed>  $raw
+     * @return array<string, string>
+     */
+    private function mapChecklist(array $raw): array
+    {
+        $migTc = ($raw['mig_tc'] ?? '') === 'Yes' ? 'Yes' : 'No';
+
+        $confFrom = '';
+        $confFromText = '';
+        $confFromSelect = '';
+        $etcData = '';
+
+        if ($migTc === 'Yes') {
+            $confFrom = in_array($raw['conf_from'] ?? '', self::CONF_FROM_OPTIONS, true) ? $raw['conf_from'] : '';
+            $confFromText = $confFrom === 'other' ? trim((string) ($raw['conf_from_text'] ?? '')) : '';
+            $confFromSelect = in_array($raw['conf_from_select'] ?? '', self::CLARIFICATION_OPTIONS, true) ? $raw['conf_from_select'] : '';
+            $etcData = in_array($raw['etc_data'] ?? '', self::NAME_CHANGE_OPTIONS, true) ? $raw['etc_data'] : '';
+        }
+
+        return [
+            'mig_TC' => $migTc,
+            'p_degree' => ($raw['p_degree'] ?? '') === 'Yes' ? 'Yes' : 'No',
+            's_marks' => ($raw['s_marks'] ?? '') === 'Yes' ? 'Yes' : 'No',
+            'letter_no_date' => trim((string) ($raw['letter_no_date'] ?? '')),
+            'remark' => trim((string) ($raw['remark'] ?? '')),
+            'conf_from' => $confFrom,
+            'conf_from_text' => $confFromText,
+            'conf_from_select' => $confFromSelect,
+            'etc_data' => $etcData,
+        ];
     }
 }
