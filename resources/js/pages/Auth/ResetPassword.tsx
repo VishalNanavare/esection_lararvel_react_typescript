@@ -1,25 +1,25 @@
 import React from 'react';
 import { Head, Link, useForm } from '@inertiajs/react';
 
-interface LoginProps {
-    status?: string;
+interface ResetPasswordProps {
+    token: string;
 }
 
-export const Login: React.FC<LoginProps> = ({ status }) => {
+export const ResetPassword: React.FC<ResetPasswordProps> = ({ token }) => {
     const { data, setData, post, processing, errors } = useForm({
-        username: '',
+        token,
         password: '',
-        remember: false,
+        password_confirmation: '',
     });
 
     const submit = (e: React.FormEvent) => {
         e.preventDefault();
-        post('/login');
+        post('/reset-password');
     };
 
     return (
         <div className="d-flex align-items-center justify-content-center min-vh-100 py-5 bg-light">
-            <Head title="Login - E-Section Verification Portal" />
+            <Head title="Reset Password - E-Section Portal" />
 
             <div className="container">
                 <div className="row justify-content-center">
@@ -35,31 +35,13 @@ export const Login: React.FC<LoginProps> = ({ status }) => {
                                         border: '1px solid #c7d2fe',
                                     }}
                                 >
-                                    <i className="fa fa-shield fa-2x text-indigo"></i>
+                                    <i className="fa fa-lock fa-2x text-indigo"></i>
                                 </div>
-                                <h3 className="fw-bold mb-1 text-dark">E-Section Portal</h3>
+                                <h3 className="fw-bold mb-1 text-dark">Reset Password</h3>
                                 <p className="text-muted small">
-                                    Institute of Distance &amp; Open Learning (IDOL)
+                                    Choose a new password for your account (8-10 characters).
                                 </p>
                             </div>
-
-                            {status && (
-                                <div
-                                    className="alert alert-success bg-success bg-opacity-10 text-success border-success border-opacity-25 rounded-3 mb-3 small"
-                                    role="status"
-                                >
-                                    <i className="fa fa-check-circle me-1"></i> {status}
-                                </div>
-                            )}
-
-                            {errors.username && (
-                                <div
-                                    className="alert alert-danger bg-danger bg-opacity-10 text-danger border-danger border-opacity-25 rounded-3 mb-3 small"
-                                    role="alert"
-                                >
-                                    <i className="fa fa-exclamation-circle me-1"></i> {errors.username}
-                                </div>
-                            )}
 
                             {errors.password && (
                                 <div
@@ -70,31 +52,19 @@ export const Login: React.FC<LoginProps> = ({ status }) => {
                                 </div>
                             )}
 
+                            {errors.password_confirmation && (
+                                <div
+                                    className="alert alert-danger bg-danger bg-opacity-10 text-danger border-danger border-opacity-25 rounded-3 mb-3 small"
+                                    role="alert"
+                                >
+                                    <i className="fa fa-exclamation-circle me-1"></i> {errors.password_confirmation}
+                                </div>
+                            )}
+
                             <form onSubmit={submit}>
                                 <div className="mb-3">
                                     <label className="form-label text-secondary small fw-semibold">
-                                        Username
-                                    </label>
-                                    <div className="input-group">
-                                        <span className="input-group-text bg-light border-secondary border-opacity-25 text-muted">
-                                            <i className="fa fa-user"></i>
-                                        </span>
-                                        <input
-                                            type="text"
-                                            name="username"
-                                            value={data.username}
-                                            onChange={(e) => setData('username', e.target.value)}
-                                            className="form-control"
-                                            placeholder="e.g. esection1 or admin"
-                                            required
-                                            autoFocus
-                                        />
-                                    </div>
-                                </div>
-
-                                <div className="mb-4">
-                                    <label className="form-label text-secondary small fw-semibold">
-                                        Password
+                                        New Password
                                     </label>
                                     <div className="input-group">
                                         <span className="input-group-text bg-light border-secondary border-opacity-25 text-muted">
@@ -107,27 +77,34 @@ export const Login: React.FC<LoginProps> = ({ status }) => {
                                             onChange={(e) => setData('password', e.target.value)}
                                             className="form-control"
                                             placeholder="••••••••"
+                                            minLength={8}
+                                            maxLength={10}
                                             required
+                                            autoFocus
                                         />
                                     </div>
                                 </div>
 
-                                <div className="mb-3 d-flex align-items-center justify-content-between">
-                                    <div className="form-check">
+                                <div className="mb-4">
+                                    <label className="form-label text-secondary small fw-semibold">
+                                        Confirm New Password
+                                    </label>
+                                    <div className="input-group">
+                                        <span className="input-group-text bg-light border-secondary border-opacity-25 text-muted">
+                                            <i className="fa fa-lock"></i>
+                                        </span>
                                         <input
-                                            type="checkbox"
-                                            id="remember"
-                                            className="form-check-input"
-                                            checked={data.remember}
-                                            onChange={(e) => setData('remember', e.target.checked)}
+                                            type="password"
+                                            name="password_confirmation"
+                                            value={data.password_confirmation}
+                                            onChange={(e) => setData('password_confirmation', e.target.value)}
+                                            className="form-control"
+                                            placeholder="••••••••"
+                                            minLength={8}
+                                            maxLength={10}
+                                            required
                                         />
-                                        <label className="form-check-label text-muted small" htmlFor="remember">
-                                            Remember this device
-                                        </label>
                                     </div>
-                                    <Link href="/forgot-password" className="small text-indigo">
-                                        Forgot password?
-                                    </Link>
                                 </div>
 
                                 <button
@@ -137,20 +114,20 @@ export const Login: React.FC<LoginProps> = ({ status }) => {
                                 >
                                     {processing ? (
                                         <>
-                                            <i className="fa fa-spinner fa-spin me-2"></i> Signing In...
+                                            <i className="fa fa-spinner fa-spin me-2"></i> Resetting...
                                         </>
                                     ) : (
                                         <>
-                                            <i className="fa fa-sign-in me-2"></i> Log In to Dashboard
+                                            <i className="fa fa-check me-2"></i> Reset Password
                                         </>
                                     )}
                                 </button>
                             </form>
 
                             <div className="mt-4 text-center">
-                                <small className="text-muted" style={{ fontSize: '0.75rem' }}>
-                                    &copy; {new Date().getFullYear()} IDOL Eligibility Section. All rights reserved.
-                                </small>
+                                <Link href="/login" className="small text-indigo">
+                                    <i className="fa fa-arrow-left me-1"></i> Back to Sign In
+                                </Link>
                             </div>
                         </div>
                     </div>
@@ -160,4 +137,4 @@ export const Login: React.FC<LoginProps> = ({ status }) => {
     );
 };
 
-export default Login;
+export default ResetPassword;

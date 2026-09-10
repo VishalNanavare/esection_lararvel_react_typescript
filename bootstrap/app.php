@@ -1,6 +1,9 @@
 <?php
 
+use App\Http\Middleware\CheckAdminRole;
+use App\Http\Middleware\CheckPageAccess;
 use App\Http\Middleware\HandleInertiaRequests;
+use App\Http\Middleware\RevalidateSession;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -17,11 +20,12 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->web(append: [
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,
+            RevalidateSession::class,
         ]);
 
         $middleware->alias([
-            'access' => \App\Http\Middleware\CheckPageAccess::class,
-            'admin' => \App\Http\Middleware\CheckAdminRole::class,
+            'access' => CheckPageAccess::class,
+            'admin' => CheckAdminRole::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

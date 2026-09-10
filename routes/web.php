@@ -21,6 +21,10 @@ use Illuminate\Support\Facades\Route;
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
     Route::post('/login', [AuthController::class, 'login']);
+    Route::get('/forgot-password', [AuthController::class, 'showForgotPassword'])->name('password.forgot');
+    Route::post('/forgot-password', [AuthController::class, 'sendResetLink'])->name('password.forgot.send');
+    Route::get('/reset-password/{token}', [AuthController::class, 'showResetPassword'])->name('password.reset.show');
+    Route::post('/reset-password', [AuthController::class, 'resetPassword'])->name('password.reset');
 });
 
 /*

@@ -558,7 +558,7 @@ class SettingsController extends Controller
             'full_name' => 'nullable|string|max:100',
             'email' => 'nullable|email|max:100',
             'role' => 'required|in:admin,staff',
-            'password' => 'required|string|min:6',
+            'password' => 'required|string|min:8|max:10',
             'pages' => 'nullable|array',
             'pages.*' => 'string',
         ]);
@@ -609,7 +609,7 @@ class SettingsController extends Controller
             'full_name' => 'nullable|string|max:100',
             'email' => 'nullable|email|max:100',
             'role' => 'required|in:admin,staff',
-            'password' => 'nullable|string|min:6',
+            'password' => 'nullable|string|min:8|max:10',
             'pages' => 'nullable|array',
             'pages.*' => 'string',
         ]);

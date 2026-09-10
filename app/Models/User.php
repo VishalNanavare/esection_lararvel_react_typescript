@@ -11,6 +11,15 @@ class User extends Authenticatable
 {
     use HasFactory, Notifiable;
 
+    /**
+     * A bcrypt hash of no real password, used to keep password_verify()'s
+     * timing identical whether or not the submitted username exists — a
+     * login attempt against a nonexistent/inactive account still spends the
+     * same bcrypt cost as a real one, so response time can't be used to
+     * enumerate valid usernames.
+     */
+    public const DUMMY_HASH = '$2y$12$usesomesillystringfoeX7Ic0zXQhhFCFtDaZQ8ojmSNMj/mHKbBK';
+
     protected $fillable = [
         'username',
         'email',
@@ -78,5 +87,18 @@ class User extends Authenticatable
         }
 
         return $this->permissions()->pluck('page_key')->toArray();
+    }
+
+    /**
+     * A short, non-reversible marker for "which password this session was
+     * established under". Stored in the session at login and compared on
+     * every revalidation, so a password change ends the account's other
+     * sessions without needing a token table. A digest OF the hash, never
+     * the hash itself — the session store shouldn't hand out an offline
+     * cracking target.
+     */
+    public static function sessionFingerprint(string $passwordHash): string
+    {
+        return substr(hash('sha256', $passwordHash), 0, 32);
     }
 }

@@ -1,25 +1,24 @@
 import React from 'react';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { Head, Link, useForm, usePage } from '@inertiajs/react';
+import { SharedProps } from '../../types';
 
-interface LoginProps {
-    status?: string;
-}
+export const ForgotPassword: React.FC = () => {
+    const { props } = usePage<SharedProps>();
+    const status = props.flash?.success;
+    const errorMessage = props.flash?.error;
 
-export const Login: React.FC<LoginProps> = ({ status }) => {
     const { data, setData, post, processing, errors } = useForm({
-        username: '',
-        password: '',
-        remember: false,
+        identifier: '',
     });
 
     const submit = (e: React.FormEvent) => {
         e.preventDefault();
-        post('/login');
+        post('/forgot-password');
     };
 
     return (
         <div className="d-flex align-items-center justify-content-center min-vh-100 py-5 bg-light">
-            <Head title="Login - E-Section Verification Portal" />
+            <Head title="Forgot Password - E-Section Portal" />
 
             <div className="container">
                 <div className="row justify-content-center">
@@ -35,11 +34,11 @@ export const Login: React.FC<LoginProps> = ({ status }) => {
                                         border: '1px solid #c7d2fe',
                                     }}
                                 >
-                                    <i className="fa fa-shield fa-2x text-indigo"></i>
+                                    <i className="fa fa-lock fa-2x text-indigo"></i>
                                 </div>
-                                <h3 className="fw-bold mb-1 text-dark">E-Section Portal</h3>
+                                <h3 className="fw-bold mb-1 text-dark">Forgot Password</h3>
                                 <p className="text-muted small">
-                                    Institute of Distance &amp; Open Learning (IDOL)
+                                    Enter your username or email and we'll send you a reset link.
                                 </p>
                             </div>
 
@@ -52,28 +51,28 @@ export const Login: React.FC<LoginProps> = ({ status }) => {
                                 </div>
                             )}
 
-                            {errors.username && (
+                            {errorMessage && (
                                 <div
                                     className="alert alert-danger bg-danger bg-opacity-10 text-danger border-danger border-opacity-25 rounded-3 mb-3 small"
                                     role="alert"
                                 >
-                                    <i className="fa fa-exclamation-circle me-1"></i> {errors.username}
+                                    <i className="fa fa-exclamation-circle me-1"></i> {errorMessage}
                                 </div>
                             )}
 
-                            {errors.password && (
+                            {errors.identifier && (
                                 <div
                                     className="alert alert-danger bg-danger bg-opacity-10 text-danger border-danger border-opacity-25 rounded-3 mb-3 small"
                                     role="alert"
                                 >
-                                    <i className="fa fa-exclamation-circle me-1"></i> {errors.password}
+                                    <i className="fa fa-exclamation-circle me-1"></i> {errors.identifier}
                                 </div>
                             )}
 
                             <form onSubmit={submit}>
-                                <div className="mb-3">
+                                <div className="mb-4">
                                     <label className="form-label text-secondary small fw-semibold">
-                                        Username
+                                        Username or Email
                                     </label>
                                     <div className="input-group">
                                         <span className="input-group-text bg-light border-secondary border-opacity-25 text-muted">
@@ -81,53 +80,15 @@ export const Login: React.FC<LoginProps> = ({ status }) => {
                                         </span>
                                         <input
                                             type="text"
-                                            name="username"
-                                            value={data.username}
-                                            onChange={(e) => setData('username', e.target.value)}
+                                            name="identifier"
+                                            value={data.identifier}
+                                            onChange={(e) => setData('identifier', e.target.value)}
                                             className="form-control"
-                                            placeholder="e.g. esection1 or admin"
+                                            placeholder="e.g. esection1 or you@example.com"
                                             required
                                             autoFocus
                                         />
                                     </div>
-                                </div>
-
-                                <div className="mb-4">
-                                    <label className="form-label text-secondary small fw-semibold">
-                                        Password
-                                    </label>
-                                    <div className="input-group">
-                                        <span className="input-group-text bg-light border-secondary border-opacity-25 text-muted">
-                                            <i className="fa fa-lock"></i>
-                                        </span>
-                                        <input
-                                            type="password"
-                                            name="password"
-                                            value={data.password}
-                                            onChange={(e) => setData('password', e.target.value)}
-                                            className="form-control"
-                                            placeholder="••••••••"
-                                            required
-                                        />
-                                    </div>
-                                </div>
-
-                                <div className="mb-3 d-flex align-items-center justify-content-between">
-                                    <div className="form-check">
-                                        <input
-                                            type="checkbox"
-                                            id="remember"
-                                            className="form-check-input"
-                                            checked={data.remember}
-                                            onChange={(e) => setData('remember', e.target.checked)}
-                                        />
-                                        <label className="form-check-label text-muted small" htmlFor="remember">
-                                            Remember this device
-                                        </label>
-                                    </div>
-                                    <Link href="/forgot-password" className="small text-indigo">
-                                        Forgot password?
-                                    </Link>
                                 </div>
 
                                 <button
@@ -137,20 +98,20 @@ export const Login: React.FC<LoginProps> = ({ status }) => {
                                 >
                                     {processing ? (
                                         <>
-                                            <i className="fa fa-spinner fa-spin me-2"></i> Signing In...
+                                            <i className="fa fa-spinner fa-spin me-2"></i> Sending...
                                         </>
                                     ) : (
                                         <>
-                                            <i className="fa fa-sign-in me-2"></i> Log In to Dashboard
+                                            <i className="fa fa-paper-plane me-2"></i> Send Reset Link
                                         </>
                                     )}
                                 </button>
                             </form>
 
                             <div className="mt-4 text-center">
-                                <small className="text-muted" style={{ fontSize: '0.75rem' }}>
-                                    &copy; {new Date().getFullYear()} IDOL Eligibility Section. All rights reserved.
-                                </small>
+                                <Link href="/login" className="small text-indigo">
+                                    <i className="fa fa-arrow-left me-1"></i> Back to Sign In
+                                </Link>
                             </div>
                         </div>
                     </div>
@@ -160,4 +121,4 @@ export const Login: React.FC<LoginProps> = ({ status }) => {
     );
 };
 
-export default Login;
+export default ForgotPassword;
