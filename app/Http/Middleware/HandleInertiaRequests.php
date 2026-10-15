@@ -21,6 +21,7 @@ class HandleInertiaRequests extends Middleware
 
         return [
             ...parent::share($request),
+            'csrf_token' => csrf_token(),
             'appName' => Setting::get('institute_name', 'E-Section Verification System'),
             'auth' => [
                 'user' => $user ? [

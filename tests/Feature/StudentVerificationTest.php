@@ -38,9 +38,14 @@ beforeEach(function () {
     ]);
 });
 
-test('user can view the new student form', function () {
+test('user can view the new student form with csrf token meta and shared inertia prop', function () {
     $response = $this->actingAs($this->user)->get(route('students.new'));
     $response->assertOk();
+    $response->assertSee('<meta name="csrf-token" content="', false);
+    $response->assertInertia(fn ($page) => $page
+        ->component('Students/NewForm')
+        ->has('csrf_token')
+    );
 });
 
 test('staff with students.create (not students.import) can use the New Batch Entry inline Excel-fill picker', function () {

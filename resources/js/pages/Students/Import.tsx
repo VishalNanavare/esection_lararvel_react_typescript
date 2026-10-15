@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link } from '@inertiajs/react';
 import Swal from 'sweetalert2';
 import { AppLayout } from '../../components/AppLayout';
+import { getCsrfHeaders, isCsrfMismatch } from '../../lib/csrf';
 
 export const Import: React.FC = () => {
     const [file, setFile] = useState<File | null>(null);
@@ -17,18 +18,21 @@ export const Import: React.FC = () => {
         formData.append('candidate_sheet', file);
 
         try {
-            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
             const res = await fetch('/students/read-candidate-sheet', {
                 method: 'POST',
+                credentials: 'same-origin',
                 headers: {
                     Accept: 'application/json',
-                    ...(csrfToken ? { 'X-CSRF-TOKEN': csrfToken } : {}),
+                    ...getCsrfHeaders(),
                 },
                 body: formData,
             });
 
-            const data = await res.json();
+            const data = await res.json().catch(() => ({}));
             if (!res.ok || data.status === 'error') {
+                if (isCsrfMismatch(res.status, data.message)) {
+                    throw new Error('Your session expired. Please refresh the page and try again.');
+                }
                 throw new Error(data.message || 'Failed to read Excel workbook.');
             }
 

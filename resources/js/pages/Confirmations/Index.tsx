@@ -3,6 +3,7 @@ import { Link, router, usePage } from '@inertiajs/react';
 import Swal from 'sweetalert2';
 import { AppLayout } from '../../components/AppLayout';
 import { SharedProps } from '../../types';
+import { getCsrfHeaders, isCsrfMismatch } from '../../lib/csrf';
 
 interface CandidateWithConf {
     id: number;
@@ -151,13 +152,13 @@ export const Index: React.FC<IndexProps> = ({
 
         setIsSubmitting(true);
         try {
-            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
             const res = await fetch('/confirmations/store', {
                 method: 'POST',
+                credentials: 'same-origin',
                 headers: {
                     'Content-Type': 'application/json',
                     Accept: 'application/json',
-                    ...(csrfToken ? { 'X-CSRF-TOKEN': csrfToken } : {}),
+                    ...getCsrfHeaders(),
                 },
                 body: JSON.stringify({
                     student_ids: selectedStudentIds,
@@ -165,8 +166,11 @@ export const Index: React.FC<IndexProps> = ({
                 }),
             });
 
-            const data = await res.json();
+            const data = await res.json().catch(() => ({}));
             if (!res.ok || data.status === 'error') {
+                if (isCsrfMismatch(res.status, data.message)) {
+                    throw new Error('Your session expired. Please refresh the page and try again.');
+                }
                 throw new Error(data.message || 'Failed to save confirmation.');
             }
 

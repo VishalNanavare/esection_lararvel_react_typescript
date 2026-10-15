@@ -3,6 +3,7 @@ import { Link, router, usePage } from '@inertiajs/react';
 import Swal from 'sweetalert2';
 import { AppLayout } from '../../components/AppLayout';
 import { SharedProps } from '../../types';
+import { getCsrfHeaders, isCsrfMismatch } from '../../lib/csrf';
 
 interface AcademicYearOption {
     id: string;
@@ -299,18 +300,21 @@ export const NewForm: React.FC<NewFormProps> = ({
         formData.append('candidate_sheet', excelFile);
 
         try {
-            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
             const res = await fetch('/students/new/readSheet', {
                 method: 'POST',
+                credentials: 'same-origin',
                 headers: {
                     Accept: 'application/json',
-                    ...(csrfToken ? { 'X-CSRF-TOKEN': csrfToken } : {}),
+                    ...getCsrfHeaders(),
                 },
                 body: formData,
             });
 
-            const data = await res.json();
+            const data = await res.json().catch(() => ({}));
             if (!res.ok || data.status !== 'success' || !data.data || !data.data.rows?.length) {
+                if (isCsrfMismatch(res.status, data.message)) {
+                    throw new Error('Your session expired. Please refresh the page and try again.');
+                }
                 throw new Error(data.message || 'That sheet had no candidate rows.');
             }
 
@@ -398,13 +402,13 @@ export const NewForm: React.FC<NewFormProps> = ({
         setIsSubmittingBatch(true);
 
         try {
-            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
             const res = await fetch('/students/batch', {
                 method: 'POST',
+                credentials: 'same-origin',
                 headers: {
                     'Content-Type': 'application/json',
                     Accept: 'application/json',
-                    ...(csrfToken ? { 'X-CSRF-TOKEN': csrfToken } : {}),
+                    ...getCsrfHeaders(),
                 },
                 body: JSON.stringify({
                     to_name: toName,
@@ -416,8 +420,11 @@ export const NewForm: React.FC<NewFormProps> = ({
                 }),
             });
 
-            const data = await res.json();
+            const data = await res.json().catch(() => ({}));
             if (!res.ok || data.status === 'error') {
+                if (isCsrfMismatch(res.status, data.message)) {
+                    throw new Error('Your session expired. Please refresh the page and try again.');
+                }
                 throw new Error(data.message || 'Failed to save batch');
             }
 
