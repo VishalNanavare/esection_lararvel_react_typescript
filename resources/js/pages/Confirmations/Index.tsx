@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, router, usePage } from '@inertiajs/react';
 import Swal from 'sweetalert2';
 import { AppLayout } from '../../components/AppLayout';
+import { Select2 } from '../../components/Select2';
 import { SharedProps } from '../../types';
 import { getCsrfHeaders, isCsrfMismatch } from '../../lib/csrf';
 
@@ -11,6 +12,8 @@ interface CandidateWithConf {
     student_nee_name: string | null;
     eligibility_case_no: string;
     clg_add: string;
+    university_name?: string | null;
+    fees?: string | null;
     admission_taken_year: string;
     admission_taken_in: string;
     confirmation_id: number | null;
@@ -25,6 +28,13 @@ interface OptionItem {
     text: string;
     is_current?: boolean;
     stream?: string;
+}
+
+export interface UniversityOption {
+    value: string;
+    name?: string;
+    fees?: string;
+    label?: string;
 }
 
 interface PaginatedStudents {
@@ -42,9 +52,11 @@ interface IndexProps {
     students: PaginatedStudents;
     academicYears: OptionItem[];
     streams: OptionItem[];
+    universities: (UniversityOption | string)[];
     filters: {
         year: string;
         stream: string;
+        university?: string;
         q: string;
     };
 }
@@ -53,6 +65,7 @@ export const Index: React.FC<IndexProps> = ({
     students,
     academicYears,
     streams,
+    universities = [],
     filters,
 }) => {
     const { props } = usePage<SharedProps>();
@@ -64,6 +77,7 @@ export const Index: React.FC<IndexProps> = ({
 
     const [filterYear, setFilterYear] = useState(filters.year || '');
     const [filterStream, setFilterStream] = useState(filters.stream || '');
+    const [filterUniversity, setFilterUniversity] = useState(filters.university || '');
     const [searchQuery, setSearchQuery] = useState(filters.q || '');
 
     const [selectedStudentIds, setSelectedStudentIds] = useState<number[]>([]);
@@ -90,9 +104,22 @@ export const Index: React.FC<IndexProps> = ({
         e.preventDefault();
         router.get(
             '/confirmations',
-            { year: filterYear, stream: filterStream, q: searchQuery },
+            {
+                year: filterYear,
+                stream: filterStream,
+                university: filterUniversity,
+                q: searchQuery,
+            },
             { preserveState: true }
         );
+    };
+
+    const handleReset = () => {
+        setFilterYear('');
+        setFilterStream('');
+        setFilterUniversity('');
+        setSearchQuery('');
+        router.get('/confirmations', {}, { preserveState: true });
     };
 
     const handleChecklistChange = (
@@ -196,9 +223,24 @@ export const Index: React.FC<IndexProps> = ({
         }
     };
 
+    const renderAddress = (addr: string) => {
+        if (!addr) return '—';
+        const lines = addr.split(/<br\s*\/?>/i);
+        return lines.map((line, idx) => (
+            <React.Fragment key={idx}>
+                {line.trim()}
+                {idx < lines.length - 1 && <br />}
+            </React.Fragment>
+        ));
+    };
+
+    const isFiltered = Boolean(filterYear || filterStream || filterUniversity || searchQuery);
+
     const exportUrl = `/confirmations/export?year=${encodeURIComponent(
         filterYear
-    )}&stream=${encodeURIComponent(filterStream)}`;
+    )}&stream=${encodeURIComponent(filterStream)}&university=${encodeURIComponent(
+        filterUniversity
+    )}&q=${encodeURIComponent(searchQuery)}`;
 
     return (
         <AppLayout title="Eligibility Confirmation Portal - E-Section">
@@ -229,36 +271,66 @@ export const Index: React.FC<IndexProps> = ({
 
                         {/* Filter Panel */}
                         <form onSubmit={handleFilterSubmit} className="row g-3 mb-4 filter-panel p-3 bg-light rounded-3 border">
-                            <div className="col-md-4">
+                            <div className="col-md-3">
                                 <label className="form-label text-secondary small fw-semibold">Academic Year</label>
-                                <select
-                                    className="form-select"
+                                <Select2
+                                    id="filter_year"
+                                    name="year"
                                     value={filterYear}
-                                    onChange={(e) => setFilterYear(e.target.value)}
-                                >
-                                    <option value="">-- All Years --</option>
-                                    {academicYears.map((y) => (
-                                        <option key={y.id} value={y.id}>
-                                            {y.text}
-                                        </option>
-                                    ))}
-                                </select>
+                                    onChange={(val) => setFilterYear(val)}
+                                    placeholder="-- All Years --"
+                                    options={[
+                                        { value: '', label: '-- All Years --' },
+                                        ...academicYears.map((y) => ({
+                                            value: y.id,
+                                            label: y.text,
+                                        })),
+                                    ]}
+                                />
                             </div>
 
-                            <div className="col-md-4">
+                            <div className="col-md-3">
                                 <label className="form-label text-secondary small fw-semibold">Program / Academic Stream</label>
-                                <select
-                                    className="form-select"
+                                <Select2
+                                    id="filter_stream"
+                                    name="stream"
                                     value={filterStream}
-                                    onChange={(e) => setFilterStream(e.target.value)}
-                                >
-                                    <option value="">-- All Streams --</option>
-                                    {streams.map((s) => (
-                                        <option key={s.id} value={s.id}>
-                                            {s.text}
-                                        </option>
-                                    ))}
-                                </select>
+                                    onChange={(val) => setFilterStream(val)}
+                                    placeholder="-- All Streams --"
+                                    options={[
+                                        { value: '', label: '-- All Streams --' },
+                                        ...streams.map((s) => ({
+                                            value: s.id,
+                                            label: s.text,
+                                        })),
+                                    ]}
+                                />
+                            </div>
+
+                            <div className="col-md-3">
+                                <label className="form-label text-secondary small fw-semibold">University</label>
+                                <Select2
+                                    id="filter_university"
+                                    name="university"
+                                    value={filterUniversity}
+                                    onChange={(val) => setFilterUniversity(val)}
+                                    placeholder="-- All Universities --"
+                                    options={[
+                                        { value: '', label: '-- All Universities --' },
+                                        ...universities.map((u) => {
+                                            if (typeof u === 'string') {
+                                                return { value: u, label: u };
+                                            }
+                                            const feesStr = u.fees ? `₹${u.fees}` : '—';
+                                            return {
+                                                value: u.value,
+                                                label: u.label || `${u.name || u.value} | Fees: ${feesStr}`,
+                                                name: u.name,
+                                                fees: u.fees,
+                                            };
+                                        }),
+                                    ]}
+                                />
                             </div>
 
                             <div className="col-md-3">
@@ -272,9 +344,14 @@ export const Index: React.FC<IndexProps> = ({
                                 />
                             </div>
 
-                            <div className="col-md-1 d-flex align-items-end">
-                                <button type="submit" className="btn btn-indigo w-100 py-2">
-                                    <i className="fa fa-filter"></i>
+                            <div className="col-12 d-flex justify-content-end gap-2">
+                                {isFiltered && (
+                                    <button type="button" className="btn btn-glass" onClick={handleReset}>
+                                        <i className="fa fa-refresh me-1"></i> Reset
+                                    </button>
+                                )}
+                                <button type="submit" className="btn btn-indigo px-4">
+                                    <i className="fa fa-filter me-1"></i> Filter
                                 </button>
                             </div>
                         </form>
@@ -292,7 +369,7 @@ export const Index: React.FC<IndexProps> = ({
                                                         className="form-check-input"
                                                         onChange={toggleSelectAll}
                                                         checked={
-                                                            selectedStudentIds.length > 0 &&
+                                                             selectedStudentIds.length > 0 &&
                                                             selectedStudentIds.length ===
                                                                 students.data.filter((s) => !s.confirmation_id).length
                                                         }
@@ -301,7 +378,7 @@ export const Index: React.FC<IndexProps> = ({
                                             </th>
                                             <th>Candidate</th>
                                             <th>Case No.</th>
-                                            <th>Target University</th>
+                                            <th style={{ minWidth: '220px' }}>Target University</th>
                                             <th style={{ minWidth: '100px' }}>Migration/TC</th>
                                             <th style={{ minWidth: '100px' }}>Pass/Degree</th>
                                             <th style={{ minWidth: '100px' }}>Marksheet</th>
@@ -314,7 +391,30 @@ export const Index: React.FC<IndexProps> = ({
                                         {students.data.length === 0 ? (
                                             <tr>
                                                 <td colSpan={10} className="text-center text-muted py-5">
-                                                    No candidates pending eligibility confirmation matching your filters.
+                                                    {isFiltered ? (
+                                                        <>
+                                                            <i className="fa fa-filter fa-2x d-block mb-2 opacity-25"></i>
+                                                            No candidates pending eligibility confirmation matching your filters.
+                                                            <div className="small mt-1">
+                                                                <a
+                                                                    href="#"
+                                                                    onClick={(e) => {
+                                                                        e.preventDefault();
+                                                                        handleReset();
+                                                                    }}
+                                                                    className="text-indigo"
+                                                                >
+                                                                    Clear the filters
+                                                                </a>{' '}
+                                                                to see all candidates.
+                                                            </div>
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <i className="fa fa-inbox fa-2x d-block mb-2 opacity-25"></i>
+                                                            No candidates pending eligibility confirmation.
+                                                        </>
+                                                    )}
                                                 </td>
                                             </tr>
                                         ) : (
@@ -360,8 +460,28 @@ export const Index: React.FC<IndexProps> = ({
                                                                     {s.eligibility_case_no}
                                                                 </span>
                                                             </td>
-                                                            <td className="small text-muted" style={{ maxWidth: '200px' }}>
-                                                                <div className="text-truncate">{s.clg_add}</div>
+                                                            <td style={{ minWidth: '220px', maxWidth: '320px' }}>
+                                                                {s.university_name ? (
+                                                                    <div className="fw-bold text-dark mb-1">
+                                                                        {s.university_name}
+                                                                    </div>
+                                                                ) : null}
+
+                                                                <div className="mb-1.5">
+                                                                    {s.fees ? (
+                                                                        <span className="badge badge-glass-indigo">
+                                                                            <i className="fa fa-inr me-1"></i>Fees: ₹{s.fees}
+                                                                        </span>
+                                                                    ) : (
+                                                                        <span className="badge bg-light text-secondary border">
+                                                                            Fees: —
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+
+                                                                <div className="small text-muted" style={{ lineHeight: '1.45' }}>
+                                                                    {renderAddress(s.clg_add)}
+                                                                </div>
                                                             </td>
                                                             {isConfirmed ? (
                                                                 <td colSpan={5} className="text-center small text-muted">

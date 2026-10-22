@@ -27,9 +27,42 @@ beforeEach(function () {
     ]);
 });
 
-test('user can view confirmations page', function () {
+test('user can view confirmations page with select2 university options and fee details', function () {
+    \App\Models\CollegeDetail::create([
+        'Name' => 'University of Delhi',
+        'Address' => 'University of Delhi, Delhi',
+        'fees' => '250',
+        'is_active' => true,
+    ]);
+
     $response = $this->actingAs($this->user)->get(route('confirmations.index'));
     $response->assertOk();
+
+    $page = $response->original->getData()['page'];
+    expect($page['props']['universities'])->toBeArray();
+    expect($page['props']['filters'])->toHaveKey('university');
+
+    $firstStudent = $page['props']['students']['data'][0] ?? null;
+    expect($firstStudent)->not->toBeNull();
+    expect($firstStudent['university_name'])->toBe('University of Delhi');
+    expect($firstStudent['fees'])->toBe('250');
+});
+
+test('user can filter confirmations by university', function () {
+    $response = $this->actingAs($this->user)->get(route('confirmations.index', [
+        'university' => 'University of Delhi',
+    ]));
+    $response->assertOk();
+
+    $page = $response->original->getData()['page'];
+    expect(count($page['props']['students']['data']))->toBeGreaterThanOrEqual(1);
+
+    $noMatchResponse = $this->actingAs($this->user)->get(route('confirmations.index', [
+        'university' => 'NonExistent University 9999',
+    ]));
+    $noMatchResponse->assertOk();
+    $noMatchPage = $noMatchResponse->original->getData()['page'];
+    expect(count($noMatchPage['props']['students']['data']))->toBe(0);
 });
 
 test('user can store a confirmation record with the eligibility checklist', function () {

@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Link, router, usePage } from '@inertiajs/react';
 import Swal from 'sweetalert2';
 import { AppLayout } from '../../components/AppLayout';
+import { Select2 } from '../../components/Select2';
 import { SharedProps } from '../../types';
 import { getCsrfHeaders, isCsrfMismatch } from '../../lib/csrf';
 
@@ -17,15 +18,16 @@ interface StreamOption {
     stream: string;
 }
 
-interface CollegeResult {
+export interface UniversityItem {
     id: number;
-    text: string;
+    value: string;
     name: string;
-    state: string | null;
-    address: string | null;
-    fees: string | null;
-    head_name: string | null;
-    in_favour_of: string | null;
+    fees?: string;
+    label: string;
+    address?: string | null;
+    head_name?: string | null;
+    in_favour_of?: string | null;
+    state?: string | null;
 }
 
 interface CandidateRow {
@@ -64,6 +66,7 @@ interface NewFormProps {
     suggestedCaseNo: string;
     academicYears: AcademicYearOption[];
     streams: StreamOption[];
+    universities?: UniversityItem[];
 }
 
 export const NewForm: React.FC<NewFormProps> = ({
@@ -71,6 +74,7 @@ export const NewForm: React.FC<NewFormProps> = ({
     suggestedCaseNo,
     academicYears,
     streams,
+    universities = [],
 }) => {
     const { props } = usePage<SharedProps>();
     const { features, auth } = props;
@@ -78,12 +82,87 @@ export const NewForm: React.FC<NewFormProps> = ({
     const isAdmin = auth.user?.role === 'admin';
     const can = (perm: string) => isAdmin || permissions.includes(perm);
 
-    // University search state
-    const [universityQuery, setUniversityQuery] = useState('');
-    const [collegeResults, setCollegeResults] = useState<CollegeResult[]>([]);
-    const [isSearchingColleges, setIsSearchingColleges] = useState(false);
-    const [showCollegeDropdown, setShowCollegeDropdown] = useState(false);
-    const collegeDropdownRef = useRef<HTMLDivElement>(null);
+    // University state with Select2 support and fees display
+    const [localUniversities, setLocalUniversities] = useState<UniversityItem[]>(universities || []);
+    const [selectedUniversityId, setSelectedUniversityId] = useState('');
+    const [selectedUniversityFees, setSelectedUniversityFees] = useState<string | null>(null);
+
+    // Fallback load from API if not provided in props
+    useEffect(() => {
+        if (universities && universities.length > 0) {
+            setLocalUniversities(universities);
+        } else {
+            fetch('/api/colleges?active_only=0')
+                .then((res) => res.json())
+                .then((data) => {
+                    if (data.results && Array.isArray(data.results)) {
+                        const mapped = data.results.map((c: any) => {
+                            const rawFees = (c.fees !== null && c.fees !== '') ? String(c.fees).trim() : '';
+                            const feesVal = (rawFees !== '' && rawFees !== '0') ? rawFees : '';
+                            const feesText = feesVal !== '' ? `₹${feesVal}` : '—';
+                            return {
+                                id: c.id,
+                                value: String(c.id),
+                                name: c.name || c.text,
+                                fees: feesVal,
+                                label: `${c.name || c.text} | Fees: ${feesText}`,
+                                address: c.address,
+                                head_name: c.head_name,
+                                in_favour_of: c.in_favour_of,
+                                state: c.state,
+                            };
+                        });
+                        setLocalUniversities(mapped);
+                    }
+                })
+                .catch((err) => console.error('Failed to load universities fallback', err));
+        }
+    }, [universities]);
+
+    const handleSelectUniversity = (val: string) => {
+        setSelectedUniversityId(val);
+        if (!val) {
+            setSelectedUniversityFees(null);
+            return;
+        }
+        const found = localUniversities.find(
+            (u) => String(u.id) === String(val) || String(u.value) === String(val) || u.name === val
+        );
+        if (found) {
+            const fullAddr = found.address
+                ? found.address.toLowerCase().includes(found.name.toLowerCase())
+                    ? found.address
+                    : `${found.name}\n${found.address}`
+                : found.name;
+            setClgAdd(fullAddr);
+            setToName(found.head_name || 'The Controller of Examinations');
+            setInFavourOf(found.in_favour_of || '');
+            setSelectedUniversityFees(found.fees || '');
+        }
+    };
+
+    const universityOptions = useMemo(() => {
+        return localUniversities.map((u) => ({
+            value: String(u.id),
+            name: u.name,
+            fees: u.fees,
+            label: u.label,
+        }));
+    }, [localUniversities]);
+
+    const yearOptions = useMemo(() => {
+        return academicYears.map((y) => ({
+            value: y.id,
+            label: `${y.text}${y.is_current ? ' (Current)' : ''}`,
+        }));
+    }, [academicYears]);
+
+    const streamOptions = useMemo(() => {
+        return streams.map((s) => ({
+            value: s.id,
+            label: `${s.text} - ${s.stream}`,
+        }));
+    }, [streams]);
 
     // Batch metadata
     const [toName, setToName] = useState('The Controller of Examinations');
@@ -120,49 +199,6 @@ export const NewForm: React.FC<NewFormProps> = ({
 
     // Saving batch
     const [isSubmittingBatch, setIsSubmittingBatch] = useState(false);
-
-    // Search colleges with debounce
-    useEffect(() => {
-        if (!universityQuery.trim() || universityQuery.length < 2) {
-            setCollegeResults([]);
-            return;
-        }
-
-        const timer = setTimeout(async () => {
-            setIsSearchingColleges(true);
-            try {
-                const res = await fetch(`/api/colleges?q=${encodeURIComponent(universityQuery)}`);
-                const data = await res.json();
-                setCollegeResults(data.results || []);
-                setShowCollegeDropdown(true);
-            } catch (err) {
-                console.error('Error searching colleges', err);
-            } finally {
-                setIsSearchingColleges(false);
-            }
-        }, 250);
-
-        return () => clearTimeout(timer);
-    }, [universityQuery]);
-
-    // Close college dropdown on outside click
-    useEffect(() => {
-        const handleClickOutside = (e: MouseEvent) => {
-            if (collegeDropdownRef.current && !collegeDropdownRef.current.contains(e.target as Node)) {
-                setShowCollegeDropdown(false);
-            }
-        };
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, []);
-
-    const handleSelectCollege = (col: CollegeResult) => {
-        setUniversityQuery(col.name);
-        setClgAdd(col.address || col.name);
-        setToName(col.head_name || 'The Controller of Examinations');
-        setInFavourOf(col.in_favour_of || '');
-        setShowCollegeDropdown(false);
-    };
 
     // Add or Update Candidate
     const handleAddOrUpdateCandidate = async () => {
@@ -498,48 +534,18 @@ export const NewForm: React.FC<NewFormProps> = ({
 
                         {/* University & Program Details */}
                         <div className="row g-3 mb-4 filter-panel p-3 bg-light rounded-3 border">
-                            <div className="col-md-6 position-relative" ref={collegeDropdownRef}>
-                                <label className="form-label text-secondary small fw-semibold">
+                            <div className="col-md-6">
+                                <label className="form-label text-secondary small fw-semibold" htmlFor="target_university_select">
                                     Target University Name (Live Search)
                                 </label>
-                                <div className="input-group">
-                                    <span className="input-group-text bg-white border-end-0">
-                                        <i className={`fa ${isSearchingColleges ? 'fa-spinner fa-spin text-indigo' : 'fa-search text-muted'}`}></i>
-                                    </span>
-                                    <input
-                                        type="text"
-                                        className="form-control border-start-0"
-                                        placeholder="Type to search 469 verified universities..."
-                                        value={universityQuery}
-                                        onChange={(e) => setUniversityQuery(e.target.value)}
-                                        onFocus={() => {
-                                            if (collegeResults.length > 0) setShowCollegeDropdown(true);
-                                        }}
-                                    />
-                                </div>
-
-                                {showCollegeDropdown && collegeResults.length > 0 && (
-                                    <ul
-                                        className="dropdown-menu show shadow w-100 mt-1"
-                                        style={{ maxHeight: '250px', overflowY: 'auto', zIndex: 1060 }}
-                                    >
-                                        {collegeResults.map((col) => (
-                                            <li key={col.id}>
-                                                <button
-                                                    type="button"
-                                                    className="dropdown-item py-2"
-                                                    onClick={() => handleSelectCollege(col)}
-                                                >
-                                                    <div className="fw-bold text-dark">{col.name}</div>
-                                                    <div className="text-muted small">
-                                                        {col.state ? `${col.state} | ` : ''}
-                                                        {col.address ? col.address.substring(0, 70) + '...' : ''}
-                                                    </div>
-                                                </button>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                )}
+                                <Select2
+                                    id="target_university_select"
+                                    value={selectedUniversityId}
+                                    onChange={handleSelectUniversity}
+                                    options={universityOptions}
+                                    placeholder="-- Type to search & select university with fees --"
+                                    allowClear={true}
+                                />
                             </div>
 
                             <div className="col-md-6">
@@ -559,49 +565,96 @@ export const NewForm: React.FC<NewFormProps> = ({
                                 <label className="form-label text-secondary small fw-semibold">
                                     Academic Admission Year
                                 </label>
-                                <select
-                                    className="form-select"
+                                <Select2
+                                    id="admission_taken_year_select"
                                     value={admissionTakenYear}
-                                    onChange={(e) => setAdmissionTakenYear(e.target.value)}
-                                >
-                                    <option value="">-- Select Academic Year --</option>
-                                    {academicYears.map((y) => (
-                                        <option key={y.id} value={y.id}>
-                                            {y.text} {y.is_current ? '(Current)' : ''}
-                                        </option>
-                                    ))}
-                                </select>
+                                    onChange={setAdmissionTakenYear}
+                                    options={yearOptions}
+                                    placeholder="-- Select Academic Year --"
+                                    allowClear={false}
+                                />
                             </div>
 
                             <div className="col-md-6">
                                 <label className="form-label text-secondary small fw-semibold">
                                     Admitted Program / Stream
                                 </label>
-                                <select
-                                    className="form-select"
+                                <Select2
+                                    id="admission_taken_in_select"
                                     value={admissionTakenIn}
-                                    onChange={(e) => setAdmissionTakenIn(e.target.value)}
-                                >
-                                    <option value="">-- Select Academic Program --</option>
-                                    {streams.map((s) => (
-                                        <option key={s.id} value={s.id}>
-                                            {s.text} - {s.stream}
-                                        </option>
-                                    ))}
-                                </select>
+                                    onChange={setAdmissionTakenIn}
+                                    options={streamOptions}
+                                    placeholder="-- Select Academic Program --"
+                                    allowClear={false}
+                                />
                             </div>
 
                             <div className="col-12">
-                                <label className="form-label text-secondary small fw-semibold">
-                                    Favoring Authority Payment Instruction (In Favour Of)
-                                </label>
-                                <input
-                                    type="text"
-                                    className="form-control"
-                                    value={inFavourOf}
-                                    onChange={(e) => setInFavourOf(e.target.value)}
-                                    placeholder="Auto-populated payment title"
-                                />
+                                <div className="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-1">
+                                    <label className="form-label text-secondary small fw-semibold mb-0">
+                                        Favoring Authority Payment Instruction (In Favour Of)
+                                    </label>
+                                    {selectedUniversityFees !== null && (
+                                        <span
+                                            id="university_fees_badge"
+                                            className={`badge ${
+                                                selectedUniversityFees && selectedUniversityFees !== '0'
+                                                    ? 'badge-glass-indigo'
+                                                    : 'bg-light text-muted border'
+                                            } px-3 py-1.5 fs-7 d-inline-flex align-items-center`}
+                                        >
+                                            <i className="fa fa-money me-1.5 text-indigo"></i>
+                                            University Verification Fee:{' '}
+                                            <strong className="ms-1 font-monospace">
+                                                {selectedUniversityFees && selectedUniversityFees !== '0'
+                                                    ? `₹${selectedUniversityFees}`
+                                                    : 'Nil / Not Set'}
+                                            </strong>
+                                        </span>
+                                    )}
+                                </div>
+                                <div className="input-group">
+                                    <span className="input-group-text bg-white">
+                                        <i className="fa fa-university text-muted"></i>
+                                    </span>
+                                    <input
+                                        type="text"
+                                        className="form-control"
+                                        value={inFavourOf}
+                                        onChange={(e) => setInFavourOf(e.target.value)}
+                                        placeholder="Auto-populated payment title"
+                                    />
+                                    {selectedUniversityFees !== null && (
+                                        <span
+                                            className={`input-group-text ${
+                                                selectedUniversityFees && selectedUniversityFees !== '0'
+                                                    ? 'bg-indigo-subtle text-indigo fw-bold'
+                                                    : 'bg-light text-muted'
+                                            }`}
+                                            title="Applicable university verification fee"
+                                        >
+                                            {selectedUniversityFees && selectedUniversityFees !== '0'
+                                                ? `Fee: ₹${selectedUniversityFees}`
+                                                : 'Fee: —'}
+                                        </span>
+                                    )}
+                                </div>
+                                {selectedUniversityFees !== null && (
+                                    <div className="mt-1 d-flex align-items-center gap-2">
+                                        <small className="text-muted">
+                                            <i className="fa fa-info-circle me-1"></i>
+                                            Official DD / payment instruction required by target university.{' '}
+                                            {selectedUniversityFees && selectedUniversityFees !== '0' ? (
+                                                <>
+                                                    Verification fee of{' '}
+                                                    <strong className="text-dark">₹{selectedUniversityFees}</strong> applies per candidate.
+                                                </>
+                                            ) : (
+                                                'No verification fee configured for this institution.'
+                                            )}
+                                        </small>
+                                    </div>
+                                )}
                             </div>
 
                             <div className="col-12">

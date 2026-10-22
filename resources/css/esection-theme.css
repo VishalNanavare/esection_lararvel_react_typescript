@@ -662,8 +662,23 @@ h1, h2, h3, h4, h5, h6 {
     border-top-right-radius: 0;
 }
 
-.select2-container--default.select2-container--disabled .select2-selection--single { background: #f1f5f9; }
-.select2-container--default .select2-selection--single .select2-selection__clear { color: #94a3b8; margin-right: 1.6rem; }
+.select2-container--default .select2-selection--single .select2-selection__clear {
+    position: absolute;
+    right: 1.85rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #94a3b8;
+    cursor: pointer;
+    float: none;
+    font-size: 1.15rem;
+    line-height: 1;
+    z-index: 2;
+    margin: 0;
+    transition: color 0.15s ease;
+}
+.select2-container--default .select2-selection--single .select2-selection__clear:hover {
+    color: #ef4444;
+}
 
 .select2-dropdown {
     border: 1px solid var(--accent-indigo);
@@ -1596,4 +1611,38 @@ input[type="password"]::-ms-clear {
 .flatpickr-months .flatpickr-month {
     color: #1e293b;
     fill: #1e293b;
+}
+
+/* ==========================================================================
+   Batch History Under-Row Details
+   ========================================================================== */
+.batch-row-main {
+    transition: background-color var(--es-dur-swift) var(--es-ease);
+}
+.batch-row-main.is-expanded {
+    background-color: rgba(79, 70, 229, 0.035) !important;
+}
+.batch-details-expanded-row {
+    background-color: rgba(79, 70, 229, 0.02) !important;
+}
+.batch-details-panel {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-left: 4px solid var(--accent-indigo) !important;
+    border-radius: 0.75rem;
+    box-shadow: 0 4px 14px -2px rgba(15, 23, 42, 0.06), 0 1px 3px rgba(15, 23, 42, 0.04);
+}
+.badge-verification-remark {
+    background: rgba(79, 70, 229, 0.08);
+    color: #4338ca;
+    border: 1px solid rgba(79, 70, 229, 0.18);
+    font-weight: 600;
+    padding: 0.35rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.785rem;
+    display: inline-flex;
+    align-items: center;
+}
+.hover-indigo:hover {
+    color: var(--accent-indigo) !important;
 }

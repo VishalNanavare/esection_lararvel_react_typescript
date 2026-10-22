@@ -7,6 +7,7 @@ use App\Models\StudentDetail;
 use App\Models\User;
 use App\Models\UserPageAccess;
 use Illuminate\Support\Facades\Hash;
+use PhpOffice\PhpSpreadsheet\IOFactory;
 
 beforeEach(function () {
     $this->user = User::create([
@@ -187,4 +188,85 @@ test('user can delete a candidate record', function () {
     $this->assertDatabaseMissing('student_details', [
         'id' => $student->id,
     ]);
+});
+
+test('user can export batch history with student details across rows', function () {
+    $batchSpace = 'BATCH-EXPORT-10';
+
+    // Create 10 students in one batch
+    for ($i = 1; $i <= 10; $i++) {
+        StudentDetail::create([
+            'array_space' => $batchSpace,
+            'to_name' => 'Registrar',
+            'clg_add' => 'University of Mumbai, Fort, Mumbai',
+            'admission_taken_year' => '2026-2027',
+            'admission_taken_in' => 'F.Y.B.Com',
+            'student_name' => "Student Number {$i}",
+            'student_nee_name' => $i % 2 === 0 ? "Nee {$i}" : '',
+            'eligibility_case_no' => "CASE-2026/00{$i}",
+            'email' => "student{$i}@example.com",
+            'verification_of_marksheet_done_by_you' => "Remark for student {$i}",
+            'en_time' => (string) now()->timestamp,
+        ]);
+    }
+
+    $response = $this->actingAs($this->user)->get(route('students.history.export', ['batch' => $batchSpace]));
+    $response->assertOk();
+
+    $tmpFile = tempnam(sys_get_temp_dir(), 'xlsx');
+    file_put_contents($tmpFile, $response->streamedContent());
+    $spreadsheet = IOFactory::load($tmpFile);
+    $sheet = $spreadsheet->getActiveSheet();
+
+    // Verify headers row
+    $headerRow = [];
+    foreach ($sheet->getRowIterator(1, 1) as $row) {
+        foreach ($row->getCellIterator() as $cell) {
+            $headerRow[] = (string) $cell->getValue();
+        }
+    }
+
+    expect($headerRow)->toEqual([
+        'Batch',
+        'University Name',
+        'Fees',
+        'University Address',
+        'Course',
+        'Academic Year',
+        'Student Name',
+        'Nee Name',
+        'Case No.',
+        'Email ID',
+        'Verification Remark',
+        'Created Date',
+    ]);
+
+    // Verify 10 student rows are present
+    $dataRows = [];
+    foreach ($sheet->getRowIterator(2) as $row) {
+        $rowData = [];
+        foreach ($row->getCellIterator() as $cell) {
+            $rowData[] = (string) $cell->getValue();
+        }
+        $dataRows[] = $rowData;
+    }
+
+    unlink($tmpFile);
+
+    expect(count($dataRows))->toBe(10);
+
+    // Verify first and tenth student details in the exported rows
+    expect($dataRows[0][0])->toBe($batchSpace);
+    expect($dataRows[0][1])->toBe('University of Mumbai');
+    expect($dataRows[0][4])->toBe('F.Y.B.Com');
+    expect($dataRows[0][6])->toBe('Student Number 1');
+    expect($dataRows[0][8])->toBe('CASE-2026/001');
+    expect($dataRows[0][9])->toBe('student1@example.com');
+    expect($dataRows[0][10])->toBe('Remark for student 1');
+
+    expect($dataRows[9][6])->toBe('Student Number 10');
+    expect($dataRows[9][7])->toBe('Nee 10');
+    expect($dataRows[9][8])->toBe('CASE-2026/0010');
+    expect($dataRows[9][9])->toBe('student10@example.com');
+    expect($dataRows[9][10])->toBe('Remark for student 10');
 });

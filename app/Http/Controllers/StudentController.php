@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\MatchesColleges;
 use App\Http\Controllers\Concerns\SanitizesSpreadsheetCells;
 use App\Models\AcademicYear;
 use App\Models\ActivityLog;
+use App\Models\CollegeDetail;
 use App\Models\Setting;
 use App\Models\StreamDetail;
 use App\Models\StudentDetail;
@@ -22,6 +24,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class StudentController extends Controller
 {
+    use MatchesColleges;
     use SanitizesSpreadsheetCells;
 
     /**
@@ -51,12 +54,36 @@ class StudentController extends Controller
                 'stream' => $s->Name,
             ]);
 
+        $universities = CollegeDetail::where('is_active', true)
+            ->orWhereNull('is_active')
+            ->orderBy('Name', 'asc')
+            ->get()
+            ->map(function ($col) {
+                $name = trim((string) $col->Name, " ,\t\n\r\0\x0B");
+                $rawFees = ($col->fees !== null && $col->fees !== '') ? trim((string) $col->fees) : '';
+                $feesVal = ($rawFees !== '' && $rawFees !== '0') ? $rawFees : '';
+                $feesText = $feesVal !== '' ? "₹{$feesVal}" : '—';
+
+                return [
+                    'id' => $col->id,
+                    'value' => (string) $col->id,
+                    'name' => $name,
+                    'fees' => $feesVal,
+                    'label' => "{$name} | Fees: {$feesText}",
+                    'address' => $col->Address,
+                    'head_name' => $col->head_name,
+                    'in_favour_of' => $col->in_favour_of,
+                    'state' => $col->States,
+                ];
+            });
+
         return Inertia::render('Students/NewForm', [
             'title' => 'New Student Verification Form',
             'common_no' => $commonNo,
             'suggestedCaseNo' => $suggestedCaseNo,
             'academicYears' => $academicYears,
             'streams' => $streams,
+            'universities' => $universities,
         ]);
     }
 
@@ -167,7 +194,9 @@ class StudentController extends Controller
         if ($name !== '') {
             $query->where(function ($q) use ($name) {
                 $q->where('student_name', 'like', "%{$name}%")
-                    ->orWhere('eligibility_case_no', 'like', "%{$name}%");
+                    ->orWhere('student_nee_name', 'like', "%{$name}%")
+                    ->orWhere('eligibility_case_no', 'like', "%{$name}%")
+                    ->orWhere('clg_add', 'like', "%{$name}%");
             });
         }
         if ($batch !== '') {
@@ -206,11 +235,28 @@ class StudentController extends Controller
             ->where('array_space', '!=', '')
             ->groupBy('array_space');
 
+        [$colleges, $matchCollege] = $this->buildCollegeMatcher();
+
         if ($year !== '') {
             $batchQuery->having('admission_taken_year', '=', $year);
         }
         if ($university !== '') {
-            $batchQuery->having('clg_add', 'like', "%{$university}%");
+            $col = $matchCollege($university);
+            if ($col) {
+                $conds = ['clg_add = ?', 'clg_add LIKE ?'];
+                $bindings = [$university, "%{$university}%"];
+                if (!empty($col->Address)) {
+                    $conds[] = 'clg_add LIKE ?';
+                    $bindings[] = "%{$col->Address}%";
+                }
+                if (!empty($col->Name)) {
+                    $conds[] = 'clg_add LIKE ?';
+                    $bindings[] = "%{$col->Name}%";
+                }
+                $batchQuery->havingRaw('(' . implode(' OR ', $conds) . ')', $bindings);
+            } else {
+                $batchQuery->having('clg_add', 'like', "%{$university}%");
+            }
         }
         if ($course !== '') {
             $batchQuery->having('admission_taken_in', '=', $course);
@@ -220,7 +266,14 @@ class StudentController extends Controller
 
         $batches = $batchQuery->paginate(20)->withQueryString();
 
-        $batches->getCollection()->transform(function ($b) {
+        $pageBatchSpaces = $batches->getCollection()->pluck('array_space')->filter()->values();
+
+        $studentsByBatch = StudentDetail::whereIn('array_space', $pageBatchSpaces)
+            ->orderBy('id', 'asc')
+            ->get()
+            ->groupBy('array_space');
+
+        $batches->getCollection()->transform(function ($b) use ($matchCollege, $studentsByBatch) {
             $formattedTime = '';
             if (! empty($b->en_time)) {
                 if (is_numeric($b->en_time)) {
@@ -233,28 +286,98 @@ class StudentController extends Controller
             }
             $b->formatted_en_time = $formattedTime;
 
+            $col = $matchCollege($b->clg_add);
+            $b->university_name = $col ? trim((string) $col->Name, " ,\t\n\r\0\x0B") : '';
+            $rawFees = ($col && $col->fees !== null && $col->fees !== '') ? trim((string) $col->fees) : '';
+            $b->fees = ($rawFees !== '' && $rawFees !== '0') ? $rawFees : '';
+
+            $b->students = $studentsByBatch->get($b->array_space, collect())->values();
+
             return $b;
         });
 
+        $batchBase = StudentDetail::whereNotNull('array_space')
+            ->where('array_space', '!=', '');
+
+        $distinctUnivs = (clone $batchBase)
+            ->whereNotNull('clg_add')
+            ->where('clg_add', '!=', '')
+            ->where('clg_add', '!=', 'Select Admission Taken In')
+            ->where('clg_add', '!=', 'Select University Name')
+            ->distinct()
+            ->pluck('clg_add');
+
+        $seenColleges = [];
+        $rawToCanonicalValue = [];
+        foreach ($distinctUnivs as $raw) {
+            $col = $matchCollege($raw);
+            $name = $col ? trim((string) $col->Name, " ,\t\n\r\0\x0B") : trim(explode('<br>', (string) $raw)[0]);
+            if ($name === '' || $name === '-' || strcasecmp($name, 'select university name') === 0) {
+                continue;
+            }
+            $fees = ($col && $col->fees !== null && $col->fees !== '') ? trim((string) $col->fees) : '';
+            $feesVal = ($fees !== '' && $fees !== '0') ? $fees : '';
+            $feesText = $feesVal !== '' ? "₹{$feesVal}" : '—';
+            $label = "{$name} | Fees: {$feesText}";
+
+            $key = $col ? ('col_' . $col->id) : strtolower($name);
+            if (isset($seenColleges[$key])) {
+                $rawToCanonicalValue[$raw] = $seenColleges[$key]['value'];
+                continue;
+            }
+
+            $entry = [
+                'value' => $raw,
+                'name' => $name,
+                'fees' => $feesVal,
+                'label' => $label,
+            ];
+            $seenColleges[$key] = $entry;
+            $rawToCanonicalValue[$raw] = $raw;
+        }
+
+        $universityOptions = array_values($seenColleges);
+        usort($universityOptions, fn ($a, $b) => strcasecmp($a['name'], $b['name']));
+
+        // Query all valid batch combinations (year, course, university) strictly from batch history
+        $rawCombos = (clone $batchBase)
+            ->whereNotNull('admission_taken_year')->where('admission_taken_year', '!=', '')
+            ->where('admission_taken_year', '!=', 'Select Admission Taken In')
+            ->whereNotNull('admission_taken_in')->where('admission_taken_in', '!=', '')
+            ->where('admission_taken_in', '!=', 'Select Admission Taken In')
+            ->whereNotNull('clg_add')->where('clg_add', '!=', '')
+            ->where('clg_add', '!=', 'Select Admission Taken In')
+            ->where('clg_add', '!=', 'Select University Name')
+            ->selectRaw('admission_taken_year as y, admission_taken_in as c, clg_add as u')
+            ->distinct()
+            ->get();
+
+        $combos = [];
+        $validYears = [];
+        $validCourses = [];
+        foreach ($rawCombos as $rc) {
+            $canonicalU = $rawToCanonicalValue[$rc->u] ?? $rc->u;
+            $combos[$rc->y . '|' . $rc->c . '|' . $canonicalU] = [
+                'y' => $rc->y,
+                'c' => $rc->c,
+                'u' => $canonicalU,
+            ];
+            $validYears[$rc->y] = true;
+            $validCourses[$rc->c] = true;
+        }
+        $combos = array_values($combos);
+
+        $yearsList = array_keys($validYears);
+        usort($yearsList, fn ($a, $b) => strcasecmp($b, $a));
+
+        $coursesList = array_keys($validCourses);
+        usort($coursesList, fn ($a, $b) => strcasecmp($a, $b));
+
         $filterOptions = [
-            'years' => StudentDetail::whereNotNull('admission_taken_year')
-                ->where('admission_taken_year', '!=', '')
-                ->where('admission_taken_year', '!=', 'Select Admission Taken In')
-                ->distinct()
-                ->orderBy('admission_taken_year', 'desc')
-                ->pluck('admission_taken_year'),
-            'courses' => StudentDetail::whereNotNull('admission_taken_in')
-                ->where('admission_taken_in', '!=', '')
-                ->where('admission_taken_in', '!=', 'Select Admission Taken In')
-                ->distinct()
-                ->orderBy('admission_taken_in', 'asc')
-                ->pluck('admission_taken_in'),
-            'universities' => StudentDetail::whereNotNull('clg_add')
-                ->where('clg_add', '!=', '')
-                ->where('clg_add', '!=', 'Select Admission Taken In')
-                ->distinct()
-                ->orderBy('clg_add', 'asc')
-                ->pluck('clg_add'),
+            'years' => $yearsList,
+            'courses' => $coursesList,
+            'universities' => $universityOptions,
+            'combos' => $combos,
         ];
 
         return Inertia::render('Students/History', [
@@ -485,7 +608,9 @@ class StudentController extends Controller
         if ($name !== '') {
             $query->where(function ($q) use ($name) {
                 $q->where('student_name', 'like', "%{$name}%")
-                    ->orWhere('eligibility_case_no', 'like', "%{$name}%");
+                    ->orWhere('student_nee_name', 'like', "%{$name}%")
+                    ->orWhere('eligibility_case_no', 'like', "%{$name}%")
+                    ->orWhere('clg_add', 'like', "%{$name}%");
             });
         }
         if ($batch !== '') {
@@ -522,43 +647,101 @@ class StudentController extends Controller
             ->where('array_space', '!=', '')
             ->groupBy('array_space');
 
+        [$colleges, $matchCollege] = $this->buildCollegeMatcher();
+
         if ($year !== '') {
             $batchQuery->having('admission_taken_year', '=', $year);
         }
         if ($university !== '') {
-            $batchQuery->having('clg_add', 'like', "%{$university}%");
+            $col = $matchCollege($university);
+            if ($col) {
+                $conds = ['clg_add = ?', 'clg_add LIKE ?'];
+                $bindings = [$university, "%{$university}%"];
+                if (!empty($col->Address)) {
+                    $conds[] = 'clg_add LIKE ?';
+                    $bindings[] = "%{$col->Address}%";
+                }
+                if (!empty($col->Name)) {
+                    $conds[] = 'clg_add LIKE ?';
+                    $bindings[] = "%{$col->Name}%";
+                }
+                $batchQuery->havingRaw('(' . implode(' OR ', $conds) . ')', $bindings);
+            } else {
+                $batchQuery->having('clg_add', 'like', "%{$university}%");
+            }
         }
         if ($course !== '') {
             $batchQuery->having('admission_taken_in', '=', $course);
         }
 
         $batches = $batchQuery->orderByRaw('MAX(en_time) DESC')->get();
+        $batchSpaces = $batches->pluck('array_space')->filter()->values();
+
+        $studentsByBatch = StudentDetail::whereIn('array_space', $batchSpaces)
+            ->orderBy('id', 'asc')
+            ->get()
+            ->groupBy('array_space');
 
         $spreadsheet = new Spreadsheet;
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Batch History');
 
-        // Headers matching CI4: Batch, University Address, Admission Taken In, Academic Year, Candidates, Created
-        $headers = ['Batch', 'University Address', 'Admission Taken In', 'Academic Year', 'Candidates', 'Created'];
+        // Headers: Batch, University Name, Fees, University Address, Course, Academic Year, Student Name, Nee Name, Case No., Email ID, Verification Remark, Created Date
+        $headers = [
+            'Batch',
+            'University Name',
+            'Fees',
+            'University Address',
+            'Course',
+            'Academic Year',
+            'Student Name',
+            'Nee Name',
+            'Case No.',
+            'Email ID',
+            'Verification Remark',
+            'Created Date',
+        ];
         $sheet->fromArray($headers, null, 'A1');
 
         $dataRows = [];
         foreach ($batches as $b) {
-            $created = '';
-            if (! empty($b->en_time)) {
-                $created = is_numeric($b->en_time)
-                    ? date('d/m/Y H:i', (int) $b->en_time)
-                    : (strtotime($b->en_time) ? date('d/m/Y H:i', strtotime($b->en_time)) : $b->en_time);
-            }
+            $students = $studentsByBatch->get($b->array_space, collect());
 
-            $dataRows[] = $this->sanitizeRow([
-                $b->array_space,
-                preg_replace('~\s*<br\s*/?>\s*~i', ', ', (string) $b->clg_add),
-                $b->admission_taken_in,
-                $b->admission_taken_year,
-                (int) $b->student_count,
-                $created,
-            ]);
+            foreach ($students as $s) {
+                $created = '';
+                $rawTime = ! empty($s->en_time) ? $s->en_time : $b->en_time;
+                if (! empty($rawTime)) {
+                    $created = is_numeric($rawTime)
+                        ? date('d/m/Y H:i', (int) $rawTime)
+                        : (strtotime($rawTime) ? date('d/m/Y H:i', strtotime($rawTime)) : $rawTime);
+                }
+
+                $rawAddr = (string) ($s->clg_add ?: $b->clg_add);
+                $col = $matchCollege($rawAddr);
+                $univName = $col ? trim((string) $col->Name, " ,\t\n\r\0\x0B") : '';
+                if ($univName === '' && $rawAddr !== '') {
+                    $firstLine = trim(explode('<br>', $rawAddr)[0]);
+                    if ($firstLine !== '-' && strcasecmp($firstLine, 'select university name') !== 0) {
+                        $univName = $firstLine;
+                    }
+                }
+                $fees = ($col && $col->fees !== null && $col->fees !== '') ? (string) $col->fees : '';
+
+                $dataRows[] = $this->sanitizeRow([
+                    $b->array_space,
+                    $univName,
+                    $fees,
+                    preg_replace('~\s*<br\s*/?>\s*~i', ', ', $rawAddr),
+                    $s->admission_taken_in ?: $b->admission_taken_in,
+                    $s->admission_taken_year ?: $b->admission_taken_year,
+                    $s->student_name,
+                    $s->student_nee_name ?? '',
+                    $s->eligibility_case_no,
+                    $s->email ?? '',
+                    $s->verification_of_marksheet_done_by_you ?? '',
+                    $created,
+                ]);
+            }
         }
 
         if (! empty($dataRows)) {
@@ -566,7 +749,7 @@ class StudentController extends Controller
         }
 
         // Auto-size columns
-        foreach (range('A', 'F') as $col) {
+        foreach (range('A', 'L') as $col) {
             $sheet->getColumnDimension($col)->setAutoSize(true);
         }
 
@@ -577,8 +760,12 @@ class StudentController extends Controller
             $writer->save('php://output');
         }, $filename, [
             'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
+            'Cache-Control' => 'max-age=0, no-cache, no-store, must-revalidate',
+            'Pragma' => 'public',
         ]);
     }
+
 
     public function importForm(): Response
     {

@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\MatchesColleges;
 use App\Http\Controllers\Concerns\SanitizesSpreadsheetCells;
 use App\Models\AcademicYear;
 use App\Models\ActivityLog;
+use App\Models\CollegeDetail;
 use App\Models\ConfStudData;
 use App\Models\Setting;
 use App\Models\StreamDetail;
@@ -22,6 +24,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ConfirmationController extends Controller
 {
+    use MatchesColleges;
     use SanitizesSpreadsheetCells;
 
     /** Mirrors esection_ci4's ConfirmationService::CONF_FROM_OPTIONS exactly. */
@@ -40,7 +43,10 @@ class ConfirmationController extends Controller
     {
         $selectedYear = trim((string) $request->input('year', ''));
         $selectedStream = trim((string) $request->input('stream', ''));
+        $selectedUniversity = trim((string) $request->input('university', ''));
         $searchQuery = trim((string) $request->input('q', ''));
+
+        [$colleges, $matchCollege] = $this->buildCollegeMatcher();
 
         $query = StudentDetail::query()
             ->leftJoin('conf_stud_data', 'student_details.id', '=', 'conf_stud_data.student_id')
@@ -61,6 +67,24 @@ class ConfirmationController extends Controller
             $query->where('student_details.admission_taken_in', $selectedStream);
         }
 
+        if ($selectedUniversity !== '') {
+            $col = $matchCollege($selectedUniversity);
+            if ($col) {
+                $query->where(function ($q) use ($selectedUniversity, $col) {
+                    $q->where('student_details.clg_add', $selectedUniversity)
+                        ->orWhere('student_details.clg_add', 'like', "%{$selectedUniversity}%");
+                    if (! empty($col->Address)) {
+                        $q->orWhere('student_details.clg_add', 'like', "%{$col->Address}%");
+                    }
+                    if (! empty($col->Name)) {
+                        $q->orWhere('student_details.clg_add', 'like', "%{$col->Name}%");
+                    }
+                });
+            } else {
+                $query->where('student_details.clg_add', 'like', "%{$selectedUniversity}%");
+            }
+        }
+
         if ($searchQuery !== '') {
             $query->where(function ($q) use ($searchQuery) {
                 $q->where('student_details.student_name', 'like', "%{$searchQuery}%")
@@ -70,6 +94,15 @@ class ConfirmationController extends Controller
         }
 
         $students = $query->orderBy('student_details.id', 'desc')->paginate(25)->withQueryString();
+
+        $students->getCollection()->transform(function ($s) use ($matchCollege) {
+            $col = $matchCollege($s->clg_add);
+            $s->university_name = $col ? trim((string) $col->Name, " ,\t\n\r\0\x0B") : '';
+            $rawFees = ($col && $col->fees !== null && $col->fees !== '') ? trim((string) $col->fees) : '';
+            $s->fees = ($rawFees !== '' && $rawFees !== '0') ? $rawFees : '';
+
+            return $s;
+        });
 
         $academicYears = AcademicYear::orderBy('id', 'desc')->get()->map(fn ($y) => [
             'id' => $y->year_label,
@@ -87,14 +120,23 @@ class ConfirmationController extends Controller
                 'stream' => $s->Name,
             ]);
 
+        $distinctUnivs = StudentDetail::whereNotNull('clg_add')
+            ->where('clg_add', '!=', '')
+            ->distinct()
+            ->pluck('clg_add');
+
+        $universityOptions = $this->buildUniversityOptions($distinctUnivs, $matchCollege);
+
         return Inertia::render('Confirmations/Index', [
             'title' => 'Eligibility Confirmation Portal',
             'students' => $students,
             'academicYears' => $academicYears,
             'streams' => $streams,
+            'universities' => $universityOptions,
             'filters' => [
                 'year' => $selectedYear,
                 'stream' => $selectedStream,
+                'university' => $selectedUniversity,
                 'q' => $searchQuery,
             ],
         ]);
@@ -298,6 +340,10 @@ class ConfirmationController extends Controller
 
         $selectedYear = trim((string) $request->input('year', ''));
         $selectedStream = trim((string) $request->input('stream', ''));
+        $selectedUniversity = trim((string) $request->input('university', ''));
+        $searchQuery = trim((string) $request->input('q', ''));
+
+        [$colleges, $matchCollege] = $this->buildCollegeMatcher();
 
         $query = StudentDetail::query()
             ->leftJoin('conf_stud_data', 'student_details.id', '=', 'conf_stud_data.student_id')
@@ -317,6 +363,30 @@ class ConfirmationController extends Controller
         if ($selectedStream !== '') {
             $query->where('student_details.admission_taken_in', $selectedStream);
         }
+        if ($selectedUniversity !== '') {
+            $col = $matchCollege($selectedUniversity);
+            if ($col) {
+                $query->where(function ($q) use ($selectedUniversity, $col) {
+                    $q->where('student_details.clg_add', $selectedUniversity)
+                        ->orWhere('student_details.clg_add', 'like', "%{$selectedUniversity}%");
+                    if (! empty($col->Address)) {
+                        $q->orWhere('student_details.clg_add', 'like', "%{$col->Address}%");
+                    }
+                    if (! empty($col->Name)) {
+                        $q->orWhere('student_details.clg_add', 'like', "%{$col->Name}%");
+                    }
+                });
+            } else {
+                $query->where('student_details.clg_add', 'like', "%{$selectedUniversity}%");
+            }
+        }
+        if ($searchQuery !== '') {
+            $query->where(function ($q) use ($searchQuery) {
+                $q->where('student_details.student_name', 'like', "%{$searchQuery}%")
+                    ->orWhere('student_details.eligibility_case_no', 'like', "%{$searchQuery}%")
+                    ->orWhere('student_details.clg_add', 'like', "%{$searchQuery}%");
+            });
+        }
 
         $records = $query->orderBy('student_details.id', 'desc')->get();
 
@@ -325,17 +395,24 @@ class ConfirmationController extends Controller
         $sheet->setTitle('Confirmations');
 
         $headers = [
-            'Candidate', 'Nee Name', 'Case No.', 'Target University',
+            'Candidate', 'Nee Name', 'Case No.', 'University Name', 'Fees', 'Target University Address',
             'Academic Year', 'Stream', 'Status',
         ];
         $sheet->fromArray($headers, null, 'A1');
 
         $rows = [];
         foreach ($records as $r) {
+            $col = $matchCollege($r->clg_add);
+            $univName = $col ? trim((string) $col->Name, " ,\t\n\r\0\x0B") : '';
+            $rawFees = ($col && $col->fees !== null && $col->fees !== '') ? trim((string) $col->fees) : '';
+            $fees = ($rawFees !== '' && $rawFees !== '0') ? "₹{$rawFees}" : '—';
+
             $rows[] = $this->sanitizeRow([
                 $r->student_name,
                 $r->student_nee_name ?: '—',
                 $r->eligibility_case_no,
+                $univName ?: '—',
+                $fees,
                 $r->clg_add,
                 $r->admission_taken_year,
                 $r->admission_taken_in,
@@ -347,7 +424,7 @@ class ConfirmationController extends Controller
             $sheet->fromArray($rows, null, 'A2');
         }
 
-        foreach (range('A', 'G') as $col) {
+        foreach (range('A', 'I') as $col) {
             $sheet->getColumnDimension($col)->setAutoSize(true);
         }
 
