@@ -28,16 +28,10 @@
             font-size: 10pt;
             text-align: center;
         }
-        .letter-no {
-            float: left;
-            font-weight: bold;
-        }
-        .date {
-            float: right;
-            font-weight: bold;
-        }
-        .clear {
-            clear: both;
+        .ref-date-box {
+            text-align: right;
+            margin-bottom: 15px;
+            line-height: 1.4;
         }
         .address-box {
             margin-top: 15px;
@@ -48,6 +42,7 @@
             margin-top: 15px;
             margin-bottom: 15px;
             text-decoration: underline;
+            text-align: center;
         }
         .content {
             text-align: justify;
@@ -104,10 +99,9 @@
         @endif
     </table>
 
-    <div>
-        <span class="letter-no">Ref. No. IDOL/Eligibility/{{ $arraySpace }}</span>
-        <span class="date">Date: {{ $date ?? date('d/m/Y') }}</span>
-        <div class="clear"></div>
+    <div class="ref-date-box">
+        <strong>Ref. No.:</strong> IDOL/Eligibility/{{ $arraySpace }}<br>
+        <strong>Date:</strong> {{ $date ?? date('d/m/Y') }}
     </div>
 
     <div class="address-box">

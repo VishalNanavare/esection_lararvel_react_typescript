@@ -8,11 +8,9 @@
         .header-table { width: 100%; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 20px; }
         .title { font-size: 14pt; font-weight: bold; text-align: center; text-transform: uppercase; }
         .subtitle { font-size: 10pt; text-align: center; }
-        .letter-no { float: left; font-weight: bold; }
-        .date { float: right; font-weight: bold; }
-        .clear { clear: both; }
+        .ref-date-box { text-align: right; margin-bottom: 15px; line-height: 1.4; }
         .address-box { margin-top: 15px; margin-bottom: 15px; }
-        .subject { font-weight: bold; margin-top: 15px; margin-bottom: 15px; text-decoration: underline; }
+        .subject { font-weight: bold; margin-top: 15px; margin-bottom: 15px; text-decoration: underline; text-align: center; }
         .content { text-align: justify; margin-bottom: 15px; }
         .student-table { width: 100%; border-collapse: collapse; margin-top: 15px; margin-bottom: 20px; }
         .student-table th, .student-table td { border: 1px solid #000; padding: 5px 6px; font-size: 8pt; text-align: left; }
@@ -47,10 +45,9 @@
         @endif
     </table>
 
-    <div>
-        <span class="letter-no">Ref. No. IDOL/Eligibility/{{ $arraySpace }}</span>
-        <span class="date">Date: {{ $date ?? date('d/m/Y') }}</span>
-        <div class="clear"></div>
+    <div class="ref-date-box">
+        <strong>Ref. No.:</strong> IDOL/Eligibility/{{ $arraySpace }}<br>
+        <strong>Date:</strong> {{ $date ?? date('d/m/Y') }}
     </div>
 
     <div class="address-box">

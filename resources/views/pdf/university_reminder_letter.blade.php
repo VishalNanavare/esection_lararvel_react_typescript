@@ -7,7 +7,8 @@
         body { font-family: 'Helvetica', sans-serif; font-size: 11pt; line-height: 1.5; padding: 20px; }
         .header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 20px; }
         .title { font-size: 14pt; font-weight: bold; }
-        .subject { font-weight: bold; text-decoration: underline; margin: 15px 0; }
+        .subject { font-weight: bold; text-decoration: underline; margin: 15px 0; text-align: center; }
+        .ref-date-box { text-align: right; margin-bottom: 15px; line-height: 1.4; }
         .table { width: 100%; border-collapse: collapse; margin: 15px 0; }
         .table th, .table td { border: 1px solid #000; padding: 6px 8px; font-size: 10pt; text-align: left; }
         .table th { background: #f2f2f2; }
@@ -32,9 +33,9 @@
         </div>
     @endif
 
-    <div>
-        <strong>Ref No.: IDOL/REM/{{ date('Y') }}/{{ rand(1000, 9999) }}</strong>
-        <span style="float: right;">Date: {{ $date ?? date('d/m/Y') }}</span>
+    <div class="ref-date-box">
+        <strong>Ref No.: IDOL/REM/{{ date('Y') }}/{{ rand(1000, 9999) }}</strong><br>
+        <strong>Date:</strong> {{ $date ?? date('d/m/Y') }}
     </div>
 
     <div style="margin-top: 15px;">

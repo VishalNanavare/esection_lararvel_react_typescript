@@ -7,7 +7,8 @@
         body { font-family: 'Helvetica', sans-serif; font-size: 11pt; line-height: 1.5; padding: 20px; }
         .header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 20px; }
         .title { font-size: 14pt; font-weight: bold; }
-        .subject { font-weight: bold; text-decoration: underline; margin: 15px 0; }
+        .subject { font-weight: bold; text-decoration: underline; margin: 15px 0; text-align: center; }
+        .ref-date-box { text-align: right; margin-bottom: 15px; line-height: 1.4; }
         .footer { margin-top: 50px; float: right; text-align: center; width: 250px; }
     </style>
 </head>
@@ -29,9 +30,9 @@
         </div>
     @endif
 
-    <div>
-        <strong>Ref No.: IDOL/STUD-REM/{{ date('Y') }}/{{ rand(100, 999) }}</strong>
-        <span style="float: right;">Date: {{ $date ?? date('d/m/Y') }}</span>
+    <div class="ref-date-box">
+        <strong>Ref No.: IDOL/STUD-REM/{{ date('Y') }}/{{ rand(100, 999) }}</strong><br>
+        <strong>Date:</strong> {{ $date ?? date('d/m/Y') }}
     </div>
 
     <div style="margin-top: 15px;">
