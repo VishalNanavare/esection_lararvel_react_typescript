@@ -46,6 +46,60 @@ class Setting extends Model
     }
 
     /**
+     * Decrypts the stored SMTP password, with backward-compatibility support for
+     * legacy CodeIgniter 4 encryption. If legacy encryption is detected, it is
+     * automatically upgraded to Laravel's native encryption.
+     */
+    public static function getDecryptedMailPassword(): string
+    {
+        $stored = self::get('mail_smtp_password', '');
+        if ($stored === null || $stored === '') {
+            return '';
+        }
+
+        // 1. Try Laravel Crypt
+        try {
+            $plain = Crypt::decryptString($stored);
+
+            return preg_replace('/\s+/u', '', $plain);
+        } catch (\Throwable $e) {
+            // Not a valid Laravel Crypt payload, attempt legacy CI4 fallback below
+        }
+
+        // 2. Try legacy CodeIgniter 4 OpenSSL decryption fallback
+        try {
+            $raw = base64_decode($stored, true);
+            if ($raw !== false && strlen($raw) > 80) {
+                $ciKey = hex2bin('d6e45f3c37002ac989e083bf21f9ac5c64aaa45f8d7d3f82c3b5dc99666a7181');
+                $authKey = hash_hkdf('SHA512', $ciKey, 0, '');
+                $hmacKey = substr($raw, 0, 64);
+                $cipherPayload = substr($raw, 64);
+                $hmacCalc = hash_hmac('SHA512', $cipherPayload, $authKey, true);
+
+                if (hash_equals($hmacKey, $hmacCalc)) {
+                    $iv = substr($cipherPayload, 0, 16);
+                    $cipherText = substr($cipherPayload, 16);
+                    $encryptKey = hash_hkdf('SHA512', $ciKey, 0, '');
+                    $plain = openssl_decrypt($cipherText, 'AES-256-CTR', $encryptKey, OPENSSL_RAW_DATA, $iv);
+
+                    if ($plain !== false) {
+                        $clean = preg_replace('/\s+/u', '', $plain);
+                        // Upgrade to Laravel native Crypt
+                        self::set('mail_smtp_password', Crypt::encryptString($clean), 'mail');
+
+                        return $clean;
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+            // Ignore fallback error
+        }
+
+        // If neither Laravel Crypt nor legacy CI4 decrypt succeeded, fail closed
+        throw new \Illuminate\Contracts\Encryption\DecryptException('The stored SMTP password could not be decrypted.');
+    }
+
+    /**
      * Builds a runtime SMTP mailer from the DB-stored settings and points
      * Laravel's mail.from at them. Call this once per request before the
      * first send, then use Mail::mailer(self::MAIL_MAILER_NAME).
@@ -53,8 +107,7 @@ class Setting extends Model
     public static function applyMailerConfig(): void
     {
         $crypto = self::get('mail_smtp_crypto', 'tls');
-        $encryptedPassword = self::get('mail_smtp_password', '');
-        $password = $encryptedPassword !== '' ? Crypt::decryptString($encryptedPassword) : '';
+        $password = self::getDecryptedMailPassword();
 
         config([
             'mail.mailers.'.self::MAIL_MAILER_NAME => [

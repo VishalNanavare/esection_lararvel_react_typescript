@@ -108,6 +108,10 @@ Route::middleware('auth')->group(function () {
     Route::get('/reminders/university/history', [ReminderController::class, 'universityHistory'])->name('reminders.university.history')->middleware('access:reminders_university.view');
     Route::get('/reminders/university/history/export', [ReminderController::class, 'universityHistoryExport'])->name('reminders.university.history.export')->middleware('access:reminders_university.export');
     Route::get('/reminders/university/batches/{batchId}', [ReminderController::class, 'universityBatchDetail'])->name('reminders.university.batch.detail')->middleware('access:reminders_university.view');
+    Route::post('/reminders/university/batches/{batchId}/send-email', [ReminderController::class, 'sendUniversityBatchEmail'])->name('reminders.university.batch.send-email')->middleware('access:reminders_university.create');
+    Route::post('/reminders/university/batches/preview-combine', [ReminderController::class, 'previewCombineBatches'])->name('reminders.university.batches.preview-combine')->middleware('access:reminders_university.create');
+    Route::post('/reminders/university/batches/combine', [ReminderController::class, 'combineBatches'])->name('reminders.university.batches.combine')->middleware('access:reminders_university.create');
+    Route::post('/reminders/university/students/{id}/status', [ReminderController::class, 'updateStudentVerificationStatus'])->name('reminders.university.student.status')->middleware('access:reminders_university.create');
     Route::get('/reminders/student', [ReminderController::class, 'studentIndex'])->name('reminders.student')->middleware('access:reminders_student.view');
     Route::post('/reminders/student', [ReminderController::class, 'storeStudentReminder'])->name('reminders.student.store')->middleware('access:reminders_student.create');
     Route::post('/reminders/generateStudentReminder', [ReminderController::class, 'storeStudentReminder'])->middleware('access:reminders_student.create');

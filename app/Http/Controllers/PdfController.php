@@ -17,7 +17,7 @@ class PdfController extends Controller
     /**
      * Helper to load global institution settings.
      */
-    private function getInstituteSettings(): array
+    public function getInstituteSettings(): array
     {
         $settings = Setting::pluck('setting_value', 'setting_key')->toArray();
 
@@ -40,7 +40,7 @@ class PdfController extends Controller
      * esection_ci4's LetterTemplateService::render() exactly: escape first,
      * then substitute, on all three fields including the subject line.
      */
-    private function renderLetterTemplate(string $slug, array $tokenValues): array
+    public function renderLetterTemplate(string $slug, array $tokenValues): array
     {
         $definitions = SettingsController::getLetterTemplateDefinitions();
         $def = $definitions[$slug] ?? [
@@ -211,10 +211,15 @@ class PdfController extends Controller
         $notes = UniversityReminderNote::where('batch_id', $batchId)->orderBy('student_id')->orderBy('id')->get();
         $studentIds = $notes->pluck('student_id')->unique();
 
-        $students = StudentDetail::whereIn('id', $studentIds)->get();
+        $students = StudentDetail::with('confirmation')
+            ->whereIn('id', $studentIds)
+            ->get()
+            ->filter(fn ($s) => $s->isEligibleForReminder())
+            ->values();
 
+        $allStudentNotes = UniversityReminderNote::whereIn('student_id', $students->pluck('id'))->orderBy('id')->get();
         foreach ($students as $student) {
-            $student->notes = $notes->where('student_id', $student->id)->values();
+            $student->notes = $allStudentNotes->where('student_id', $student->id)->values();
         }
 
         $latestNoteText = optional($students->first())->notes?->last()?->note_text ?? '1st Reminder';

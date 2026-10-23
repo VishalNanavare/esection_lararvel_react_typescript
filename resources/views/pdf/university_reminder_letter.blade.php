@@ -39,12 +39,12 @@
 
     <div style="margin-top: 15px;">
         To,<br>
-        <strong>{{ $batch->head_name ?: 'The Controller of Examinations' }}</strong>,<br>
-        {!! nl2br(e($batch->university_name)) !!}
+        <strong>{{ ($batch->head_name ?? null) ?: 'The Controller of Examinations' }}</strong>,<br>
+        {!! nl2br(e($batch->university_name ?? '')) !!}
     </div>
 
     <div class="subject">
-        Subject: {!! $subject ?? "REMINDER: Verification of Marksheet / Passing Certificate ({$batch->admission_taken_in})" !!}
+        Subject: {!! $subject ?? ("REMINDER: Verification of Marksheet / Passing Certificate (" . ($batch->admission_taken_in ?? 'All Programs') . ")") !!}
     </div>
 
     <div>
@@ -54,23 +54,32 @@
     <table class="table">
         <thead>
             <tr>
-                <th style="width: 30px;">#</th>
+                <th style="width: 25px;">#</th>
                 <th>Candidate Full Name</th>
-                <th>Eligibility Case No.</th>
-                <th>Reminder History</th>
+                <th style="width: 110px;">Eligibility Case No.</th>
+                <th>Course / Program</th>
+                <th style="width: 75px;">Academic Year</th>
+                <th style="width: 110px;">Reminder History</th>
             </tr>
         </thead>
         <tbody>
             @foreach ($students as $index => $s)
                 <tr>
                     <td>{{ $index + 1 }}</td>
-                    <td><strong>{{ $s->student_name }}</strong></td>
-                    <td>{{ $s->eligibility_case_no }}</td>
+                    <td>
+                        <strong>{{ $s->student_name ?? '-' }}</strong>
+                        @if (!empty($s->student_nee_name) && $s->student_nee_name !== '-')
+                            <br><small style="color: #555;">(Nee: {{ $s->student_nee_name }})</small>
+                        @endif
+                    </td>
+                    <td>{{ $s->eligibility_case_no ?? '-' }}</td>
+                    <td>{{ $s->admission_taken_in ?? '-' }}</td>
+                    <td>{{ $s->admission_taken_year ?? '-' }}</td>
                     <td>
                         @if (!empty($s->notes) && count($s->notes) > 0)
                             @foreach ($s->notes as $ni => $note)
                                 @if ($ni > 0)<hr style="margin: 4px 0;">@endif
-                                {{ $note->note_text }}<br>
+                                <strong>{{ $note->note_text }}</strong><br>
                                 <small>Date: {{ !empty($note->note_date) ? \Carbon\Carbon::parse($note->note_date)->format('d/m/Y') : '-' }}</small>
                             @endforeach
                         @else

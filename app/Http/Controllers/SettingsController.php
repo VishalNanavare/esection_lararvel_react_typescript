@@ -1139,6 +1139,8 @@ class SettingsController extends Controller
                         'id' => 1,
                         'student_name' => 'Jane Sample Doe',
                         'eligibility_case_no' => 'SAMPLE-2025/001',
+                        'admission_taken_in' => 'M.Com Part-I',
+                        'admission_taken_year' => '2025-2026',
                         'verification_of_marksheet_done_by_you' => 'Marksheet Verification',
                         'notes' => collect([
                             (object) ['note_text' => '1st Reminder', 'note_date' => date('Y-m-d')],
@@ -1148,6 +1150,8 @@ class SettingsController extends Controller
                         'id' => 2,
                         'student_name' => 'John Sample Smith',
                         'eligibility_case_no' => 'SAMPLE-2025/002',
+                        'admission_taken_in' => 'M.Com Part-I',
+                        'admission_taken_year' => '2025-2026',
                         'verification_of_marksheet_done_by_you' => 'Marksheet & Passing Certificate',
                         'notes' => collect([
                             (object) ['note_text' => '1st Reminder', 'note_date' => date('Y-m-d')],
@@ -1554,7 +1558,8 @@ class SettingsController extends Controller
                 if (empty($v)) {
                     continue;
                 }
-                $v = Crypt::encryptString((string) $v);
+                $clean = preg_replace('/\s+/u', '', (string) $v);
+                $v = Crypt::encryptString($clean);
             }
             Setting::set($k, (string) $v, 'mail', $userId);
         }

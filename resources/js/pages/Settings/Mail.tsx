@@ -58,6 +58,102 @@ export default function Mail({ settings: initialSettings, templates }: Props) {
     });
 
     const [savingTemplate, setSavingTemplate] = useState<Record<string, boolean>>({});
+    const [openSlugs, setOpenSlugs] = useState<Record<string, boolean>>({
+        university_reminder: true,
+        student_document_reminder: false,
+        password_reset: false,
+    });
+
+    const [previewModal, setPreviewModal] = useState<{
+        slug: string;
+        title: string;
+        subject: string;
+        body: string;
+        recipientEmail: string;
+        recipientName: string;
+    } | null>(null);
+
+    const toggleSlug = (slug: string) => {
+        setOpenSlugs(prev => ({
+            ...prev,
+            [slug]: !prev[slug],
+        }));
+    };
+
+    const expandAll = () => {
+        const all: Record<string, boolean> = {};
+        Object.keys(templates).forEach(k => { all[k] = true; });
+        setOpenSlugs(all);
+    };
+
+    const collapseAll = () => {
+        const all: Record<string, boolean> = {};
+        Object.keys(templates).forEach(k => { all[k] = false; });
+        setOpenSlugs(all);
+    };
+
+    const SAMPLE_RECIPIENTS: Record<string, { email: string; name: string }> = {
+        university_reminder: {
+            email: 'controller.exams@gujaratuniversity.ac.in',
+            name: 'The Controller of Examinations, Gujarat University',
+        },
+        student_document_reminder: {
+            email: 'jane.doe@student.example.com',
+            name: 'Jane Sample Doe',
+        },
+        password_reset: {
+            email: smtpSettings.mail_from_email || 'admin@idol.mu.ac.in',
+            name: 'System Administrator',
+        },
+    };
+
+    const SAMPLE_TOKENS: Record<string, Record<string, string>> = {
+        university_reminder: {
+            university_name: 'Gujarat University, Ahmedabad',
+            academic_year: '2025-2026',
+            course: 'M.Com Part-I',
+            pending_count: '4',
+        },
+        student_document_reminder: {
+            student_name: 'Jane Sample Doe',
+            case_no: 'IDOL-2025/ELIG/0042',
+            course: 'M.Com Part-I',
+            missing_document: 'Original Degree Marksheet & Migration Certificate',
+        },
+        password_reset: {
+            full_name: 'System Administrator',
+            username: 'admin',
+            reset_link: typeof window !== 'undefined'
+                ? `${window.location.origin}/reset-password/sample-verification-token-987abc`
+                : 'http://127.0.0.1:8000/reset-password/sample-verification-token-987abc',
+            valid_for: '60 minutes',
+        },
+    };
+
+    const handlePreviewEmail = (slug: string) => {
+        const tpl = templates[slug];
+        const cur = templateState[slug] || { subject: '', body: '' };
+        const tokens = SAMPLE_TOKENS[slug] || {};
+        const recipient = SAMPLE_RECIPIENTS[slug] || { email: 'recipient@example.com', name: 'Sample Recipient' };
+
+        let renderedSubject = cur.subject;
+        let renderedBody = cur.body;
+
+        Object.entries(tokens).forEach(([k, v]) => {
+            const regex = new RegExp(`\\{${k}\\}`, 'g');
+            renderedSubject = renderedSubject.replace(regex, v);
+            renderedBody = renderedBody.replace(regex, v);
+        });
+
+        setPreviewModal({
+            slug,
+            title: tpl?.label || 'Email Template',
+            subject: renderedSubject,
+            body: renderedBody,
+            recipientEmail: recipient.email,
+            recipientName: recipient.name,
+        });
+    };
 
     const handleSmtpSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -90,19 +186,31 @@ export default function Mail({ settings: initialSettings, templates }: Props) {
         setIsSendingTest(true);
         router.post('/settings/mail/test', { test_email: testEmail }, {
             preserveScroll: true,
-            onSuccess: () => {
+            onSuccess: (page) => {
                 setIsSendingTest(false);
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Test Email Sent',
-                    text: `Test email sent to ${testEmail}. Please check your inbox.`,
-                    timer: 3000,
-                    showConfirmButton: false,
-                });
+                const flash = (page.props as any)?.flash;
+                if (flash?.error) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Test Email Failed',
+                        text: flash.error,
+                    });
+                } else {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Test Email Sent',
+                        text: flash?.success || `Test email sent to ${testEmail}. Please check your inbox.`,
+                        timer: 4000,
+                        showConfirmButton: false,
+                    });
+                }
             },
-            onError: () => {
+            onError: (errs) => {
                 setIsSendingTest(false);
-                Swal.fire('Error', 'Failed to send test email. Check SMTP settings.', 'error');
+                Swal.fire('Error', Object.values(errs).flat().join('\n') || 'Failed to send test email. Check SMTP settings.', 'error');
+            },
+            onFinish: () => {
+                setIsSendingTest(false);
             },
         });
     };
@@ -123,9 +231,9 @@ export default function Mail({ settings: initialSettings, templates }: Props) {
                     showConfirmButton: false,
                 });
             },
-            onError: () => {
+            onError: (errs) => {
                 setSavingTemplate(prev => ({ ...prev, [slug]: false }));
-                Swal.fire('Error', 'Failed to save email template.', 'error');
+                Swal.fire('Error', Object.values(errs).flat().join('\n') || 'Failed to save email template.', 'error');
             },
         });
     };
@@ -303,7 +411,8 @@ export default function Mail({ settings: initialSettings, templates }: Props) {
                                     onChange={(e) => setTestEmail(e.target.value)}
                                     required
                                 />
-                                <button type="submit" disabled={isSendingTest} className="btn btn-glass">
+                                <button type="submit" disabled={isSendingTest} className="btn btn-indigo">
+                                    <i className={`fa ${isSendingTest ? 'fa-spinner fa-spin' : 'fa-paper-plane'} me-1`}></i>
                                     {isSendingTest ? 'Sending...' : 'Send test'}
                                 </button>
                             </div>
@@ -321,46 +430,120 @@ export default function Mail({ settings: initialSettings, templates }: Props) {
             <div className="row">
                 <div className="col-12">
                     <div className="glass-card p-4">
-                        <h5 className="fw-bold text-dark mb-1">
-                            <i className="fa fa-file-text-o me-2 text-indigo"></i> Email wording
-                        </h5>
-                        <p className="text-muted small mb-3">
-                            Edit the subject and message for each email type. Anything in <code>{'{curly braces}'}</code> is replaced with real details when the email is dispatched.
-                        </p>
+                        <div className="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+                            <div>
+                                <h5 className="fw-bold text-dark mb-1">
+                                    <i className="fa fa-file-text-o me-2 text-indigo"></i> Email wording
+                                </h5>
+                                <p className="text-muted small mb-0">
+                                    Edit the subject and message for each email type. Anything in <code>{'{curly braces}'}</code> is replaced with real recipient details when dispatched.
+                                </p>
+                            </div>
+                            <div className="d-flex gap-2">
+                                <button
+                                    type="button"
+                                    onClick={expandAll}
+                                    className="btn btn-sm btn-glass text-secondary"
+                                >
+                                    <i className="fa fa-expand me-1"></i> Expand All
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={collapseAll}
+                                    className="btn btn-sm btn-glass text-secondary"
+                                >
+                                    <i className="fa fa-compress me-1"></i> Collapse All
+                                </button>
+                            </div>
+                        </div>
 
                         <div className="accordion" id="emailTemplates">
-                            {Object.entries(templates).map(([slug, tpl], idx) => {
+                            {Object.entries(templates).map(([slug, tpl]) => {
                                 const cur = templateState[slug] || { subject: '', body: '' };
                                 const isSaving = savingTemplate[slug] || false;
+                                const isOpen = !!openSlugs[slug];
 
                                 return (
-                                    <div key={slug} className="accordion-item bg-transparent border-secondary border-opacity-10 mb-2">
-                                        <h2 className="accordion-header">
+                                    <div
+                                        key={slug}
+                                        className="accordion-item bg-white border border-secondary border-opacity-25 rounded shadow-sm mb-3 overflow-hidden"
+                                    >
+                                        <h2 className="accordion-header mb-0">
                                             <button
-                                                className={`accordion-button ${idx !== 0 ? 'collapsed' : ''} bg-transparent fw-semibold text-dark`}
+                                                className={`accordion-button ${!isOpen ? 'collapsed' : ''} bg-light py-3 px-4 fw-semibold text-dark shadow-none d-flex align-items-center justify-content-between`}
                                                 type="button"
-                                                data-bs-toggle="collapse"
-                                                data-bs-target={`#tpl_${slug}`}
+                                                onClick={() => toggleSlug(slug)}
+                                                style={{ cursor: 'pointer' }}
+                                                aria-expanded={isOpen}
                                             >
-                                                {tpl.label}
+                                                <div className="d-flex align-items-center gap-2">
+                                                    <div
+                                                        className={`rounded-circle d-flex align-items-center justify-content-center p-2 ${
+                                                            slug === 'university_reminder'
+                                                                ? 'bg-primary bg-opacity-10 text-primary'
+                                                                : slug === 'student_document_reminder'
+                                                                ? 'bg-success bg-opacity-10 text-success'
+                                                                : 'bg-warning bg-opacity-10 text-warning'
+                                                        }`}
+                                                        style={{ width: '32px', height: '32px' }}
+                                                    >
+                                                        <i
+                                                            className={`fa ${
+                                                                slug === 'university_reminder'
+                                                                    ? 'fa-university'
+                                                                    : slug === 'student_document_reminder'
+                                                                    ? 'fa-graduation-cap'
+                                                                    : 'fa-key'
+                                                            }`}
+                                                        ></i>
+                                                    </div>
+                                                    <span className="fs-6 text-dark">{tpl.label}</span>
+                                                    <span className="badge bg-secondary bg-opacity-10 text-secondary border small ms-2">
+                                                        {tpl.tokens.length} placeholders
+                                                    </span>
+                                                </div>
                                             </button>
                                         </h2>
                                         <div
                                             id={`tpl_${slug}`}
-                                            className={`accordion-collapse collapse ${idx === 0 ? 'show' : ''}`}
-                                            data-bs-parent="#emailTemplates"
+                                            className={`accordion-collapse ${isOpen ? 'show d-block' : 'd-none'}`}
                                         >
-                                            <div className="accordion-body">
-                                                <p className="small text-muted mb-2">
-                                                    Available placeholders:{' '}
-                                                    {tpl.tokens.map(tok => (
-                                                        <code key={tok} className="me-1">{`{${tok}}`}</code>
-                                                    ))}
-                                                </p>
+                                            <div className="accordion-body p-4 bg-white border-top">
+                                                <div className="mb-3 p-3 bg-light rounded border border-light-subtle">
+                                                    <div className="d-flex align-items-center gap-1 mb-2">
+                                                        <i className="fa fa-code text-indigo me-1"></i>
+                                                        <span className="small fw-semibold text-secondary">
+                                                            Available Placeholders (click token to insert):
+                                                        </span>
+                                                    </div>
+                                                    <div className="d-flex flex-wrap gap-1">
+                                                        {tpl.tokens.map(tok => (
+                                                            <button
+                                                                key={tok}
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    setTemplateState(prev => ({
+                                                                        ...prev,
+                                                                        [slug]: {
+                                                                            ...prev[slug],
+                                                                            body: (prev[slug]?.body || '') + `{${tok}}`,
+                                                                        },
+                                                                    }));
+                                                                }}
+                                                                className="badge bg-white text-indigo border text-decoration-none py-1 px-2 cursor-pointer"
+                                                                title={`Click to append {${tok}} to message body`}
+                                                            >
+                                                                {`{${tok}}`}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                </div>
 
                                                 <form onSubmit={(e) => handleTemplateSave(e, slug)}>
                                                     <div className="mb-3">
-                                                        <label className="form-label text-secondary small fw-semibold">Subject Line</label>
+                                                        <label className="form-label text-secondary small fw-semibold">
+                                                            Subject Line
+                                                        </label>
                                                         <input
                                                             type="text"
                                                             className="form-control"
@@ -375,10 +558,12 @@ export default function Mail({ settings: initialSettings, templates }: Props) {
                                                         />
                                                     </div>
                                                     <div className="mb-3">
-                                                        <label className="form-label text-secondary small fw-semibold">Message Body</label>
+                                                        <label className="form-label text-secondary small fw-semibold">
+                                                            Message Body
+                                                        </label>
                                                         <textarea
                                                             className="form-control"
-                                                            rows={6}
+                                                            rows={7}
                                                             style={{ fontFamily: 'monospace' }}
                                                             value={cur.body}
                                                             onChange={(e) =>
@@ -390,9 +575,21 @@ export default function Mail({ settings: initialSettings, templates }: Props) {
                                                             required
                                                         ></textarea>
                                                     </div>
-                                                    <div className="text-end">
-                                                        <button type="submit" disabled={isSaving} className="btn btn-indigo">
-                                                            <i className="fa fa-check me-1"></i> {isSaving ? 'Saving...' : 'Save template'}
+                                                    <div className="d-flex align-items-center justify-content-between flex-wrap gap-2 pt-2 border-top">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handlePreviewEmail(slug)}
+                                                            className="btn btn-glass"
+                                                        >
+                                                            <i className="fa fa-eye me-1 text-indigo"></i> Preview Email
+                                                        </button>
+                                                        <button
+                                                            type="submit"
+                                                            disabled={isSaving}
+                                                            className="btn btn-indigo px-4"
+                                                        >
+                                                            <i className={`fa ${isSaving ? 'fa-spinner fa-spin' : 'fa-check'} me-1`}></i>
+                                                            {isSaving ? 'Saving...' : 'Save template'}
                                                         </button>
                                                     </div>
                                                 </form>
@@ -405,6 +602,99 @@ export default function Mail({ settings: initialSettings, templates }: Props) {
                     </div>
                 </div>
             </div>
+
+            {/* Email Preview Modal */}
+            {previewModal && (
+                <div
+                    className="modal fade show d-block"
+                    tabIndex={-1}
+                    role="dialog"
+                    aria-modal="true"
+                    style={{ backgroundColor: 'rgba(15, 23, 42, 0.65)', zIndex: 1055 }}
+                    onClick={(e) => {
+                        if (e.target === e.currentTarget) setPreviewModal(null);
+                    }}
+                >
+                    <div className="modal-dialog modal-lg modal-dialog-centered" style={{ maxWidth: '820px' }}>
+                        <div className="modal-content glass-card shadow-lg border-0 overflow-hidden">
+                            <div className="modal-header border-bottom py-3 px-4 bg-white d-flex align-items-center justify-content-between">
+                                <div className="d-flex align-items-center gap-2">
+                                    <div className="rounded-circle p-2 bg-indigo bg-opacity-10 text-indigo d-flex align-items-center justify-content-center" style={{ width: '38px', height: '38px' }}>
+                                        <i className="fa fa-envelope-o fs-5"></i>
+                                    </div>
+                                    <div>
+                                        <h5 className="modal-title fw-bold text-dark mb-0">
+                                            {previewModal.title} — Live Email Preview
+                                        </h5>
+                                        <p className="text-muted small mb-0">
+                                            Sample demonstration with simulated token substitutions
+                                        </p>
+                                    </div>
+                                </div>
+                                <button
+                                    type="button"
+                                    className="btn-close"
+                                    onClick={() => setPreviewModal(null)}
+                                    aria-label="Close"
+                                ></button>
+                            </div>
+                            <div className="modal-body p-4 bg-light">
+                                <div className="bg-white rounded border shadow-sm p-4">
+                                    <div className="border-bottom pb-3 mb-3">
+                                        <div className="row g-2 small">
+                                            <div className="col-sm-2 text-secondary fw-semibold">From:</div>
+                                            <div className="col-sm-10 text-dark fw-medium">
+                                                {smtpSettings.mail_from_name || 'IDOL Eligibility Section'} &lt;{smtpSettings.mail_from_email || 'eligibility@idol.mu.ac.in'}&gt;
+                                            </div>
+                                            <div className="col-sm-2 text-secondary fw-semibold">To:</div>
+                                            <div className="col-sm-10 text-dark fw-medium">
+                                                {previewModal.recipientName} &lt;{previewModal.recipientEmail}&gt;
+                                            </div>
+                                            <div className="col-sm-2 text-secondary fw-semibold">Subject:</div>
+                                            <div className="col-sm-10 text-dark fw-bold fs-6">
+                                                {previewModal.subject}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div
+                                        className="py-3 px-2 text-dark"
+                                        style={{
+                                            fontFamily: 'Inter, system-ui, -apple-system, sans-serif',
+                                            lineHeight: 1.6,
+                                            whiteSpace: 'pre-wrap',
+                                            minHeight: '160px',
+                                        }}
+                                    >
+                                        {previewModal.body}
+                                    </div>
+
+                                    <div className="mt-4 pt-3 border-top text-muted small">
+                                        <div className="fw-semibold text-dark">
+                                            Institute of Distance and Open Learning (IDOL)
+                                        </div>
+                                        <div>University of Mumbai, Vidyanagari, Santacruz (East), Mumbai - 400 098</div>
+                                        <div>Email: eligibility@idol.mu.ac.in | Website: mu.ac.in/distance-open-learning</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="modal-footer py-2 px-4 bg-white border-top d-flex justify-content-between align-items-center">
+                                <span className="text-muted small">
+                                    <i className="fa fa-info-circle text-indigo me-1"></i>
+                                    Live Preview reflects any unsaved edits currently in the form fields.
+                                </span>
+                                <button
+                                    type="button"
+                                    className="btn btn-secondary btn-sm"
+                                    onClick={() => setPreviewModal(null)}
+                                >
+                                    Close Preview
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </AppLayout>
     );
 }

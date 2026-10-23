@@ -16,7 +16,9 @@ class ApiController extends Controller
     {
         $q = trim((string) ($request->input('q') ?? $request->input('term') ?? ''));
         $page = max(1, (int) $request->input('page', 1));
-        $limit = 25;
+        $limit = $request->boolean('all') || ($request->has('active_only') && !$request->has('page') && $q === '')
+            ? 2000
+            : max(1, min(2000, (int) $request->input('limit', 25)));
         $activeOnly = $request->input('active_only') !== '0';
 
         $query = CollegeDetail::query();
