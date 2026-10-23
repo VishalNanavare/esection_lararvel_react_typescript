@@ -13,7 +13,7 @@
 /storage/*.key
 
 # Build Assets
-/public/build
+# /public/build (tracked for direct production deployment)
 /public/hot
 /public/storage
 /bootstrap/ssr
