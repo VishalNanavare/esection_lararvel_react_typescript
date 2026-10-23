@@ -57,7 +57,10 @@ class PdfController extends Controller
 
         $replacements = [];
         foreach ($tokenValues as $token => $value) {
-            $replacements['{'.$token.'}'] = '<strong>'.e((string) $value).'</strong>';
+            $formatted = '<strong>'.e((string) $value).'</strong>';
+            $replacements['{'.$token.'}'] = $formatted;
+            $replacements['{'.strtolower($token).'}'] = $formatted;
+            $replacements['{'.strtoupper($token).'}'] = $formatted;
         }
 
         $result = [];
@@ -184,10 +187,25 @@ class PdfController extends Controller
     {
         $record = Regularization::findOrFail($id);
 
+        $admDate = '';
+        if (!empty($record->admission_letter_date)) {
+            $admDate = \Carbon\Carbon::parse($record->admission_letter_date)->format('d/m/Y');
+        }
+
         $rendered = $this->renderLetterTemplate('regularization', [
             'student_name' => $record->student_name,
+            'gender' => $record->gender ?? '',
             'eligibility_case_no' => $record->eligibility_case_no ?? '',
             'passing_course' => $record->passing_course ?? '',
+            'admission_course' => $record->admission_taken_in ?? '',
+            'admission_taken_in' => $record->admission_taken_in ?? '',
+            'academic_year' => $record->admission_taken_year ?? '',
+            'admission_taken_year' => $record->admission_taken_year ?? '',
+            'admission_letter_date' => $admDate,
+            'admission_letter_for' => $record->admission_letter_for ?? '',
+            'Last_Attended_University' => $record->university_name ?? '',
+            'last_attended_university' => $record->university_name ?? '',
+            'university_name' => $record->university_name ?? '',
         ]);
 
         $data = array_merge($this->getInstituteSettings(), $rendered, [

@@ -36,15 +36,27 @@
 
     <div style="margin-top: 15px;">
         To,<br>
-        <strong>{{ $record->admission_letter_for ?: 'The Controller of Examinations' }}</strong>,<br>
-        {{ $record->university_name }}
+        @if (!empty($record->admission_letter_for) && (str_contains($record->admission_letter_for, 'Registrar') || str_contains($record->admission_letter_for, 'Principal') || str_contains($record->admission_letter_for, 'Controller') || str_contains($record->admission_letter_for, 'Director')))
+            <strong>{{ $record->admission_letter_for }}</strong>,<br>
+            @if (!empty($record->university_name))
+                {!! nl2br(e($record->university_name)) !!}
+            @endif
+        @elseif (!empty($record->university_name))
+            <strong>The Controller of Examinations</strong>,<br>
+            {!! nl2br(e($record->university_name)) !!}
+        @else
+            <strong>The Assistant Registrar</strong>,<br>
+            (Administration),<br>
+            IDOL, University of Mumbai,<br>
+            Vidyanagari, Santacruz (E), Mumbai - 400 098.
+        @endif
     </div>
 
     <div class="subject">
         Subject: {!! $subject ?? 'Eligibility Regularization of student admitted to IDOL' !!}
     </div>
 
-    @if (!empty($record->admission_letter_for))
+    @if (!empty($record->admission_letter_for) && (!isset($body) || (!str_contains($body, 'With reference') && !str_contains($body, 'with reference'))))
         <div>
             With reference to your letter No. <strong>{{ $record->admission_letter_for }}</strong>
             @if (!empty($record->admission_letter_date))

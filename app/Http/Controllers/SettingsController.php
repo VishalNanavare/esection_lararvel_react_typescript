@@ -827,9 +827,19 @@ class SettingsController extends Controller
             ],
             'regularization' => [
                 'label' => 'Regularization Letter',
-                'tokens' => ['student_name', 'eligibility_case_no', 'passing_course'],
-                'default_subject' => 'Eligibility Regularization of Candidate {student_name}.',
-                'default_body' => "Sir/Madam,\nWith reference to the eligibility verification for {student_name} (Eligibility Case No: {eligibility_case_no}) admitted to {passing_course} program, the submitted documents have been reviewed and regularized by this Institute.",
+                'tokens' => [
+                    'student_name',
+                    'gender',
+                    'eligibility_case_no',
+                    'passing_course',
+                    'admission_course',
+                    'academic_year',
+                    'admission_letter_date',
+                    'Last_Attended_University',
+                    'admission_letter_for',
+                ],
+                'default_subject' => 'Admission Regularization of {admission_course} course for the academic year {academic_year}.',
+                'default_body' => "Sir/Madam,\nWith reference to your letter No. {eligibility_case_no}, Date - {admission_letter_date}. I am to inform you that since {student_name} submitted the Migration Certificate of {Last_Attended_University} which she/he had migrated after passing {passing_course} course from University of Mumbai, her admission for {admission_course} course for the academic year {academic_year} in IDOL is hereby regularized accordingly.",
                 'default_closing' => 'Kindly record the eligibility regularization status in your records.',
             ],
             'university_reminder' => [
@@ -966,8 +976,18 @@ class SettingsController extends Controller
             ],
             'regularization' => [
                 'student_name' => 'Jane Sample Doe',
+                'gender' => 'Ms.',
                 'eligibility_case_no' => 'SAMPLE-2025/001',
                 'passing_course' => 'M.Com Part-I',
+                'admission_course' => 'M.Com Part-I',
+                'admission_taken_in' => 'M.Com Part-I',
+                'academic_year' => '2024-2025',
+                'admission_taken_year' => '2024-2025',
+                'admission_letter_date' => '15/06/2025',
+                'admission_letter_for' => 'SAMPLE-ADM-2025-001',
+                'Last_Attended_University' => 'Gujarat University, Ahmedabad',
+                'last_attended_university' => 'Gujarat University, Ahmedabad',
+                'university_name' => 'Gujarat University, Ahmedabad',
             ],
             'university_reminder' => [
                 'reminder_type' => '1st Reminder',
@@ -992,7 +1012,10 @@ class SettingsController extends Controller
         // Render template tokens into HTML-safe bold replacements
         $replacements = [];
         foreach ($sampleTokens as $token => $val) {
-            $replacements['{'.$token.'}'] = '<strong>'.e((string) $val).'</strong>';
+            $formatted = '<strong>'.e((string) $val).'</strong>';
+            $replacements['{'.$token.'}'] = $formatted;
+            $replacements['{'.strtolower($token).'}'] = $formatted;
+            $replacements['{'.strtoupper($token).'}'] = $formatted;
         }
 
         $rendered = [];
@@ -1117,12 +1140,14 @@ class SettingsController extends Controller
                 'record' => (object) [
                     'id' => 1,
                     'student_name' => 'Jane Sample Doe',
+                    'gender' => 'Ms.',
                     'eligibility_case_no' => 'SAMPLE-2025/001',
                     'admission_letter_for' => 'SAMPLE-ADM-2025-001',
                     'admission_letter_date' => '2025-06-15',
-                    'university_name' => "Sample University Campus\nNavrangpura, Ahmedabad - 380009",
+                    'university_name' => "Gujarat University, Ahmedabad",
                     'admission_taken_in' => 'M.Com Part-I',
-                    'admission_taken_year' => '2025-2026',
+                    'admission_taken_year' => '2024-2025',
+                    'passing_course' => 'M.Com Part-I',
                 ],
             ],
             'university_reminder' => [

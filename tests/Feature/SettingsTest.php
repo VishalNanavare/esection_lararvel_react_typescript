@@ -444,3 +444,14 @@ test('admin can preview all 6 letter templates via GET and POST', function () {
     $badRes = $this->actingAs($this->admin)->get('/settings/letter-templates/invalid_template_slug/preview');
     $badRes->assertNotFound();
 });
+
+test('regularization letter preview substitutes admission_course academic_year admission_letter_date and Last_Attended_University', function () {
+    $postRes = $this->actingAs($this->admin)->post('/settings/letter-templates/regularization/preview', [
+        'subject' => 'Admission Regularization of {admission_course} course for the academic year {academic_year}.',
+        'body' => 'With reference to letter No. {eligibility_case_no}, Date - {admission_letter_date}. Candidate {student_name} submitted Migration Certificate of {Last_Attended_University}.',
+        'closing' => 'Regularized accordingly.',
+    ]);
+
+    $postRes->assertOk();
+    $postRes->assertHeader('Content-Type', 'application/pdf');
+});
