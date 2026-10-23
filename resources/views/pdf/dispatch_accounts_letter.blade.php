@@ -137,7 +137,7 @@
             @foreach ($students as $index => $s)
                 <tr>
                     <td>{{ $index + 1 }}</td>
-                    <td><strong>{{ $s->student_nee_name && $s->student_nee_name !== '-' ? $s->student_nee_name : $s->student_name }}</strong></td>
+                    <td><strong>{{ $s->student_name }}</strong></td>
                     <td>{{ $s->eligibility_case_no }}</td>
                     <td>{{ $s->admission_taken_in }}</td>
                     <td>{{ $s->verification_of_marksheet_done_by_you ?: 'Marksheet Verification' }}</td>

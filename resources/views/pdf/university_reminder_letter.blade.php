@@ -70,9 +70,6 @@
                     <td>{{ $index + 1 }}</td>
                     <td>
                         <strong>{{ $s->student_name ?? '-' }}</strong>
-                        @if (!empty($s->student_nee_name) && $s->student_nee_name !== '-')
-                            <br><small style="color: #555;">(Nee: {{ $s->student_nee_name }})</small>
-                        @endif
                     </td>
                     <td>{{ $s->eligibility_case_no ?? '-' }}</td>
                     <td>{{ $s->admission_taken_in ?? '-' }}</td>

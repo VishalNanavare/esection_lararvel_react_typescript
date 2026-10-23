@@ -87,9 +87,6 @@
                     <td style="text-align: center;">{{ $index + 1 }}</td>
                     <td>
                         <strong>{{ $r->student_name }}</strong>
-                        @if (!empty($r->student_nee_name) && $r->student_nee_name !== '-')
-                            <br><small>( Nee name : {{ $r->student_nee_name }} )</small>
-                        @endif
                     </td>
                     <td>{{ $r->case_no }}</td>
                     <td>{!! nl2br(e($r->clg_add ?: ($r->uni_add ?: ''))) !!}</td>

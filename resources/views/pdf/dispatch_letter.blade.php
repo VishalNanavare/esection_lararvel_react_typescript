@@ -118,19 +118,11 @@
         {!! $body ?? 'With reference to the subject cited above, the following candidate(s) have been admitted to the program mentioned below. Kindly verify and confirm the authenticity of their educational documents issued by your institution.' !!}
     </div>
 
-    <div class="content">
-        {!! $closing ?? 'The verification report may kindly be sent to this office at an early date to regularize their admission.' !!}
-        @if (!empty($firstRow['in_favour_of']))
-            <br>Fee details/payment favouring: <strong>{{ $firstRow['in_favour_of'] }}</strong>.
-        @endif
-    </div>
-
     <table class="student-table">
         <thead>
             <tr>
                 <th style="width: 30px;">Sr.</th>
                 <th>Candidate Full Name</th>
-                <th>Nee / Maiden Name</th>
                 <th>Eligibility Case No.</th>
                 <th>Verification Done By You</th>
             </tr>
@@ -140,7 +132,6 @@
                 <tr>
                     <td>{{ $index + 1 }}</td>
                     <td><strong>{{ $s->student_name }}</strong></td>
-                    <td>{{ $s->student_nee_name && $s->student_nee_name !== '-' ? $s->student_nee_name : '-' }}</td>
                     <td>{{ $s->eligibility_case_no }}</td>
                     <td>{{ $s->verification_of_marksheet_done_by_you ?: 'Marksheet Verification' }}</td>
                 </tr>
@@ -149,7 +140,10 @@
     </table>
 
     <div class="content">
-        Thanking you,
+        {!! $closing ?? 'The verification report may kindly be sent to this office at an early date to regularize their admission.' !!}
+        @if (!empty($firstRow['in_favour_of']))
+            <br>Fee details/payment favouring: <strong>{{ $firstRow['in_favour_of'] }}</strong>.
+        @endif
     </div>
 
     <div class="footer-sig">
