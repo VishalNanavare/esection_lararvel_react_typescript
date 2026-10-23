@@ -174,6 +174,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/settings/access-rights', [SettingsController::class, 'updateAccessRights'])->name('settings.access-rights.update');
         Route::get('/settings/letter-templates', [SettingsController::class, 'letterTemplates'])->name('settings.letter-templates');
         Route::post('/settings/letter-templates/footer', [SettingsController::class, 'updateLetterFooter'])->name('settings.letter-templates.footer');
+        Route::match(['GET', 'POST'], '/settings/letter-templates/{slug}/preview', [SettingsController::class, 'previewLetterTemplate'])->name('settings.letter-templates.preview');
         Route::post('/settings/letter-templates/{slug}', [SettingsController::class, 'updateLetterTemplate'])->name('settings.letter-templates.update');
         Route::get('/settings/backup', [SettingsController::class, 'backup'])->name('settings.backup');
         Route::post('/settings/backup/sql', [SettingsController::class, 'runBackupSql'])->name('settings.backup.sql');

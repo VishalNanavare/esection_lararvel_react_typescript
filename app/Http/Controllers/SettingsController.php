@@ -12,6 +12,7 @@ use App\Models\Setting;
 use App\Models\StreamDetail;
 use App\Models\User;
 use App\Models\UserPageAccess;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -929,6 +930,259 @@ class SettingsController extends Controller
         Setting::set('footer_department', $validated['footer_department'], 'letter_templates', Auth::id());
 
         return redirect()->back()->with('success', 'Department name updated successfully.');
+    }
+
+    /**
+     * Preview a Letter Template as a rendered PDF with sample dummy data.
+     * Supports both GET (using saved template) and POST (using live unsaved fields).
+     */
+    public function previewLetterTemplate(Request $request, string $slug): \Illuminate\Http\Response
+    {
+        $definitions = self::getLetterTemplateDefinitions();
+        if (! isset($definitions[$slug])) {
+            abort(404, 'Unknown letter template: '.$slug);
+        }
+
+        $def = $definitions[$slug];
+
+        // Retrieve submitted (live unsaved) fields or fallback to stored settings/defaults
+        $fields = [
+            'subject' => $request->has('subject') && trim((string) $request->input('subject')) !== ''
+                ? (string) $request->input('subject')
+                : Setting::get("letter_{$slug}_subject", $def['default_subject']),
+            'body' => $request->has('body') && trim((string) $request->input('body')) !== ''
+                ? (string) $request->input('body')
+                : Setting::get("letter_{$slug}_body", $def['default_body']),
+            'closing' => $request->has('closing')
+                ? (string) $request->input('closing')
+                : Setting::get("letter_{$slug}_closing", $def['default_closing']),
+        ];
+
+        // Sample token replacements
+        $sampleTokens = match ($slug) {
+            'dispatch' => [
+                'course' => 'M.Com Part-I',
+                'academic_year' => '2025-2026',
+            ],
+            'regularization' => [
+                'student_name' => 'Jane Sample Doe',
+                'eligibility_case_no' => 'SAMPLE-2025/001',
+                'passing_course' => 'M.Com Part-I',
+            ],
+            'university_reminder' => [
+                'reminder_type' => '1st Reminder',
+                'course' => 'M.Com Part-I',
+                'academic_year' => '2025-2026',
+            ],
+            'student_reminder' => [
+                'course_name' => 'M.Com Part-I',
+                'missing_doc' => 'Original Marksheet & Passing Certificate',
+            ],
+            'dispatch_accounts' => [
+                'academic_year' => '2025-2026',
+            ],
+            'confirmation_eligibility' => [
+                'academic_year' => '2025-2026',
+                'course' => 'M.Com Part-I',
+                'student_count_phrase' => '( 2 ) students',
+            ],
+            default => [],
+        };
+
+        // Render template tokens into HTML-safe bold replacements
+        $replacements = [];
+        foreach ($sampleTokens as $token => $val) {
+            $replacements['{'.$token.'}'] = '<strong>'.e((string) $val).'</strong>';
+        }
+
+        $rendered = [];
+        foreach (['subject', 'body', 'closing'] as $f) {
+            $text = nl2br(e($fields[$f] ?? ''));
+            $rendered[$f] = strtr($text, $replacements);
+        }
+
+        // Institute global settings
+        $settings = Setting::pluck('setting_value', 'setting_key')->toArray();
+        $instituteSettings = [
+            'instituteUniversityTitle' => $settings['institute_university_title'] ?? 'UNIVERSITY OF MUMBAI',
+            'instituteName' => $settings['institute_name'] ?? 'INSTITUTE OF DISTANCE AND OPEN LEARNING (IDOL)',
+            'instituteAddress' => $settings['institute_address'] ?? 'Dr. Shankar Dayal Sharma Bhavan, Vidyanagari, Santacruz (E), Mumbai - 400 098.',
+            'instituteSignatoryName' => $settings['institute_signatory_name'] ?? ($settings['signatory_name'] ?? ''),
+            'instituteSignatoryDesignation' => $settings['institute_signatory_designation'] ?? ($settings['signatory_designation'] ?? 'Deputy Registrar / Assistant Registrar'),
+            'instituteSignatureSpaceLines' => ! empty($settings['institute_signature_space_lines']) ? (int) $settings['institute_signature_space_lines'] : 3,
+            'instituteLogoPath' => ! empty($settings['institute_logo_path']) ? public_path($settings['institute_logo_path']) : null,
+            'instituteLetterheadPath' => ! empty($settings['institute_letterhead_path']) ? public_path($settings['institute_letterhead_path']) : null,
+            'footerDepartment' => $settings['footer_department'] ?? 'IDOL Eligibility Section',
+        ];
+
+        // Specific sample data for each view
+        $sampleData = match ($slug) {
+            'dispatch' => [
+                'arraySpace' => 'SAMPLE-BATCH-001',
+                'date' => date('d/m/Y'),
+                'firstRow' => [
+                    'to_name' => 'The Controller of Examinations',
+                    'clg_add' => "Sample University Campus\nNavrangpura, Ahmedabad - 380009",
+                    'in_favour_of' => 'Finance & Accounts Officer, Sample University',
+                    'fees' => '150',
+                ],
+                'students' => collect([
+                    (object) [
+                        'id' => 1,
+                        'student_name' => 'Jane Sample Doe',
+                        'student_nee_name' => '-',
+                        'eligibility_case_no' => 'SAMPLE-2025/001',
+                        'verification_of_marksheet_done_by_you' => 'Marksheet Verification',
+                    ],
+                    (object) [
+                        'id' => 2,
+                        'student_name' => 'John Sample Smith',
+                        'student_nee_name' => '-',
+                        'eligibility_case_no' => 'SAMPLE-2025/002',
+                        'verification_of_marksheet_done_by_you' => 'Marksheet & Passing Certificate',
+                    ],
+                ]),
+            ],
+            'dispatch_accounts' => [
+                'arraySpace' => 'SAMPLE-BATCH-001',
+                'date' => date('d/m/Y'),
+                'firstRow' => [
+                    'to_name' => 'The Controller of Examinations',
+                    'clg_add' => "Sample University Campus\nNavrangpura, Ahmedabad - 380009",
+                    'in_favour_of' => 'Finance & Accounts Officer, Sample University',
+                    'fees' => 150,
+                ],
+                'students' => collect([
+                    (object) [
+                        'id' => 1,
+                        'student_name' => 'Jane Sample Doe',
+                        'student_nee_name' => '-',
+                        'eligibility_case_no' => 'SAMPLE-2025/001',
+                        'admission_taken_in' => 'M.Com Part-I',
+                        'verification_of_marksheet_done_by_you' => 'Marksheet Verification',
+                    ],
+                    (object) [
+                        'id' => 2,
+                        'student_name' => 'John Sample Smith',
+                        'student_nee_name' => '-',
+                        'eligibility_case_no' => 'SAMPLE-2025/002',
+                        'admission_taken_in' => 'M.Com Part-I',
+                        'verification_of_marksheet_done_by_you' => 'Marksheet & Passing Certificate',
+                    ],
+                ]),
+                'fees' => 150,
+                'ddAmount' => 300,
+                'ddAmountWords' => 'Three Hundred Rupees Only',
+            ],
+            'confirmation_eligibility' => [
+                'arraySpace' => 'SAMPLE-CONF-001',
+                'date' => date('d/m/Y'),
+                'records' => collect([
+                    (object) [
+                        'id' => 1,
+                        'student_name' => 'Jane Sample Doe',
+                        'student_nee_name' => '-',
+                        'case_no' => 'SAMPLE-2025/001',
+                        'clg_add' => 'Sample University, Gujarat',
+                        'uni_add' => '',
+                        'mig_TC' => 'Yes',
+                        's_marks' => 'Yes',
+                        'p_degree' => 'Yes',
+                        'letter_no_date' => 'SU/VER/2025/101, 15/06/2025',
+                        'remark' => 'Eligible as per norms',
+                        'conf_from' => '',
+                        'conf_from_select' => '',
+                        'conf_from_text' => '',
+                    ],
+                    (object) [
+                        'id' => 2,
+                        'student_name' => 'John Sample Smith',
+                        'student_nee_name' => '-',
+                        'case_no' => 'SAMPLE-2025/002',
+                        'clg_add' => 'Sample Board of Higher Education',
+                        'uni_add' => '',
+                        'mig_TC' => 'Yes',
+                        's_marks' => 'Yes',
+                        'p_degree' => 'Yes',
+                        'letter_no_date' => 'SB/VER/2025/204, 18/06/2025',
+                        'remark' => 'Verified and Confirmed',
+                        'conf_from' => '',
+                        'conf_from_select' => '',
+                        'conf_from_text' => '',
+                    ],
+                ]),
+            ],
+            'regularization' => [
+                'date' => date('d/m/Y'),
+                'record' => (object) [
+                    'id' => 1,
+                    'student_name' => 'Jane Sample Doe',
+                    'eligibility_case_no' => 'SAMPLE-2025/001',
+                    'admission_letter_for' => 'SAMPLE-ADM-2025-001',
+                    'admission_letter_date' => '2025-06-15',
+                    'university_name' => "Sample University Campus\nNavrangpura, Ahmedabad - 380009",
+                    'admission_taken_in' => 'M.Com Part-I',
+                    'admission_taken_year' => '2025-2026',
+                ],
+            ],
+            'university_reminder' => [
+                'date' => date('d/m/Y'),
+                'batch' => (object) [
+                    'id' => 1,
+                    'head_name' => 'The Controller of Examinations',
+                    'university_name' => "Sample University Campus\nNavrangpura, Ahmedabad - 380009",
+                    'admission_taken_in' => 'M.Com Part-I',
+                    'academic_year' => '2025-2026',
+                ],
+                'students' => collect([
+                    (object) [
+                        'id' => 1,
+                        'student_name' => 'Jane Sample Doe',
+                        'eligibility_case_no' => 'SAMPLE-2025/001',
+                        'verification_of_marksheet_done_by_you' => 'Marksheet Verification',
+                        'notes' => collect([
+                            (object) ['note_text' => '1st Reminder', 'note_date' => date('Y-m-d')],
+                        ]),
+                    ],
+                    (object) [
+                        'id' => 2,
+                        'student_name' => 'John Sample Smith',
+                        'eligibility_case_no' => 'SAMPLE-2025/002',
+                        'verification_of_marksheet_done_by_you' => 'Marksheet & Passing Certificate',
+                        'notes' => collect([
+                            (object) ['note_text' => '1st Reminder', 'note_date' => date('Y-m-d')],
+                        ]),
+                    ],
+                ]),
+            ],
+            'student_reminder' => [
+                'date' => date('d/m/Y'),
+                'record' => (object) [
+                    'id' => 1,
+                    'student_name' => 'Jane Sample Doe',
+                    'course_name' => 'M.Com Part-I',
+                    'eligibility_case_no' => 'SAMPLE-2025/001',
+                    'missing_doc' => 'Original Marksheet & Passing Certificate',
+                ],
+            ],
+            default => ['date' => date('d/m/Y')],
+        };
+
+        $viewName = match ($slug) {
+            'dispatch' => 'pdf.dispatch_letter',
+            'dispatch_accounts' => 'pdf.dispatch_accounts_letter',
+            'confirmation_eligibility' => 'pdf.confirmation_eligibility_letter',
+            'regularization' => 'pdf.regularization_letter',
+            'university_reminder' => 'pdf.university_reminder_letter',
+            'student_reminder' => 'pdf.student_reminder_letter',
+            default => abort(404, 'View not found'),
+        };
+
+        $data = array_merge($instituteSettings, $rendered, $sampleData);
+
+        $pdf = Pdf::loadView($viewName, $data)->setPaper('a4', 'portrait');
+
+        return $pdf->stream("preview_{$slug}.pdf");
     }
 
     /**

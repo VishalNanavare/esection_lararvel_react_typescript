@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
 import { AppLayout } from '../../components/AppLayout';
+import { getCsrfHeaders } from '../../lib/csrf';
 import Swal from 'sweetalert2';
 
 interface TemplateDef {
@@ -35,6 +36,28 @@ export default function LetterTemplates({ templates, footerDepartment: initialFo
     });
 
     const [savingSlugs, setSavingSlugs] = useState<Record<string, boolean>>({});
+    const [previewLoading, setPreviewLoading] = useState<Record<string, boolean>>({});
+    const [previewModal, setPreviewModal] = useState<{
+        slug: string;
+        title: string;
+        pdfUrl: string | null;
+    } | null>(null);
+
+    const handleClosePreview = () => {
+        if (previewModal?.pdfUrl) {
+            URL.revokeObjectURL(previewModal.pdfUrl);
+        }
+        setPreviewModal(null);
+    };
+
+    // Clean up active blob URL on unmount
+    useEffect(() => {
+        return () => {
+            if (previewModal?.pdfUrl) {
+                URL.revokeObjectURL(previewModal.pdfUrl);
+            }
+        };
+    }, [previewModal]);
 
     const handleFooterSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -85,13 +108,62 @@ export default function LetterTemplates({ templates, footerDepartment: initialFo
         });
     };
 
-    const handlePreview = (slug: string) => {
-        Swal.fire({
-            icon: 'info',
-            title: 'PDF Template Preview',
-            text: `Preview for '${templates[slug]?.label}' uses real template substitutions during batch generation and download.`,
-            confirmButtonColor: '#4f46e5',
-        });
+    const handlePreview = async (slug: string) => {
+        const tpl = templates[slug];
+        const title = tpl ? `${tpl.label} — PDF Preview` : 'Letter Template Preview';
+        setPreviewLoading(prev => ({ ...prev, [slug]: true }));
+
+        try {
+            const currentFields = formState[slug] || { subject: '', body: '', closing: '' };
+            const response = await fetch(`/settings/letter-templates/${slug}/preview`, {
+                method: 'POST',
+                headers: {
+                    ...getCsrfHeaders(),
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/pdf, application/json',
+                },
+                body: JSON.stringify(currentFields),
+            });
+
+            if (!response.ok) {
+                let errorMsg = `Server error (HTTP ${response.status})`;
+                try {
+                    const json = await response.json();
+                    if (json.message) errorMsg = json.message;
+                } catch {
+                    // response is not json
+                }
+                throw new Error(errorMsg);
+            }
+
+            const blob = await response.blob();
+            if (blob.type && !blob.type.includes('pdf') && blob.size < 500) {
+                const text = await blob.text();
+                throw new Error(text || 'Failed to generate PDF preview.');
+            }
+
+            if (previewModal?.pdfUrl) {
+                URL.revokeObjectURL(previewModal.pdfUrl);
+            }
+
+            const pdfBlob = new Blob([blob], { type: 'application/pdf' });
+            const pdfUrl = URL.createObjectURL(pdfBlob);
+
+            setPreviewModal({
+                slug,
+                title,
+                pdfUrl,
+            });
+        } catch (err: any) {
+            console.error('Preview PDF error:', err);
+            Swal.fire({
+                icon: 'error',
+                title: 'Preview Failed',
+                text: err.message || 'Unable to generate PDF preview. Please try again.',
+            });
+        } finally {
+            setPreviewLoading(prev => ({ ...prev, [slug]: false }));
+        }
     };
 
     return (
@@ -215,10 +287,12 @@ export default function LetterTemplates({ templates, footerDepartment: initialFo
                                     <div className="mt-3 text-end">
                                         <button
                                             type="button"
+                                            disabled={previewLoading[slug] || false}
                                             onClick={() => handlePreview(slug)}
                                             className="btn btn-glass me-2"
                                         >
-                                            <i className="fa fa-file-pdf-o me-1"></i> Preview PDF
+                                            <i className={`fa ${previewLoading[slug] ? 'fa-spinner fa-spin' : 'fa-file-pdf-o'} me-1 text-danger`}></i>
+                                            {previewLoading[slug] ? 'Generating Preview...' : 'Preview PDF'}
                                         </button>
                                         <button
                                             type="submit"
@@ -234,6 +308,98 @@ export default function LetterTemplates({ templates, footerDepartment: initialFo
                     </div>
                 );
             })}
+
+            {/* PDF Preview Modal */}
+            {previewModal && (
+                <div
+                    className="modal fade show d-block"
+                    tabIndex={-1}
+                    role="dialog"
+                    aria-modal="true"
+                    style={{ backgroundColor: 'rgba(15, 23, 42, 0.65)', zIndex: 1055 }}
+                    onClick={(e) => {
+                        if (e.target === e.currentTarget) handleClosePreview();
+                    }}
+                >
+                    <div className="modal-dialog modal-xl modal-dialog-centered" style={{ maxWidth: '1050px', width: '95%' }}>
+                        <div className="modal-content glass-card shadow-lg border-0 overflow-hidden">
+                            <div className="modal-header border-bottom py-3 px-4 bg-white d-flex align-items-center justify-content-between">
+                                <div className="d-flex align-items-center gap-2">
+                                    <div className="rounded-circle p-2 bg-danger bg-opacity-10 text-danger d-flex align-items-center justify-content-center" style={{ width: '38px', height: '38px' }}>
+                                        <i className="fa fa-file-pdf-o fs-5"></i>
+                                    </div>
+                                    <div>
+                                        <h5 className="modal-title fw-bold text-dark mb-0">
+                                            {previewModal.title}
+                                        </h5>
+                                        <p className="text-muted small mb-0">
+                                            Sample demonstration with active template substitutions and institute letterhead
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="d-flex align-items-center gap-2">
+                                    {previewModal.pdfUrl && (
+                                        <>
+                                            <a
+                                                href={previewModal.pdfUrl}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="btn btn-sm btn-outline-primary"
+                                                title="Open preview in new tab"
+                                            >
+                                                <i className="fa fa-external-link me-1"></i> Open in New Tab
+                                            </a>
+                                            <a
+                                                href={previewModal.pdfUrl}
+                                                download={`${previewModal.slug}-preview.pdf`}
+                                                className="btn btn-sm btn-outline-secondary"
+                                                title="Download preview PDF"
+                                            >
+                                                <i className="fa fa-download me-1"></i> Download
+                                            </a>
+                                        </>
+                                    )}
+                                    <button
+                                        type="button"
+                                        className="btn-close ms-2"
+                                        onClick={handleClosePreview}
+                                        aria-label="Close"
+                                    ></button>
+                                </div>
+                            </div>
+                            <div className="modal-body p-0 bg-secondary bg-opacity-10 position-relative" style={{ height: '75vh', minHeight: '520px' }}>
+                                {previewModal.pdfUrl ? (
+                                    <iframe
+                                        src={previewModal.pdfUrl}
+                                        title={previewModal.title}
+                                        width="100%"
+                                        height="100%"
+                                        style={{ border: 'none', display: 'block' }}
+                                    />
+                                ) : (
+                                    <div className="d-flex flex-column align-items-center justify-content-center h-100 text-muted">
+                                        <i className="fa fa-spinner fa-spin fa-2x mb-2 text-indigo"></i>
+                                        <span>Rendering PDF preview...</span>
+                                    </div>
+                                )}
+                            </div>
+                            <div className="modal-footer py-2 px-4 bg-white border-top d-flex justify-content-between align-items-center">
+                                <span className="text-muted small">
+                                    <i className="fa fa-info-circle text-indigo me-1"></i>
+                                    Live Preview reflects any unsaved edits made in the template fields above.
+                                </span>
+                                <button
+                                    type="button"
+                                    className="btn btn-secondary btn-sm"
+                                    onClick={handleClosePreview}
+                                >
+                                    Close Preview
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </AppLayout>
     );
 }

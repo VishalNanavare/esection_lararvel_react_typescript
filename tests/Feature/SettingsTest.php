@@ -413,3 +413,34 @@ test('test mail button reports failure when SMTP is not configured', function ()
     $response->assertRedirect();
     $response->assertSessionHas('error');
 });
+
+test('admin can preview all 6 letter templates via GET and POST', function () {
+    $slugs = [
+        'dispatch',
+        'regularization',
+        'university_reminder',
+        'student_reminder',
+        'dispatch_accounts',
+        'confirmation_eligibility',
+    ];
+
+    foreach ($slugs as $slug) {
+        // GET preview with default/saved fields
+        $getRes = $this->actingAs($this->admin)->get("/settings/letter-templates/{$slug}/preview");
+        $getRes->assertOk();
+        $getRes->assertHeader('Content-Type', 'application/pdf');
+
+        // POST preview with live unsaved fields
+        $postRes = $this->actingAs($this->admin)->post("/settings/letter-templates/{$slug}/preview", [
+            'subject' => "Custom {$slug} Subject",
+            'body' => "Custom {$slug} Body with placeholders.",
+            'closing' => "Custom {$slug} Closing.",
+        ]);
+        $postRes->assertOk();
+        $postRes->assertHeader('Content-Type', 'application/pdf');
+    }
+
+    // Invalid slug returns 404
+    $badRes = $this->actingAs($this->admin)->get('/settings/letter-templates/invalid_template_slug/preview');
+    $badRes->assertNotFound();
+});
