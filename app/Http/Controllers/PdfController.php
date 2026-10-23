@@ -65,8 +65,7 @@ class PdfController extends Controller
 
         $result = [];
         foreach (['subject', 'body', 'closing'] as $field) {
-            $text = nl2br(e($fields[$field]));
-            $result[$field] = strtr($text, $replacements);
+            $result[$field] = SettingsController::formatTemplateText($fields[$field], $replacements);
         }
 
         return $result;

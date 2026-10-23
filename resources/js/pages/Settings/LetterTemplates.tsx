@@ -59,6 +59,83 @@ export default function LetterTemplates({ templates, footerDepartment: initialFo
         };
     }, [previewModal]);
 
+    const applyTag = (
+        slug: string,
+        field: 'subject' | 'body' | 'closing',
+        openTag: string,
+        closeTag: string,
+        defaultText: string = 'text'
+    ) => {
+        const el = document.getElementById(`field-${slug}-${field}`) as HTMLTextAreaElement | HTMLInputElement | null;
+        if (!el) return;
+
+        const start = el.selectionStart ?? el.value.length;
+        const end = el.selectionEnd ?? el.value.length;
+        const value = formState[slug]?.[field] || '';
+        const selected = value.substring(start, end);
+        const replacement = selected ? `${openTag}${selected}${closeTag}` : `${openTag}${defaultText}${closeTag}`;
+        const nextVal = value.substring(0, start) + replacement + value.substring(end);
+
+        setFormState(prev => ({
+            ...prev,
+            [slug]: { ...prev[slug], [field]: nextVal },
+        }));
+
+        setTimeout(() => {
+            el.focus();
+            if (selected) {
+                el.setSelectionRange(start, start + replacement.length);
+            } else {
+                el.setSelectionRange(start + openTag.length, start + openTag.length + defaultText.length);
+            }
+        }, 0);
+    };
+
+    const insertTextAtCursor = (
+        slug: string,
+        field: 'subject' | 'body' | 'closing',
+        textToInsert: string
+    ) => {
+        const el = document.getElementById(`field-${slug}-${field}`) as HTMLTextAreaElement | HTMLInputElement | null;
+        if (!el) return;
+
+        const start = el.selectionStart ?? el.value.length;
+        const end = el.selectionEnd ?? el.value.length;
+        const value = formState[slug]?.[field] || '';
+        const nextVal = value.substring(0, start) + textToInsert + value.substring(end);
+
+        setFormState(prev => ({
+            ...prev,
+            [slug]: { ...prev[slug], [field]: nextVal },
+        }));
+
+        setTimeout(() => {
+            el.focus();
+            const newPos = start + textToInsert.length;
+            el.setSelectionRange(newPos, newPos);
+        }, 0);
+    };
+
+    const handleKeyDown = (
+        e: React.KeyboardEvent<HTMLTextAreaElement>,
+        slug: string,
+        field: 'body' | 'closing'
+    ) => {
+        if (e.key === 'Tab') {
+            e.preventDefault();
+            insertTextAtCursor(slug, field, '        '); // 8 spaces for paragraph indentation
+        } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b') {
+            e.preventDefault();
+            applyTag(slug, field, '<b>', '</b>', 'Bold Text');
+        } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'i') {
+            e.preventDefault();
+            applyTag(slug, field, '<i>', '</i>', 'Italic Text');
+        } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'u') {
+            e.preventDefault();
+            applyTag(slug, field, '<u>', '</u>', 'Underline Text');
+        }
+    };
+
     const handleFooterSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         setSavingFooter(true);
@@ -221,22 +298,37 @@ export default function LetterTemplates({ templates, footerDepartment: initialFo
                     <div className="row" key={slug}>
                         <div className="col-12">
                             <div className="glass-card p-4 mb-4">
-                                <h5 className="fw-bold text-dark mb-1">{tpl.label}</h5>
+                                <div className="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+                                    <h5 className="fw-bold text-dark mb-0">{tpl.label}</h5>
+                                    <span className="badge bg-light text-primary border">
+                                        <i className="fa fa-code me-1"></i>HTML Formatting &amp; Indentation Supported
+                                    </span>
+                                </div>
                                 <p className="small text-muted mb-3">
-                                    Available placeholders:{' '}
+                                    Available placeholders (click to insert into text):{' '}
                                     {tpl.tokens.map((tok) => (
-                                        <code key={tok} className="me-1">
-                                            {`{${tok}}`}
-                                        </code>
+                                        <button
+                                            key={tok}
+                                            type="button"
+                                            className="btn btn-sm btn-light border py-0 px-2 me-1 mb-1 font-monospace text-primary"
+                                            title={`Click to insert {${tok}} at cursor`}
+                                            onClick={() => insertTextAtCursor(slug, 'body', `{${tok}}`)}
+                                        >
+                                            + {`{${tok}}`}
+                                        </button>
                                     ))}
                                 </p>
 
                                 <form onSubmit={(e) => handleTemplateSave(e, slug)}>
                                     <div className="row g-3">
                                         <div className="col-12">
-                                            <label className="form-label text-secondary small fw-semibold">Subject Line</label>
+                                            <div className="d-flex align-items-center justify-content-between mb-1">
+                                                <label className="form-label text-secondary small fw-semibold mb-0">Subject Line</label>
+                                                <span className="small text-muted">{current.subject.length} chars</span>
+                                            </div>
                                             <input
                                                 type="text"
+                                                id={`field-${slug}-subject`}
                                                 name="subject"
                                                 className="form-control"
                                                 value={current.subject}
@@ -249,37 +341,142 @@ export default function LetterTemplates({ templates, footerDepartment: initialFo
                                                 required
                                             />
                                         </div>
+
                                         <div className="col-12">
-                                            <label className="form-label text-secondary small fw-semibold">Main Paragraph</label>
+                                            <div className="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-1">
+                                                <label className="form-label text-secondary small fw-semibold mb-0">Main Paragraph</label>
+                                                <div className="d-flex align-items-center gap-2">
+                                                    <div className="btn-group btn-group-sm" role="group" aria-label="Editor toolbar">
+                                                        <button
+                                                            type="button"
+                                                            className="btn btn-sm btn-outline-secondary py-0 px-2"
+                                                            title="Bold: wrap in <b>...</b> (Ctrl+B)"
+                                                            onClick={() => applyTag(slug, 'body', '<b>', '</b>', 'Bold Text')}
+                                                        >
+                                                            <i className="fa fa-bold"></i>
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            className="btn btn-sm btn-outline-secondary py-0 px-2"
+                                                            title="Italic: wrap in <i>...</i> (Ctrl+I)"
+                                                            onClick={() => applyTag(slug, 'body', '<i>', '</i>', 'Italic Text')}
+                                                        >
+                                                            <i className="fa fa-italic"></i>
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            className="btn btn-sm btn-outline-secondary py-0 px-2"
+                                                            title="Underline: wrap in <u>...</u> (Ctrl+U)"
+                                                            onClick={() => applyTag(slug, 'body', '<u>', '</u>', 'Underline Text')}
+                                                        >
+                                                            <i className="fa fa-underline"></i>
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            className="btn btn-sm btn-outline-secondary py-0 px-2"
+                                                            title="Indent: insert 8 spaces at cursor (Tab key also works)"
+                                                            onClick={() => insertTextAtCursor(slug, 'body', '        ')}
+                                                        >
+                                                            <i className="fa fa-indent me-1"></i>Indent
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            className="btn btn-sm btn-outline-secondary py-0 px-2 font-monospace"
+                                                            title="Line Break (<br>)"
+                                                            onClick={() => insertTextAtCursor(slug, 'body', '<br>')}
+                                                        >
+                                                            &lt;br&gt;
+                                                        </button>
+                                                    </div>
+                                                    <span className="small text-muted">{current.body.length} chars</span>
+                                                </div>
+                                            </div>
                                             <textarea
+                                                id={`field-${slug}-body`}
                                                 name="body"
                                                 className="form-control"
-                                                rows={4}
+                                                rows={6}
                                                 style={{ fontFamily: 'monospace' }}
                                                 value={current.body}
+                                                onKeyDown={(e) => handleKeyDown(e, slug, 'body')}
                                                 onChange={(e) =>
                                                     setFormState(prev => ({
                                                         ...prev,
                                                         [slug]: { ...prev[slug], body: e.target.value },
                                                     }))
                                                 }
+                                                placeholder="Enter letter main body. Supports HTML tags like <b>, <i>, <u> and spaces/Tab for paragraph indentation."
                                                 required
                                             ></textarea>
+                                            <div className="form-text small text-muted">
+                                                Tip: Press <strong>Tab</strong> in the editor to indent paragraphs. Use <code>&lt;b&gt;text&lt;/b&gt;</code> to bold words.
+                                            </div>
                                         </div>
+
                                         <div className="col-12">
-                                            <label className="form-label text-secondary small fw-semibold">Closing Sentence</label>
+                                            <div className="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-1">
+                                                <label className="form-label text-secondary small fw-semibold mb-0">Closing Sentence</label>
+                                                <div className="d-flex align-items-center gap-2">
+                                                    <div className="btn-group btn-group-sm" role="group" aria-label="Closing toolbar">
+                                                        <button
+                                                            type="button"
+                                                            className="btn btn-sm btn-outline-secondary py-0 px-2"
+                                                            title="Bold: wrap in <b>...</b>"
+                                                            onClick={() => applyTag(slug, 'closing', '<b>', '</b>', 'Bold Text')}
+                                                        >
+                                                            <i className="fa fa-bold"></i>
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            className="btn btn-sm btn-outline-secondary py-0 px-2"
+                                                            title="Italic: wrap in <i>...</i>"
+                                                            onClick={() => applyTag(slug, 'closing', '<i>', '</i>', 'Italic Text')}
+                                                        >
+                                                            <i className="fa fa-italic"></i>
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            className="btn btn-sm btn-outline-secondary py-0 px-2"
+                                                            title="Underline: wrap in <u>...</u>"
+                                                            onClick={() => applyTag(slug, 'closing', '<u>', '</u>', 'Underline Text')}
+                                                        >
+                                                            <i className="fa fa-underline"></i>
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            className="btn btn-sm btn-outline-secondary py-0 px-2"
+                                                            title="Indent: insert 8 spaces at cursor"
+                                                            onClick={() => insertTextAtCursor(slug, 'closing', '        ')}
+                                                        >
+                                                            <i className="fa fa-indent me-1"></i>Indent
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            className="btn btn-sm btn-outline-secondary py-0 px-2 font-monospace"
+                                                            title="Line Break (<br>)"
+                                                            onClick={() => insertTextAtCursor(slug, 'closing', '<br>')}
+                                                        >
+                                                            &lt;br&gt;
+                                                        </button>
+                                                    </div>
+                                                    <span className="small text-muted">{current.closing.length} chars</span>
+                                                </div>
+                                            </div>
                                             <textarea
+                                                id={`field-${slug}-closing`}
                                                 name="closing"
                                                 className="form-control"
-                                                rows={2}
+                                                rows={3}
                                                 style={{ fontFamily: 'monospace' }}
                                                 value={current.closing}
+                                                onKeyDown={(e) => handleKeyDown(e, slug, 'closing')}
                                                 onChange={(e) =>
                                                     setFormState(prev => ({
                                                         ...prev,
                                                         [slug]: { ...prev[slug], closing: e.target.value },
                                                     }))
                                                 }
+                                                placeholder="Enter closing sentence (e.g. Thanking you in anticipation)."
                                             ></textarea>
                                         </div>
                                     </div>

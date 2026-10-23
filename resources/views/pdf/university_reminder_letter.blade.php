@@ -9,6 +9,7 @@
         .title { font-size: 14pt; font-weight: bold; }
         .subject { font-weight: bold; text-decoration: underline; margin: 15px 0; text-align: center; }
         .ref-date-box { text-align: right; margin-bottom: 15px; line-height: 1.4; }
+        .content { text-align: justify; margin: 15px 0; line-height: 1.5; }
         .table { width: 100%; border-collapse: collapse; margin: 15px 0; }
         .table th, .table td { border: 1px solid #000; padding: 6px 8px; font-size: 10pt; text-align: left; }
         .table th { background: #f2f2f2; }
@@ -48,7 +49,7 @@
         Subject: {!! $subject ?? ("REMINDER: Verification of Marksheet / Passing Certificate (" . ($batch->admission_taken_in ?? 'All Programs') . ")") !!}
     </div>
 
-    <div>
+    <div class="content">
         {!! $body ?? "With reference to this office earlier communication, the verification report of the following student(s) is still awaited from your institution. Kindly expedite the verification and send the report to this office at an early date." !!}
     </div>
 
@@ -92,7 +93,7 @@
         </tbody>
     </table>
 
-    <div>
+    <div class="content">
         {!! $closing ?? 'Thanking you in anticipation.' !!}
     </div>
 

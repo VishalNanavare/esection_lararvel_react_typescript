@@ -874,6 +874,43 @@ class SettingsController extends Controller
     }
 
     /**
+     * Safely formats template text by preserving allowed HTML formatting tags
+     * (b, strong, i, em, u, span, p, br, div, etc.), converting indentation / multiple
+     * spaces into non-breaking spaces for PDF rendering, and substituting placeholders.
+     */
+    public static function formatTemplateText(string $rawText, array $replacements = []): string
+    {
+        $allowed = ['b', 'strong', 'i', 'em', 'u', 's', 'strike', 'span', 'p', 'br', 'div', 'small', 'sub', 'sup', 'ol', 'ul', 'li', 'font', 'hr'];
+        $text = str_replace(["\r\n", "\r"], "\n", $rawText);
+        $text = str_replace("\t", '&nbsp;&nbsp;&nbsp;&nbsp;', $text);
+        $text = preg_replace('/<(script|style)\b[^>]*>(.*?)<\/\1>/is', '', $text);
+        $text = strip_tags($text, $allowed);
+        $text = preg_replace('/on[a-z]+\s*=\s*(["\']).*?\1/i', '', $text);
+        $text = preg_replace('/javascript\s*:/i', '', $text);
+
+        // Convert leading whitespace on any line into &nbsp; to preserve paragraph indentation
+        $text = preg_replace_callback('/(?<=\n|^) +/', function ($matches) {
+            return str_repeat('&nbsp;', strlen($matches[0]));
+        }, $text);
+
+        // Convert runs of 2+ spaces into &nbsp;
+        $text = preg_replace_callback('/ {2,}/', function ($matches) {
+            return str_repeat('&nbsp;', strlen($matches[0]));
+        }, $text);
+
+        // Normalize explicit <br> and </p> tags followed by newline to avoid duplicate line breaks
+        $text = preg_replace('/<br\s*\/?>\s*\n/i', "<br>\n", $text);
+        $text = preg_replace('/<\/p>\s*\n/i', "</p>\n", $text);
+        $text = nl2br($text);
+
+        if (!empty($replacements)) {
+            $text = strtr($text, $replacements);
+        }
+
+        return $text;
+    }
+
+    /**
      * Letter Templates screen.
      */
     public function letterTemplates(): Response
@@ -907,9 +944,9 @@ class SettingsController extends Controller
     public function updateLetterTemplate(Request $request, string $slug): RedirectResponse
     {
         $validated = $request->validate([
-            'subject' => 'required|string|max:255',
-            'body' => 'required|string|max:2000',
-            'closing' => 'nullable|string|max:1000',
+            'subject' => 'required|string|max:500',
+            'body' => 'required|string|max:10000',
+            'closing' => 'nullable|string|max:2000',
         ]);
 
         $userId = Auth::id();
@@ -1020,8 +1057,7 @@ class SettingsController extends Controller
 
         $rendered = [];
         foreach (['subject', 'body', 'closing'] as $f) {
-            $text = nl2br(e($fields[$f] ?? ''));
-            $rendered[$f] = strtr($text, $replacements);
+            $rendered[$f] = self::formatTemplateText($fields[$f] ?? '', $replacements);
         }
 
         // Institute global settings

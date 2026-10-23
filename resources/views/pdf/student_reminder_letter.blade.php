@@ -9,6 +9,7 @@
         .title { font-size: 14pt; font-weight: bold; }
         .subject { font-weight: bold; text-decoration: underline; margin: 15px 0; text-align: center; }
         .ref-date-box { text-align: right; margin-bottom: 15px; line-height: 1.4; }
+        .content { text-align: justify; margin: 15px 0; line-height: 1.5; }
         .footer { margin-top: 50px; float: right; text-align: center; width: 250px; }
     </style>
 </head>
@@ -46,11 +47,11 @@
         Subject: {!! $subject ?? 'Reminder for submission of pending eligibility verification documents' !!}
     </div>
 
-    <div>
+    <div class="content">
         {!! $body ?? "You have taken provisional admission in IDOL, University of Mumbai. It is observed from your eligibility record that the following document(s) are still pending from your end: <br><br><strong>Pending Document(s): {$record->missing_doc}</strong><br><br>You are hereby instructed to submit the aforementioned original document(s) along with attested copies to IDOL Eligibility Section within 15 days, failing which your provisional admission will be cancelled." !!}
     </div>
 
-    <div style="margin-top: 15px;">
+    <div class="content">
         {!! $closing ?? 'Please treat this as urgent.' !!}
     </div>
 

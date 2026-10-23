@@ -9,6 +9,7 @@
         .title { font-size: 14pt; font-weight: bold; }
         .subject { font-weight: bold; text-decoration: underline; margin: 15px 0; text-align: center; }
         .ref-date-box { text-align: right; margin-bottom: 15px; line-height: 1.4; }
+        .content { text-align: justify; margin: 15px 0; line-height: 1.5; }
         .footer { margin-top: 50px; float: right; text-align: center; width: 250px; }
     </style>
 </head>
@@ -67,11 +68,11 @@
         </div>
     @endif
 
-    <div style="margin-top: 10px;">
+    <div class="content">
         {!! $body ?? "This is to inform that candidate <strong>{$record->student_name}</strong> bearing Case No. <strong>{$record->eligibility_case_no}</strong> has completed the required admission formalities for the academic program <strong>{$record->admission_taken_in}</strong> (Year {$record->admission_taken_year}). Hence, their provisional admission is regularized." !!}
     </div>
 
-    <div style="margin-top: 15px;">
+    <div class="content">
         {!! $closing ?? 'Thanking you.' !!}
     </div>
 
