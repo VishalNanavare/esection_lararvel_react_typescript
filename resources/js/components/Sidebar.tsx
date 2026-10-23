@@ -68,10 +68,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ isRail, isMobileOpen, onCloseM
                             <Link
                                 href="/students/new"
                                 className={`nav-link ${isActive('/students/new') ? 'active' : ''}`}
-                                title="New Form"
+                                title="New  DD / Basic"
                             >
                                 <i className="fa fa-plus-circle me-3 w-5 text-center"></i>
-                                {!isRail && <span className="link-text">New Form</span>}
+                                {!isRail && <span className="link-text">New  DD / Basic</span>}
                             </Link>
                         </li>
                     )}
@@ -94,10 +94,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ isRail, isMobileOpen, onCloseM
                             <Link
                                 href="/students/history"
                                 className={`nav-link ${isActive('/students/history') || isActive('/students/batch') ? 'active' : ''}`}
-                                title="Batch History"
+                                title="DD View"
                             >
                                 <i className="fa fa-list-alt me-3 w-5 text-center"></i>
-                                {!isRail && <span className="link-text">Batch History</span>}
+                                {!isRail && <span className="link-text">DD View</span>}
                             </Link>
                         </li>
                     )}

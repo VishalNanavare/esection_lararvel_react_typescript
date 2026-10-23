@@ -470,7 +470,7 @@ export const NewForm: React.FC<NewFormProps> = ({
                 html: `<strong>${data.count}</strong> student verification cases saved under Batch Reference <strong>#${data.array_space}</strong>.`,
                 showCancelButton: true,
                 confirmButtonText: '<i class="fa fa-file-pdf-o me-1"></i> View Dispatch Letter PDF',
-                cancelButtonText: 'Batch History',
+                cancelButtonText: 'DD View',
                 customClass: {
                     confirmButton: 'btn btn-indigo',
                     cancelButton: 'btn btn-glass ms-2',
@@ -501,7 +501,7 @@ export const NewForm: React.FC<NewFormProps> = ({
     );
 
     return (
-        <AppLayout title="New Student Verification Form - E-Section Portal">
+        <AppLayout title="New DD / Basic Student Verification - E-Section Portal">
             <div className="row">
                 <div className="col-12">
                     <div className="glass-card p-4 mb-4">
@@ -509,7 +509,7 @@ export const NewForm: React.FC<NewFormProps> = ({
                         <div className="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
                             <div>
                                 <h3 className="fw-bold mb-1">
-                                    <i className="fa fa-plus-circle me-2 text-indigo"></i> New Student Verification Form
+                                    <i className="fa fa-plus-circle me-2 text-indigo"></i> New DD / Basic Student Verification
                                 </h3>
                                 <p className="text-muted small mb-0">
                                     Create eligibility verification dispatch cases for target universities across India.
@@ -523,7 +523,7 @@ export const NewForm: React.FC<NewFormProps> = ({
                                 )}
                                 {can('students.view') && (
                                     <Link href="/students/history" className="btn btn-glass">
-                                        <i className="fa fa-history me-1"></i> Batch History
+                                        <i className="fa fa-history me-1"></i> DD View
                                     </Link>
                                 )}
                                 <span className="badge badge-glass-indigo fs-6 px-3 py-2">

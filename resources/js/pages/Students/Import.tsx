@@ -70,7 +70,7 @@ export const Import: React.FC = () => {
                                 </p>
                             </div>
                             <Link href="/students/new" className="btn btn-glass">
-                                <i className="fa fa-arrow-left me-1"></i> Back to New Form
+                                <i className="fa fa-arrow-left me-1"></i> Back to New DD / Basic
                             </Link>
                         </div>
 

@@ -78,7 +78,7 @@ class StudentController extends Controller
             });
 
         return Inertia::render('Students/NewForm', [
-            'title' => 'New Student Verification Form',
+            'title' => 'New DD / Basic Student Verification',
             'common_no' => $commonNo,
             'suggestedCaseNo' => $suggestedCaseNo,
             'academicYears' => $academicYears,
@@ -381,7 +381,7 @@ class StudentController extends Controller
         ];
 
         return Inertia::render('Students/History', [
-            'title' => 'Verification Batch History',
+            'title' => 'DD View History',
             'batches' => $batches,
             'filterOptions' => $filterOptions,
             'filters' => [

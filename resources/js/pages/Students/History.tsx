@@ -376,7 +376,7 @@ export const History: React.FC<HistoryProps> = ({ batches, filterOptions, filter
     )}&date_from=${encodeURIComponent(dateFrom)}&date_to=${encodeURIComponent(dateTo)}`;
 
     return (
-        <AppLayout title="Verification Batch History - E-Section Portal">
+        <AppLayout title="DD View History - E-Section Portal">
             <div className="row">
                 <div className="col-12">
                     <div className="glass-card p-4">
@@ -384,7 +384,7 @@ export const History: React.FC<HistoryProps> = ({ batches, filterOptions, filter
                         <div className="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
                             <div>
                                 <h3 className="fw-bold mb-1 text-dark">
-                                    <i className="fa fa-history me-2 text-indigo"></i> Verification Batch History
+                                    <i className="fa fa-history me-2 text-indigo"></i> DD View History
                                 </h3>
                                 <p className="text-muted small mb-0">
                                     Browse, edit, or delete previously submitted candidate batches.
