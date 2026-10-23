@@ -86,7 +86,7 @@ trait MatchesColleges
                 $key = $col ? ('col_' . $col->id) : strtolower($name);
                 if (! isset($seenColleges[$key])) {
                     $seenColleges[$key] = [
-                        'value' => (string) $raw,
+                        'value' => $name,
                         'name' => $name,
                         'fees' => $feesVal,
                         'label' => $label,
@@ -107,7 +107,7 @@ trait MatchesColleges
                 $feesVal = ($fees !== '' && $fees !== '0') ? $fees : '';
                 $feesText = $feesVal !== '' ? "₹{$feesVal}" : '—';
                 $seenColleges[$key] = [
-                    'value' => (string) ($col->Address ?: $col->Name),
+                    'value' => $name,
                     'name' => $name,
                     'fees' => $feesVal,
                     'label' => "{$name} | Fees: {$feesText}",

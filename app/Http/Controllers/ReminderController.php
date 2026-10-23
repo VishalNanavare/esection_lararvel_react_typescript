@@ -58,13 +58,18 @@ class ReminderController extends Controller
             $col = $matchCollege($selectedColg);
             if ($col) {
                 $baseQuery->where(function ($q) use ($selectedColg, $col) {
+                    $cleanName = trim((string) $col->Name, " ,\t\n\r\0\x0B");
                     $q->where('clg_add', $selectedColg)
                         ->orWhere('clg_add', 'like', "%{$selectedColg}%");
+                    if (! empty($cleanName)) {
+                        $q->orWhere('clg_add', 'like', "%{$cleanName}%");
+                    }
                     if (! empty($col->Address)) {
                         $q->orWhere('clg_add', 'like', "%{$col->Address}%");
-                    }
-                    if (! empty($col->Name)) {
-                        $q->orWhere('clg_add', 'like', "%{$col->Name}%");
+                        $cleanAddr = trim(strip_tags((string) $col->Address));
+                        if ($cleanAddr !== $col->Address && ! empty($cleanAddr)) {
+                            $q->orWhere('clg_add', 'like', "%{$cleanAddr}%");
+                        }
                     }
                 });
             } else {
@@ -201,6 +206,44 @@ class ReminderController extends Controller
 
         if ($eligibleStudents->isEmpty()) {
             return redirect()->back()->with('error', 'All selected candidates have completed verification or are explicitly excluded. No reminder was generated.');
+        }
+
+        [$colleges, $matchCollege] = $this->buildCollegeMatcher();
+        $targetCollege = $matchCollege($univName);
+        if ($targetCollege) {
+            $univName = trim((string) $targetCollege->Name, " ,\t\n\r\0\x0B");
+        }
+
+        // Validate that all eligible candidates belong to the target university
+        $mismatched = [];
+        foreach ($eligibleStudents as $student) {
+            $studentCol = $matchCollege($student->clg_add);
+            $matches = false;
+
+            if ($targetCollege && $studentCol) {
+                $matches = ($targetCollege->id === $studentCol->id);
+            } elseif ($studentCol && (strcasecmp(trim((string) $studentCol->Name), trim($univName)) === 0 || str_contains(strtolower($univName), strtolower(trim((string) $studentCol->Name))) || str_contains(strtolower(trim((string) $studentCol->Name)), strtolower($univName)))) {
+                $matches = true;
+            } elseif ($targetCollege && (! empty($targetCollege->Address) && ($student->clg_add === $targetCollege->Address || str_contains(strtolower((string) $student->clg_add), strtolower(substr($targetCollege->Address, 0, 30)))))) {
+                $matches = true;
+            } else {
+                $cleanStudentAdd = strtolower(trim(preg_replace('/\s+/', ' ', strip_tags((string) $student->clg_add))));
+                $cleanUniv = strtolower(trim(preg_replace('/\s+/', ' ', strip_tags($univName))));
+                $matches = ! empty($cleanUniv) && ! empty($cleanStudentAdd) && (str_contains($cleanStudentAdd, $cleanUniv) || str_contains($cleanUniv, $cleanStudentAdd));
+            }
+
+            if (! $matches) {
+                $mismatched[] = $student->student_name . ' (' . ($studentCol ? trim((string) $studentCol->Name, " ,\t\n\r\0\x0B") : strip_tags(explode('<br>', (string) $student->clg_add)[0])) . ')';
+            }
+        }
+
+        if (! empty($mismatched)) {
+            $sample = array_slice($mismatched, 0, 3);
+            $count = count($mismatched);
+            $msg = "Cannot create university reminder batch: All candidates in a batch must belong to the target university ({$univName}). " .
+                "{$count} candidate(s) from different institutions were selected: " . implode(', ', $sample) .
+                ($count > 3 ? '...' : '') . ". Please filter by the target university before generating a reminder.";
+            return redirect()->back()->with('error', $msg);
         }
 
         $eligibleIds = $eligibleStudents->pluck('id')->all();

@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\CollegeDetail;
 use App\Models\Setting;
 use App\Models\StudentDetail;
 use App\Models\StudentReminder;
@@ -771,5 +772,98 @@ test('university reminder index page provides accurate summary counts', function
         ->where('summary.excluded', fn ($val) => $val >= 1)
         ->where('summary.eligible', fn ($val) => $val >= 1)
     );
+});
+
+test('recording university reminder rejects candidates from different universities', function () {
+    CollegeDetail::create([
+        'Name' => 'University of Delhi',
+        'Address' => 'University of Delhi, North Campus, Delhi 110007',
+        'is_active' => true,
+    ]);
+    CollegeDetail::create([
+        'Name' => 'Savitribai Phule Pune University',
+        'Address' => 'Ganeshkhind, Pune 411007',
+        'is_active' => true,
+    ]);
+
+    $s1 = StudentDetail::create([
+        'student_name' => 'Student Delhi',
+        'eligibility_case_no' => 'DEL-001',
+        'admission_taken_in' => 'B.A.',
+        'admission_taken_year' => '2024-2025',
+        'clg_add' => 'University of Delhi, North Campus, Delhi 110007',
+        'array_space' => 'batch_cross_1',
+    ]);
+
+    $s2 = StudentDetail::create([
+        'student_name' => 'Student Pune',
+        'eligibility_case_no' => 'PUN-001',
+        'admission_taken_in' => 'B.A.',
+        'admission_taken_year' => '2024-2025',
+        'clg_add' => 'Savitribai Phule Pune University, Ganeshkhind, Pune 411007',
+        'array_space' => 'batch_cross_2',
+    ]);
+
+    $initialBatchCount = UniversityReminderBatch::count();
+
+    $response = $this->actingAs($this->user)->post('/reminders/university', [
+        'student_ids' => [$s1->id, $s2->id],
+        'note_text' => '1st Reminder Notice',
+        'note_date' => '2026-10-23',
+        'academic_year' => '2024-2025',
+        'university_name' => 'University of Delhi',
+        'head_name' => 'The Controller of Examinations',
+    ]);
+
+    $response->assertRedirect();
+    $response->assertSessionHas('error');
+    expect(session('error'))->toContain('Cannot create university reminder batch: All candidates in a batch must belong to the target university');
+
+    expect(UniversityReminderBatch::count())->toBe($initialBatchCount);
+    expect(UniversityReminderNote::whereIn('student_id', [$s1->id, $s2->id])->count())->toBe(0);
+});
+
+test('recording university reminder succeeds when all candidates belong to the same target university', function () {
+    CollegeDetail::create([
+        'Name' => 'Dr.D.Y.Patil University, Nerul.',
+        'Address' => 'Sector 7, Nerul, Navi Mumbai, Maharashtra 400706',
+        'is_active' => true,
+    ]);
+
+    $s1 = StudentDetail::create([
+        'student_name' => 'Same Univ Student 1',
+        'eligibility_case_no' => 'SU-001',
+        'admission_taken_in' => 'B.Com',
+        'admission_taken_year' => '2024-2025',
+        'clg_add' => 'Sector 7, Nerul, Navi Mumbai, Maharashtra 400706',
+        'array_space' => 'batch_same_1',
+    ]);
+
+    $s2 = StudentDetail::create([
+        'student_name' => 'Same Univ Student 2',
+        'eligibility_case_no' => 'SU-002',
+        'admission_taken_in' => 'M.Com',
+        'admission_taken_year' => '2023-2024',
+        'clg_add' => 'Sector 7, Nerul, Navi Mumbai, Maharashtra 400706',
+        'array_space' => 'batch_same_2',
+    ]);
+
+    $response = $this->actingAs($this->user)->post('/reminders/university', [
+        'student_ids' => [$s1->id, $s2->id],
+        'note_text' => '1st Reminder Notice',
+        'note_date' => '2026-10-23',
+        'academic_year' => '2024-2025',
+        'university_name' => 'Dr.D.Y.Patil University, Nerul.',
+        'head_name' => 'The Controller of Examinations',
+    ]);
+
+    $response->assertRedirect();
+    $response->assertSessionHas('pdf_url');
+
+    $batch = UniversityReminderBatch::where('university_name', 'like', '%Dr.D.Y.Patil%')->latest('id')->first();
+    expect($batch)->not->toBeNull();
+    expect($batch->notes()->count())->toBe(2);
+
+    expect(UniversityReminderNote::where('batch_id', $batch->id)->count())->toBe(2);
 });
 
