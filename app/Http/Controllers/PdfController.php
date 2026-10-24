@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\MatchesColleges;
+use App\Models\CollegeDetail;
 use App\Models\ConfStudData;
 use App\Models\Regularization;
 use App\Models\Setting;
@@ -14,6 +16,63 @@ use Illuminate\Http\Response;
 
 class PdfController extends Controller
 {
+    use MatchesColleges;
+
+    /**
+     * Resolve the university name and clean mailing address from a raw clg_add/string.
+     *
+     * @return array{to_name: string, university_name: string, address: string}
+     */
+    public function resolveUniversityAndAddress(?string $clgAdd, ?string $toName = null): array
+    {
+        $raw = trim((string) $clgAdd);
+        $college = null;
+
+        if (is_numeric($raw)) {
+            $college = CollegeDetail::find((int) $raw);
+        }
+
+        if (! $college && $raw !== '') {
+            [, $matcher] = $this->buildCollegeMatcher();
+            $college = $matcher($raw);
+        }
+
+        $universityName = '';
+        $address = $raw;
+
+        if ($college) {
+            $universityName = trim((string) $college->Name, " ,\t\n\r\0\x0B");
+            $colAddress = trim((string) $college->Address);
+            if ($colAddress !== '') {
+                $address = $colAddress;
+            }
+        }
+
+        // If $address still contains $universityName at the beginning, strip it so it doesn't repeat
+        if ($universityName !== '' && $address !== '') {
+            $pattern = '/^' . preg_quote($universityName, '/') . '[\s,\-\n\r<br\/>]*/i';
+            $cleaned = preg_replace($pattern, '', $address);
+            if (trim($cleaned) !== '') {
+                $address = trim($cleaned);
+            }
+        }
+
+        // If no college matched, but clgAdd has multiple lines, first line might be university name
+        if ($universityName === '' && $address !== '') {
+            $lines = preg_split('/(\r\n|\n|\r|<br\s*\/?>)/i', $address);
+            $lines = array_values(array_filter(array_map('trim', $lines)));
+            if (count($lines) > 1) {
+                $universityName = array_shift($lines);
+                $address = implode("\n", $lines);
+            }
+        }
+
+        return [
+            'to_name' => $toName ?: 'The Controller of Examinations',
+            'university_name' => $universityName,
+            'address' => $address,
+        ];
+    }
     /**
      * Helper to load global institution settings.
      */
@@ -83,9 +142,13 @@ class PdfController extends Controller
         }
 
         $first = $students->first();
+        $resolved = $this->resolveUniversityAndAddress($first->clg_add, $first->to_name);
+
         $firstRow = [
             'clg_add' => $first->clg_add,
-            'to_name' => $first->to_name ?: 'The Controller of Examinations',
+            'address' => $resolved['address'],
+            'university_name' => $resolved['university_name'],
+            'to_name' => $resolved['to_name'],
             'in_favour_of' => $first->in_favour_of,
             'fees' => $first->fees,
         ];
@@ -121,10 +184,13 @@ class PdfController extends Controller
         $first = $students->first();
         $fees = (float) ($first->fees ?: 0);
         $totalFees = count($students) * $fees;
+        $resolved = $this->resolveUniversityAndAddress($first->clg_add, $first->to_name);
 
         $firstRow = [
             'clg_add' => $first->clg_add,
-            'to_name' => $first->to_name ?: 'The Controller of Examinations',
+            'address' => $resolved['address'],
+            'university_name' => $resolved['university_name'],
+            'to_name' => $resolved['to_name'],
             'in_favour_of' => $first->in_favour_of,
             'fees' => $fees,
         ];
@@ -207,8 +273,12 @@ class PdfController extends Controller
             'university_name' => $record->university_name ?? '',
         ]);
 
+        $resolved = $this->resolveUniversityAndAddress($record->university_name);
+
         $data = array_merge($this->getInstituteSettings(), $rendered, [
             'record' => $record,
+            'universityName' => $resolved['university_name'] ?: $record->university_name,
+            'address' => $resolved['address'] ?: ($record->university_address ?? ''),
             'date' => date('d/m/Y'),
         ]);
 
@@ -247,8 +317,12 @@ class PdfController extends Controller
             'academic_year' => $batch->academic_year ?? '',
         ]);
 
+        $resolved = $this->resolveUniversityAndAddress($batch->university_name, $batch->head_name);
+
         $data = array_merge($this->getInstituteSettings(), $rendered, [
             'batch' => $batch,
+            'universityName' => $resolved['university_name'] ?: $batch->university_name,
+            'address' => $resolved['address'],
             'students' => $students,
             'date' => date('d/m/Y'),
         ]);

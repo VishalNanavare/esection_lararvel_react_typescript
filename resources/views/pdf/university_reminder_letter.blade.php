@@ -35,14 +35,22 @@
     @endif
 
     <div class="ref-date-box">
-        <strong>Ref No.: IDOL/REM/{{ date('Y') }}/{{ rand(1000, 9999) }}</strong><br>
-        <strong>Date:</strong> {{ $date ?? date('d/m/Y') }}
+        <strong>Ref. No.:</strong> IDOL/Eligibility/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/REM/{{ date('Y') }}/{{ $batch->batch_no ?? ($batch->id ?? '') }}<br>
+        <strong>Date :</strong> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
     </div>
 
-    <div style="margin-top: 15px;">
-        To,<br>
-        <strong>{{ ($batch->head_name ?? null) ?: 'The Controller of Examinations' }}</strong>,<br>
-        {!! nl2br(e($batch->university_name ?? '')) !!}
+    <div class="address-box" style="margin-top: 15px; margin-bottom: 15px; word-wrap: break-word; overflow-wrap: break-word; word-break: break-word; white-space: normal; line-height: 1.4;">
+        <strong>To,</strong><br>
+        @if (!empty($universityName))
+            <strong>{{ $universityName }}</strong><br>
+        @elseif (!empty($batch->university_name))
+            <strong>{{ $batch->university_name }}</strong><br>
+        @elseif (!empty($batch->head_name))
+            <strong>{{ $batch->head_name }}</strong><br>
+        @endif
+        <div style="word-wrap: break-word; overflow-wrap: break-word; word-break: break-word; white-space: normal;">
+            {!! nl2br(e($address ?? '')) !!}
+        </div>
     </div>
 
     <div class="subject">
@@ -59,7 +67,7 @@
                 <th style="width: 25px;">#</th>
                 <th>Candidate Full Name</th>
                 <th style="width: 110px;">Eligibility Case No.</th>
-                <th>Course / Program</th>
+                <th>Admission Taken in IDOL</th>
                 <th style="width: 75px;">Academic Year</th>
                 <th style="width: 110px;">Reminder History</th>
             </tr>

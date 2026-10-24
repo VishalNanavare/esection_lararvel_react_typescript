@@ -32,26 +32,30 @@
     @endif
 
     <div class="ref-date-box">
-        <strong>Ref No.: IDOL/REG/{{ date('Y') }}/{{ rand(100, 999) }}</strong><br>
-        <strong>Date:</strong> {{ $date ?? date('d/m/Y') }}
+        <strong>Ref. No.:</strong> IDOL/Eligibility/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/REG/{{ date('Y') }}/{{ $record->eligibility_case_no ?? $record->id }}<br>
+        <strong>Date :</strong> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
     </div>
 
-    <div style="margin-top: 15px;">
-        To,<br>
-        @if (!empty($record->admission_letter_for) && (str_contains($record->admission_letter_for, 'Registrar') || str_contains($record->admission_letter_for, 'Principal') || str_contains($record->admission_letter_for, 'Controller') || str_contains($record->admission_letter_for, 'Director')))
-            <strong>{{ $record->admission_letter_for }}</strong>,<br>
-            @if (!empty($record->university_name))
-                {!! nl2br(e($record->university_name)) !!}
-            @endif
+    <div class="address-box" style="margin-top: 15px; margin-bottom: 15px; word-wrap: break-word; overflow-wrap: break-word; word-break: break-word; white-space: normal; line-height: 1.4;">
+        <strong>To,</strong><br>
+        @if (!empty($universityName))
+            <strong>{{ $universityName }}</strong><br>
         @elseif (!empty($record->university_name))
-            <strong>The Controller of Examinations</strong>,<br>
-            {!! nl2br(e($record->university_name)) !!}
+            <strong>{{ $record->university_name }}</strong><br>
         @else
             <strong>The Assistant Registrar</strong>,<br>
-            (Administration),<br>
-            IDOL, University of Mumbai,<br>
-            Vidyanagari, Santacruz (E), Mumbai - 400 098.
         @endif
+        <div style="word-wrap: break-word; overflow-wrap: break-word; word-break: break-word; white-space: normal;">
+            @if (!empty($address))
+                {!! nl2br(e($address)) !!}
+            @elseif (!empty($record->university_address))
+                {!! nl2br(e($record->university_address)) !!}
+            @elseif (empty($record->university_name) && empty($universityName))
+                (Administration),<br>
+                IDOL, University of Mumbai,<br>
+                Vidyanagari, Santacruz (E), Mumbai - 400 098.
+            @endif
+        </div>
     </div>
 
     <div class="subject">

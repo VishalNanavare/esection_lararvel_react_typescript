@@ -1081,7 +1081,9 @@ class SettingsController extends Controller
                 'date' => date('d/m/Y'),
                 'firstRow' => [
                     'to_name' => 'The Controller of Examinations',
-                    'clg_add' => "Sample University Campus\nNavrangpura, Ahmedabad - 380009",
+                    'university_name' => 'Gujarat University, Ahmedabad',
+                    'address' => "Navrangpura, Ahmedabad - 380009\nGujarat, India",
+                    'clg_add' => "Navrangpura, Ahmedabad - 380009",
                     'in_favour_of' => 'Finance & Accounts Officer, Sample University',
                     'fees' => '150',
                 ],
@@ -1091,6 +1093,7 @@ class SettingsController extends Controller
                         'student_name' => 'Jane Sample Doe',
                         'student_nee_name' => '-',
                         'eligibility_case_no' => 'SAMPLE-2025/001',
+                        'admission_taken_in' => 'M.Com Part-I',
                         'verification_of_marksheet_done_by_you' => 'Marksheet Verification',
                     ],
                     (object) [
@@ -1098,6 +1101,7 @@ class SettingsController extends Controller
                         'student_name' => 'John Sample Smith',
                         'student_nee_name' => '-',
                         'eligibility_case_no' => 'SAMPLE-2025/002',
+                        'admission_taken_in' => 'M.Com Part-I',
                         'verification_of_marksheet_done_by_you' => 'Marksheet & Passing Certificate',
                     ],
                 ]),
@@ -1107,7 +1111,9 @@ class SettingsController extends Controller
                 'date' => date('d/m/Y'),
                 'firstRow' => [
                     'to_name' => 'The Controller of Examinations',
-                    'clg_add' => "Sample University Campus\nNavrangpura, Ahmedabad - 380009",
+                    'university_name' => 'Gujarat University, Ahmedabad',
+                    'address' => "Navrangpura, Ahmedabad - 380009\nGujarat, India",
+                    'clg_add' => "Navrangpura, Ahmedabad - 380009",
                     'in_favour_of' => 'Finance & Accounts Officer, Sample University',
                     'fees' => 150,
                 ],
@@ -1142,6 +1148,7 @@ class SettingsController extends Controller
                         'student_name' => 'Jane Sample Doe',
                         'student_nee_name' => '-',
                         'case_no' => 'SAMPLE-2025/001',
+                        'stream' => 'M.Com Part-I',
                         'clg_add' => 'Sample University, Gujarat',
                         'uni_add' => '',
                         'mig_TC' => 'Yes',
@@ -1158,6 +1165,7 @@ class SettingsController extends Controller
                         'student_name' => 'John Sample Smith',
                         'student_nee_name' => '-',
                         'case_no' => 'SAMPLE-2025/002',
+                        'stream' => 'M.Com Part-I',
                         'clg_add' => 'Sample Board of Higher Education',
                         'uni_add' => '',
                         'mig_TC' => 'Yes',
@@ -1173,6 +1181,8 @@ class SettingsController extends Controller
             ],
             'regularization' => [
                 'date' => date('d/m/Y'),
+                'universityName' => 'Gujarat University, Ahmedabad',
+                'address' => "Navrangpura, Ahmedabad - 380009\nGujarat, India",
                 'record' => (object) [
                     'id' => 1,
                     'student_name' => 'Jane Sample Doe',
@@ -1188,6 +1198,8 @@ class SettingsController extends Controller
             ],
             'university_reminder' => [
                 'date' => date('d/m/Y'),
+                'universityName' => 'Sample University Campus',
+                'address' => "Navrangpura, Ahmedabad - 380009\nGujarat, India",
                 'batch' => (object) [
                     'id' => 1,
                     'head_name' => 'The Controller of Examinations',

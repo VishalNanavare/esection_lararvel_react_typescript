@@ -439,8 +439,11 @@ class ReminderController extends Controller
                 'course' => $batch->admission_taken_in ?? '',
                 'academic_year' => $batch->academic_year ?? '',
             ]);
+            $resolved = $pdfCtrl->resolveUniversityAndAddress($batch->university_name, $batch->head_name);
             $data = array_merge($instituteData, $rendered, [
                 'batch' => $batch,
+                'universityName' => $resolved['university_name'] ?: $batch->university_name,
+                'address' => $resolved['address'],
                 'students' => $students,
                 'date' => date('d/m/Y'),
             ]);

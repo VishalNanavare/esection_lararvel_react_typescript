@@ -32,14 +32,19 @@
     @endif
 
     <div class="ref-date-box">
-        <strong>Ref No.: IDOL/STUD-REM/{{ date('Y') }}/{{ rand(100, 999) }}</strong><br>
-        <strong>Date:</strong> {{ $date ?? date('d/m/Y') }}
+        <strong>Ref. No.:</strong> IDOL/Eligibility/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/STUD-REM/{{ date('Y') }}/{{ $record->eligibility_case_no ?? $record->id }}<br>
+        <strong>Date :</strong> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
     </div>
 
-    <div style="margin-top: 15px;">
-        To,<br>
+    <div class="address-box" style="margin-top: 15px; margin-bottom: 15px; word-wrap: break-word; overflow-wrap: break-word; word-break: break-word; white-space: normal; line-height: 1.4;">
+        <strong>To,</strong><br>
         <strong>{{ $record->student_name }}</strong>,<br>
-        Admitted Course: <strong>{{ $record->course_name ?: 'N/A' }}</strong><br>
+        @if (!empty($record->address))
+            <div style="word-wrap: break-word; overflow-wrap: break-word; word-break: break-word; white-space: normal;">
+                {!! nl2br(e($record->address)) !!}
+            </div>
+        @endif
+        Admission Taken in IDOL: <strong>{{ $record->course_name ?: 'N/A' }}</strong><br>
         Eligibility Case No.: <strong>{{ $record->eligibility_case_no }}</strong>
     </div>
 

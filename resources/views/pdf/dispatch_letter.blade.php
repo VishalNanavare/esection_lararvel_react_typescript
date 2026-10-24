@@ -36,6 +36,11 @@
         .address-box {
             margin-top: 15px;
             margin-bottom: 15px;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            word-break: break-word;
+            white-space: normal;
+            line-height: 1.4;
         }
         .subject {
             font-weight: bold;
@@ -100,14 +105,20 @@
     </table>
 
     <div class="ref-date-box">
-        <strong>Ref. No.:</strong> IDOL/Eligibility/{{ $arraySpace }}<br>
-        <strong>Date:</strong> {{ $date ?? date('d/m/Y') }}
+        <strong>Ref. No.:</strong> IDOL/Eligibility/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/{{ $arraySpace }}<br>
+        <strong>Date :</strong> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
     </div>
 
     <div class="address-box">
         <strong>To,</strong><br>
-        {{ $firstRow['to_name'] ?? 'The Controller of Examinations' }},<br>
-        {!! nl2br(e($firstRow['clg_add'] ?? '')) !!}
+        @if (!empty($firstRow['university_name']))
+            <strong>{{ $firstRow['university_name'] }}</strong><br>
+        @elseif (!empty($firstRow['to_name']))
+            <strong>{{ $firstRow['to_name'] }}</strong><br>
+        @endif
+        <div style="word-wrap: break-word; overflow-wrap: break-word; word-break: break-word; white-space: normal;">
+            {!! nl2br(e($firstRow['address'] ?? ($firstRow['clg_add'] ?? ''))) !!}
+        </div>
     </div>
 
     <div class="subject">
@@ -124,6 +135,7 @@
                 <th style="width: 30px;">Sr.</th>
                 <th>Candidate Full Name</th>
                 <th>Eligibility Case No.</th>
+                <th>Admission Taken in IDOL</th>
                 <th>Verification Done By You</th>
             </tr>
         </thead>
@@ -133,6 +145,7 @@
                     <td>{{ $index + 1 }}</td>
                     <td><strong>{{ $s->student_name }}</strong></td>
                     <td>{{ $s->eligibility_case_no }}</td>
+                    <td>{{ $s->admission_taken_in ?? '-' }}</td>
                     <td>{{ $s->verification_of_marksheet_done_by_you ?: 'Marksheet Verification' }}</td>
                 </tr>
             @endforeach
@@ -141,9 +154,6 @@
 
     <div class="content">
         {!! $closing ?? 'The verification report may kindly be sent to this office at an early date to regularize their admission.' !!}
-        @if (!empty($firstRow['in_favour_of']))
-            <br>Fee details/payment favouring: <strong>{{ $firstRow['in_favour_of'] }}</strong>.
-        @endif
     </div>
 
     <div class="footer-sig">

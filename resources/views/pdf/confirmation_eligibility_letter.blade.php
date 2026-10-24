@@ -46,17 +46,19 @@
     </table>
 
     <div class="ref-date-box">
-        <strong>Ref. No.:</strong> IDOL/Eligibility/{{ $arraySpace }}<br>
-        <strong>Date:</strong> {{ $date ?? date('d/m/Y') }}
+        <strong>Ref. No.:</strong> IDOL/Eligibility/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/{{ $arraySpace }}<br>
+        <strong>Date :</strong> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
     </div>
 
-    <div class="address-box">
+    <div class="address-box" style="margin-top: 15px; margin-bottom: 15px; word-wrap: break-word; overflow-wrap: break-word; word-break: break-word; white-space: normal; line-height: 1.4;">
         <strong>To,</strong><br>
         <strong>Assistant Registrar,</strong><br>
         Administration/I.T. Section,<br>
         {{ $instituteName ?? 'Institute of Distance and Open Learning (IDOL)' }}<br>
         {{ $instituteUniversityTitle ?? 'University of Mumbai' }},<br>
-        {!! nl2br(e($instituteAddress ?? 'Vidyanagari, Santacruz (East), Mumbai - 400 098.')) !!}
+        <div style="word-wrap: break-word; overflow-wrap: break-word; word-break: break-word; white-space: normal;">
+            {!! nl2br(e($instituteAddress ?? 'Vidyanagari, Santacruz (East), Mumbai - 400 098.')) !!}
+        </div>
     </div>
 
     <div class="subject">
@@ -73,6 +75,7 @@
                 <th style="width: 20px;">No</th>
                 <th>Name of Students</th>
                 <th>Eligibility Case No.</th>
+                <th>Admission Taken in IDOL</th>
                 <th>University / Institute</th>
                 <th>Mig / TC</th>
                 <th>Statement of Marks</th>
@@ -89,6 +92,7 @@
                         <strong>{{ $r->student_name }}</strong>
                     </td>
                     <td>{{ $r->case_no }}</td>
+                    <td>{{ $r->stream ?? '-' }}</td>
                     <td>{!! nl2br(e($r->clg_add ?: ($r->uni_add ?: ''))) !!}</td>
                     <td style="text-align: center;">{{ $r->mig_TC ?: '-' }}</td>
                     <td style="text-align: center;">{{ $r->s_marks ?: '-' }}</td>

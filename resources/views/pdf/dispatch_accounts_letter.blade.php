@@ -36,6 +36,11 @@
         .address-box {
             margin-top: 15px;
             margin-bottom: 15px;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            word-break: break-word;
+            white-space: normal;
+            line-height: 1.4;
         }
         .subject {
             font-weight: bold;
@@ -105,14 +110,20 @@
     </table>
 
     <div class="ref-date-box">
-        <strong>Ref. No.:</strong> IDOL/Eligibility/{{ $arraySpace }}<br>
-        <strong>Date:</strong> {{ $date ?? date('d/m/Y') }}
+        <strong>Ref. No.:</strong> IDOL/Eligibility/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/{{ $arraySpace }}<br>
+        <strong>Date :</strong> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
     </div>
 
     <div class="address-box">
         <strong>To,</strong><br>
-        {{ $firstRow['to_name'] ?? 'The Controller of Examinations' }},<br>
-        {!! nl2br(e($firstRow['clg_add'] ?? '')) !!}
+        @if (!empty($firstRow['university_name']))
+            <strong>{{ $firstRow['university_name'] }}</strong><br>
+        @elseif (!empty($firstRow['to_name']))
+            <strong>{{ $firstRow['to_name'] }}</strong><br>
+        @endif
+        <div style="word-wrap: break-word; overflow-wrap: break-word; word-break: break-word; white-space: normal;">
+            {!! nl2br(e($firstRow['address'] ?? ($firstRow['clg_add'] ?? ''))) !!}
+        </div>
     </div>
 
     <div class="subject">
