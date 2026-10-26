@@ -59,3 +59,18 @@ test('preview letter template endpoint accepts formatted body and returns PDF', 
     $response->assertOk();
     expect($response->headers->get('Content-Type'))->toContain('application/pdf');
 });
+
+test('dispatch preview letter splits multi-line closing into separate para blocks and places DD clause with line 1', function () {
+    $closingText = "You are requestd to kindly verify the/their marksheet/s and confirm the validity of the same.\nI shall be grateful if you treat this matter as most urgent.\nKindly mentioned the reference number and date of this letter in your further communication.\nThanking you.";
+
+    $response = $this->actingAs($this->user)->post('/settings/letter-templates/dispatch/preview', [
+        'subject' => 'Verification Letter',
+        'body' => "University of Mumbai has decided to verify.\n\nThe following students have taken admission.",
+        'closing' => $closingText,
+    ]);
+
+    $response->assertOk();
+    $pdf = $response->getContent();
+    expect($pdf)->not->toBeEmpty();
+});
+

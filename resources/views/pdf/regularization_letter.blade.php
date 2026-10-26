@@ -1,3 +1,12 @@
+@php
+    $currentTime = $currentTime ?? ($record->en_time ?? time());
+    $admDate = $admDate ?? (!empty($record->admission_letter_date) ? \Carbon\Carbon::parse($record->admission_letter_date)->format('d/m/Y') : '');
+    $states = $states ?? '';
+    $universityName = $universityName ?? ($record->university_name ?? '');
+    $gender = $record->gender ?? '';
+    $genCh1 = $genCh1 ?? (($gender === 'Ms' || $gender === 'Mrs' || $gender === 'Ms.') ? 'she' : 'he');
+    $genCh2 = $genCh2 ?? (($gender === 'Ms' || $gender === 'Mrs' || $gender === 'Ms.') ? 'her' : 'his');
+@endphp
 <!DOCTYPE html>
 <html>
 <head>
@@ -83,22 +92,66 @@
     </div>
 
     <div class="subject-block">
-        <b>Sub - :</b> Admission Regulariztion of <b>{{ $record->admission_taken_in }}</b> course for the academic year <b>{{ $record->admission_taken_year }}.</b>
+        @if(!empty($subject))
+            <b>Sub - :</b> {!! $subject !!}
+        @else
+            <b>Sub - :</b> Admission Regulariztion of <b>{{ $record->admission_taken_in }}</b> course for the academic year <b>{{ $record->admission_taken_year }}.</b>
+        @endif
     </div>
 
-    <div class="para">
-        With reference to your letter No. <b>{{ $record->admission_letter_for }}</b>, Date - <b>{{ $admDate }}</b>.
-    </div>
+    @if(!empty($body))
+        @php
+            $rawBody = trim($body ?? '');
+            $bodyParagraphs = $rawBody !== '' ? preg_split('/(?:<br\s*\/?>\s*){2,}|\r\n\r\n|\n\n/i', $rawBody) : [];
+        @endphp
+        @if(!empty($bodyParagraphs))
+            @foreach($bodyParagraphs as $bp)
+                @php $cleanBp = preg_replace('/^(?:&nbsp;|\s)+/i', '', trim($bp)); @endphp
+                @if($cleanBp !== '')
+                    <div class="para">
+                        {!! $cleanBp !!}
+                    </div>
+                @endif
+            @endforeach
+        @else
+            <div class="para">
+                {!! $body !!}
+            </div>
+        @endif
+    @else
+        <div class="para">
+            With reference to your letter No. <b>{{ $record->admission_letter_for }}</b>, Date - <b>{{ $admDate }}</b>.
+        </div>
 
-    <div class="para">
-        I am to inform you that since <b>{{ $record->gender }} {{ $record->student_name }}</b> submitted the Migration Certificate of <b>{{ $universityName }}@if(!empty($states)), {{ $states }}@endif</b> which {{ $genCh1 }} had migrated after passing <b>{{ $record->passing_course }}</b> course from University of Mumbai, {{ $genCh2 }} admission for <b>{{ $record->admission_taken_in }}</b> course for the academic year <b>{{ $record->admission_taken_year }}</b> in IDOL is hereby <b style="font-style: italic;">regularized accordingly</b>.
-    </div>
+        <div class="para">
+            I am to inform you that since <b>{{ $record->gender }} {{ $record->student_name }}</b> submitted the Migration Certificate of <b>{{ $universityName }}@if(!empty($states)), {{ $states }}@endif</b> which {{ $genCh1 }} had migrated after passing <b>{{ $record->passing_course }}</b> course from University of Mumbai, {{ $genCh2 }} admission for <b>{{ $record->admission_taken_in }}</b> course for the academic year <b>{{ $record->admission_taken_year }}</b> in IDOL is hereby <b style="font-style: italic;">regularized accordingly</b>.
+        </div>
+    @endif
+
+    @if(!empty($closing))
+        @php
+            $rawClosing = trim($closing ?? '');
+            $closingLines = $rawClosing !== '' ? preg_split('/(?:<br\s*\/?>\s*|\r\n|\n)+/i', $rawClosing) : [];
+        @endphp
+        @foreach($closingLines as $line)
+            @php $cleanLine = preg_replace('/^(?:&nbsp;|\s)+/i', '', trim($line)); @endphp
+            @if($cleanLine !== '')
+                <div class="para" style="margin-bottom: 2px;">
+                    {!! $cleanLine !!}
+                </div>
+            @endif
+        @endforeach
+    @endif
 
     <table class="sig-table">
         <tr>
             <td style="width: 50%;"></td>
             <td style="width: 50%; text-align: right; vertical-align: top;">
-                <div style="font-size: 10pt; font-weight: bold;">
+                <div style="font-size: 9.5pt;">Your faithfully,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</div>
+                @for ($i = 0; $i < (int)($instituteSignatureSpaceLines ?? 3); $i++)
+                    <br/>
+                @endfor
+                <div style="font-size: 9.5pt; font-weight: bold;">
                     Off. Superintdent<br/>(Eligib/Sch)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
                 </div>
             </td>

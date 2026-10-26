@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\SettingsController;
 use App\Mail\RawHtmlMail;
 use App\Models\AcademicYear;
 use App\Models\BackupHistory;
@@ -448,10 +449,52 @@ test('admin can preview all 6 letter templates via GET and POST', function () {
 test('regularization letter preview substitutes admission_course academic_year admission_letter_date and Last_Attended_University', function () {
     $postRes = $this->actingAs($this->admin)->post('/settings/letter-templates/regularization/preview', [
         'subject' => 'Admission Regularization of {admission_course} course for the academic year {academic_year}.',
-        'body' => 'With reference to letter No. {eligibility_case_no}, Date - {admission_letter_date}. Candidate {student_name} submitted Migration Certificate of {Last_Attended_University}.',
-        'closing' => 'Regularized accordingly.',
+        'body' => 'With reference to letter No. {admission_letter_for}, Date - {admission_letter_date}. Candidate {gender} {student_name} submitted Migration Certificate of {Last_Attended_University} which {gen_ch1} had migrated after passing {passing_course} course from University of Mumbai, {gen_ch2} admission for {admission_course} course for the academic year {academic_year} in IDOL is hereby regularized accordingly.',
+        'closing' => '',
     ]);
 
     $postRes->assertOk();
     $postRes->assertHeader('Content-Type', 'application/pdf');
+});
+
+test('letter template definitions match exact legacy wording', function () {
+    $defs = SettingsController::getLetterTemplateDefinitions();
+
+    expect($defs)->toHaveKeys([
+        'dispatch',
+        'regularization',
+        'university_reminder',
+        'student_reminder',
+        'dispatch_accounts',
+        'confirmation_eligibility',
+    ]);
+
+    // Dispatch
+    expect($defs['dispatch']['default_subject'])->toBe('Verification of Document/s for the academic year {academic_year}.');
+    expect($defs['dispatch']['default_body'])->toContain('University of Mumbai has decided to verify the document/s of the student/s');
+    expect($defs['dispatch']['default_closing'])->toContain('You are requestd to kindly verify the/their marksheet/s');
+
+    // Regularization
+    expect($defs['regularization']['default_subject'])->toBe('Admission Regulariztion of {admission_course} course for the academic year {academic_year}.');
+    expect($defs['regularization']['default_body'])->toContain('regularized accordingly');
+
+    // University Reminder
+    expect($defs['university_reminder']['default_subject'])->toBe('Verification of Documents for the {course} Course of Academic Year {academic_year}.');
+    expect($defs['university_reminder']['default_body'])->toContain('As per the rule If the student from other than University of Mumbai takes admission in IDOL');
+
+    // Candidate Reminder
+    expect($defs['student_reminder']['default_subject'])->toBe('Admission to {course_name} course for the academic year {academic_year}.');
+    expect($defs['student_reminder']['default_body'])->toContain('Missing Documents: <b>{missing_doc}</b>');
+
+    // Confirmation of Eligibility
+    expect($defs['confirmation_eligibility']['default_subject'])->toBe('Confirmation of Eligibility For the Academic Year {academic_year} of Course {course}.');
+    expect($defs['confirmation_eligibility']['default_body'])->toContain('is hereby confirmed for the admission to the program mention againts their respective names');
+});
+
+test('signature blank space lines setting is respected in pdf generation', function () {
+    Setting::set('institute_signature_space_lines', '4', 'institute', $this->admin->id);
+
+    $res = $this->actingAs($this->admin)->get('/settings/letter-templates/dispatch/preview');
+    $res->assertOk();
+    $res->assertHeader('Content-Type', 'application/pdf');
 });

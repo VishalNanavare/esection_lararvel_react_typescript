@@ -343,6 +343,8 @@ class PdfController extends Controller
             'Last_Attended_University' => $record->university_name ?? '',
             'last_attended_university' => $record->university_name ?? '',
             'university_name' => $record->university_name ?? '',
+            'gen_ch1' => $genCh1,
+            'gen_ch2' => $genCh2,
         ]);
 
         $resolved = $this->resolveUniversityAndAddress($record->university_name);
@@ -434,6 +436,7 @@ class PdfController extends Controller
 
         $rendered = $this->renderLetterTemplate('student_reminder', [
             'course_name' => $record->course_name ?? ($student?->admission_taken_in ?? ''),
+            'academic_year' => $record->acd_year ?? ($student?->admission_taken_year ?? ''),
             'missing_doc' => $record->missing_doc ?? '',
         ]);
 

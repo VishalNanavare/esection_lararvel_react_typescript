@@ -1,3 +1,10 @@
+@php
+    $currentTime = $currentTime ?? ($batch->pdf_time ?? time());
+    $headName = $headName ?? ($batch->head_name ?? 'The Secretary');
+    $universityName = $universityName ?? ($batch->university_name ?? '');
+    $address = $address ?? '';
+    $students = $students ?? collect();
+@endphp
 <!DOCTYPE html>
 <html>
 <head>
@@ -109,22 +116,47 @@
     </div>
 
     <div class="subject-block">
-        <b>Subject - </b> Verification of Documents for the <b>{{ $batch->admission_taken_in ?? '' }}</b> Course of Academic Year <b>{{ $batch->academic_year ?? '' }}</b>.
+        @if(!empty($subject))
+            <b>Subject - </b> {!! $subject !!}
+        @else
+            <b>Subject - </b> Verification of Documents for the <b>{{ $batch->admission_taken_in ?? '' }}</b> Course of Academic Year <b>{{ $batch->academic_year ?? '' }}</b>.
+        @endif
     </div>
 
     <div class="salutation">
         <b>Sir/Madam,</b>
     </div>
 
-    <div class="para">
-        The following students has/have taken admission in IDOL, University of Mumbai  from other Universities. As per the rule If the student from other than University of Mumbai takes admission in IDOL, the documents of the students is sent to the repective University for verification and accordingly the documents of the candidate are sent to you, the details are mentioned below.
-    </div>
-    <div class="para">
-        We here by want to inform you that still the report of the student is not provided from your University. So Kindly take this as a reminder and verify their marksheets and confirm the validity of the same.
-    </div>
-    <div class="para">
-        Kindly treat this matter as most urgent.
-    </div>
+    @if(!empty($body))
+        @php
+            $rawBody = trim($body ?? '');
+            $bodyParagraphs = $rawBody !== '' ? preg_split('/(?:<br\s*\/?>\s*){2,}|\r\n\r\n|\n\n/i', $rawBody) : [];
+        @endphp
+        @if(!empty($bodyParagraphs))
+            @foreach($bodyParagraphs as $bp)
+                @php $cleanBp = preg_replace('/^(?:&nbsp;|\s)+/i', '', trim($bp)); @endphp
+                @if($cleanBp !== '')
+                    <div class="para">
+                        {!! $cleanBp !!}
+                    </div>
+                @endif
+            @endforeach
+        @else
+            <div class="para">
+                {!! $body !!}
+            </div>
+        @endif
+    @else
+        <div class="para">
+            The following students has/have taken admission in IDOL, University of Mumbai  from other Universities. As per the rule If the student from other than University of Mumbai takes admission in IDOL, the documents of the students is sent to the repective University for verification and accordingly the documents of the candidate are sent to you, the details are mentioned below.
+        </div>
+        <div class="para">
+            We here by want to inform you that still the report of the student is not provided from your University. So Kindly take this as a reminder and verify their marksheets and confirm the validity of the same.
+        </div>
+        <div class="para">
+            Kindly treat this matter as most urgent.
+        </div>
+    @endif
 
     <table class="cand-table">
         <thead>
@@ -139,13 +171,13 @@
         <tbody>
             @foreach ($students as $index => $s)
                 @php
-                    $sname = (!empty($s->student_nee_name) && $s->student_nee_name !== '-') ? $s->student_nee_name : $s->student_name;
+                    $sname = (!empty($s->student_nee_name) && $s->student_nee_name !== '-') ? $s->student_nee_name : ($s->student_name ?? '');
                 @endphp
                 <tr>
                     <td align="center" style="width: 20px;">{{ $index + 1 }}</td>
                     <td style="width: 130px;">{{ $sname }}</td>
-                    <td align="center" style="width: 80px;">{{ $s->eligibility_case_no }}</td>
-                    <td align="center" style="width: 50px;">{{ $s->verification_of_marksheet_done_by_you }}</td>
+                    <td align="center" style="width: 80px;">{{ $s->eligibility_case_no ?? '' }}</td>
+                    <td align="center" style="width: 50px;">{{ $s->verification_of_marksheet_done_by_you ?? '' }}</td>
                     <td style="width: 210px;">
                         @if (!empty($s->notes) && count($s->notes) > 0)
                             @foreach ($s->notes as $ni => $note)
@@ -153,7 +185,7 @@
                                 {{ $note->note_text }}<br>Date : {{ !empty($note->note_date) ? \Carbon\Carbon::parse($note->note_date)->format('d/m/Y') : '' }}
                             @endforeach
                         @else
-                            {{ $s->verification_of_marksheet_done_by_you }}
+                            {{ $s->verification_of_marksheet_done_by_you ?? '' }}
                         @endif
                     </td>
                 </tr>
@@ -161,12 +193,30 @@
         </tbody>
     </table>
 
+    @if(!empty($closing))
+        @php
+            $rawClosing = trim($closing ?? '');
+            $closingLines = $rawClosing !== '' ? preg_split('/(?:<br\s*\/?>\s*|\r\n|\n)+/i', $rawClosing) : [];
+        @endphp
+        @foreach($closingLines as $line)
+            @php $cleanLine = preg_replace('/^(?:&nbsp;|\s)+/i', '', trim($line)); @endphp
+            @if($cleanLine !== '')
+                <div class="para" style="margin-bottom: 2px;">
+                    {!! $cleanLine !!}
+                </div>
+            @endif
+        @endforeach
+    @endif
+
     <table class="sig-table">
         <tr>
             <td style="width: 50%;"></td>
             <td style="width: 50%; text-align: right; vertical-align: top;">
                 <div style="font-size: 9.5pt;">Your faithfully,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</div>
-                <div style="font-size: 9.5pt; font-weight: bold; margin-top: 8px;">
+                @for ($i = 0; $i < (int)($instituteSignatureSpaceLines ?? 3); $i++)
+                    <br/>
+                @endfor
+                <div style="font-size: 9.5pt; font-weight: bold;">
                     Off. Superintdent<br/>(Eligib/Sch)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
                 </div>
             </td>

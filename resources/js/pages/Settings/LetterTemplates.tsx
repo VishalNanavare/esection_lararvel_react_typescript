@@ -478,6 +478,9 @@ export default function LetterTemplates({ templates, footerDepartment: initialFo
                                                 }
                                                 placeholder="Enter closing sentence (e.g. Thanking you in anticipation)."
                                             ></textarea>
+                                            <div className="form-text small text-muted">
+                                                Tip: Each closing line is automatically formatted with standard paragraph indentation in the PDF.
+                                            </div>
                                         </div>
                                     </div>
 

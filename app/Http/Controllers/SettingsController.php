@@ -821,9 +821,9 @@ class SettingsController extends Controller
             'dispatch' => [
                 'label' => 'Eligibility Verification Dispatch Letter',
                 'tokens' => ['course', 'academic_year'],
-                'default_subject' => 'Verification of Marksheet / Passing Certificate / Migration Certificate.',
-                'default_body' => "Sir/Madam,\nI am to forward herewith the copies of Marksheet / Passing / Migration Certificates of the undermentioned candidate(s) who have been admitted to {course} course in this Institute during the academic year {academic_year} for verification.",
-                'default_closing' => 'Kindly verify the authenticity of the attached document(s) from your office records and return the same duly verified at an early date.',
+                'default_subject' => 'Verification of Document/s for the academic year {academic_year}.',
+                'default_body' => "University of Mumbai has decided to verify the document/s of the student/s who have taken admission in our <b>Institue of Distance and Open Learning,</b> University of Mumbai, on the basis of earlier qualification.\n\nThe following student/s has /have taken admission in the University of Mumbai as the/their details mentioned below. I am enclosing here with xerox copy/copies of the marksheet/s for your ready reference.",
+                'default_closing' => "You are requestd to kindly verify the/their marksheet/s and confirm the validity of the same.\n\nI shall be grateful if you treat this matter as most urgent.\n\nKindly mentioned the reference number and date of this letter in your further communication.\n\nThanking you.",
             ],
             'regularization' => [
                 'label' => 'Regularization Letter',
@@ -837,37 +837,39 @@ class SettingsController extends Controller
                     'admission_letter_date',
                     'Last_Attended_University',
                     'admission_letter_for',
+                    'gen_ch1',
+                    'gen_ch2',
                 ],
-                'default_subject' => 'Admission Regularization of {admission_course} course for the academic year {academic_year}.',
-                'default_body' => "Sir/Madam,\nWith reference to your letter No. {eligibility_case_no}, Date - {admission_letter_date}. I am to inform you that since {student_name} submitted the Migration Certificate of {Last_Attended_University} which she/he had migrated after passing {passing_course} course from University of Mumbai, her admission for {admission_course} course for the academic year {academic_year} in IDOL is hereby regularized accordingly.",
-                'default_closing' => 'Kindly record the eligibility regularization status in your records.',
+                'default_subject' => 'Admission Regulariztion of {admission_course} course for the academic year {academic_year}.',
+                'default_body' => "With reference to your letter No. <b>{admission_letter_for}</b>, Date - <b>{admission_letter_date}</b>.\n\nI am to inform you that since <b>{gender} {student_name}</b> submitted the Migration Certificate of <b>{Last_Attended_University}</b> which {gen_ch1} had migrated after passing <b>{passing_course}</b> course from University of Mumbai, {gen_ch2} admission for <b>{admission_course}</b> course for the academic year <b>{academic_year}</b> in IDOL is hereby <b style=\"font-style: italic;\">regularized accordingly</b>.",
+                'default_closing' => '',
             ],
             'university_reminder' => [
                 'label' => 'University Reminder Letter',
-                'tokens' => ['reminder_type', 'course', 'academic_year'],
-                'default_subject' => '{reminder_type} - Verification of Marksheet / Passing Certificate.',
-                'default_body' => "Sir/Madam,\nThis is a {reminder_type} regarding the verification of marksheet/certificates of candidate(s) admitted to {course} during academic year {academic_year}.",
-                'default_closing' => 'Kindly verify and return the confirmed verification report at your earliest convenience.',
+                'tokens' => ['course', 'academic_year', 'reminder_type'],
+                'default_subject' => 'Verification of Documents for the {course} Course of Academic Year {academic_year}.',
+                'default_body' => "The following students has/have taken admission in IDOL, University of Mumbai  from other Universities. As per the rule If the student from other than University of Mumbai takes admission in IDOL, the documents of the students is sent to the repective University for verification and accordingly the documents of the candidate are sent to you, the details are mentioned below.\n\nWe here by want to inform you that still the report of the student is not provided from your University. So Kindly take this as a reminder and verify their marksheets and confirm the validity of the same.\n\nKindly treat this matter as most urgent.",
+                'default_closing' => '',
             ],
             'student_reminder' => [
                 'label' => 'Candidate Document Reminder Letter',
-                'tokens' => ['course_name', 'missing_doc'],
-                'default_subject' => 'Submission of Pending Original Documents for Eligibility Verification.',
-                'default_body' => "Dear Candidate,\nYou are hereby informed that your eligibility verification for {course_name} course is pending due to non-submission of the following document(s):\n\nMissing Documents: {missing_doc}",
-                'default_closing' => 'Please submit the required original documents to the IDOL Eligibility Section within 15 days, failing which your admission eligibility may be cancelled.',
+                'tokens' => ['course_name', 'academic_year', 'missing_doc'],
+                'default_subject' => 'Admission to {course_name} course for the academic year {academic_year}.',
+                'default_body' => "With reference to your application for admission to the <b>{course_name}</b> course, I am to request you to see the undersigned immediately (within a week) during the office hours at Room No.108-A (Eligibility/Scholarship Section) in connection with your admission in this Institute  is pending due to.\n\nMissing Documents: <b>{missing_doc}</b>\n\nIf you fail to comply with the above mentioned requirement your admission will be treated as cancelled or your result of the aforesaid course will not be declared which may please be noted. Also please note that your admission in this Institute is still provisional.\n\nKindly treat this matter as most urgent.\n\nYour co-operation in this matter will be appreciated.",
+                'default_closing' => '',
             ],
             'dispatch_accounts' => [
                 'label' => 'Accounts Copy (Dispatch with DD Amount)',
                 'tokens' => ['academic_year'],
                 'default_subject' => 'Verification of Document/s for the academic year {academic_year}.',
-                'default_body' => "Sir/Madam,\nUniversity of Mumbai has decided to verify the document/s of the student/s who have taken admission in our Institute of Distance and Open Learning, University of Mumbai, on the basis of earlier qualification.\nThe following student/s has/have taken admission in the University of Mumbai as their details mentioned below. I am enclosing here with xerox copy/copies of the marksheet/s for your ready reference.",
-                'default_closing' => "You are requested to kindly verify the/their marksheet/s and confirm the validity of the same.\nI shall be grateful if you treat this matter as most urgent.\nKindly mentioned the reference number and date of this letter in your further communication.\nThanking you.",
+                'default_body' => "University of Mumbai has decided to verify the document/s of the student/s who have taken admission in our <b>Institue of Distance and Open Learning,</b> University of Mumbai, on the basis of earlier qualification.\n\nThe following student/s has/have taken admission in the University of Mumbai as their details mentioned below. I am enclosing here with xerox copy/copies of the marksheet/s for your ready reference.",
+                'default_closing' => "You are requestd to kindly verify the/their marksheet/s and confirm the validity of the same.\n\nI shall be grateful if you treat this matter as most urgent.\n\nKindly mentioned the reference number and date of this letter in your further communication.\n\nThanking you.",
             ],
             'confirmation_eligibility' => [
                 'label' => 'Confirmation of Eligibility Letter',
                 'tokens' => ['academic_year', 'course', 'student_count_phrase'],
                 'default_subject' => 'Confirmation of Eligibility For the Academic Year {academic_year} of Course {course}.',
-                'default_body' => 'With reference to your letter No. __________________ dated __________________. I am to inform you that the eligibility of {student_count_phrase} is hereby confirmed for the admission to the program mention against their respective names in this University / Board.',
+                'default_body' => 'With reference to your letter No. <b>__________________</b> dated <b>__________________</b>. I am to inform you that the eligibility of <b>{student_count_phrase}</b> is hereby confirmed for the admission to the program mention againts their respective names in this University / Board.',
                 'default_closing' => '',
             ],
         ];
@@ -1025,6 +1027,8 @@ class SettingsController extends Controller
                 'Last_Attended_University' => 'Gujarat University, Ahmedabad',
                 'last_attended_university' => 'Gujarat University, Ahmedabad',
                 'university_name' => 'Gujarat University, Ahmedabad',
+                'gen_ch1' => 'she',
+                'gen_ch2' => 'her',
             ],
             'university_reminder' => [
                 'reminder_type' => '1st Reminder',
@@ -1033,6 +1037,7 @@ class SettingsController extends Controller
             ],
             'student_reminder' => [
                 'course_name' => 'M.Com Part-I',
+                'academic_year' => '2025-2026',
                 'missing_doc' => 'Original Marksheet & Passing Certificate',
             ],
             'dispatch_accounts' => [
@@ -1077,7 +1082,11 @@ class SettingsController extends Controller
         // Specific sample data for each view
         $sampleData = match ($slug) {
             'dispatch' => [
+                'currentTime' => time(),
                 'arraySpace' => 'SAMPLE-BATCH-001',
+                'academic_year' => '2025-2026',
+                'fees' => 150,
+                'totalFees' => 300,
                 'date' => date('d/m/Y'),
                 'firstRow' => [
                     'to_name' => 'The Controller of Examinations',
@@ -1094,6 +1103,7 @@ class SettingsController extends Controller
                         'student_nee_name' => '-',
                         'eligibility_case_no' => 'SAMPLE-2025/001',
                         'admission_taken_in' => 'M.Com Part-I',
+                        'admission_taken_year' => '2025-2026',
                         'verification_of_marksheet_done_by_you' => 'Marksheet Verification',
                     ],
                     (object) [
@@ -1102,12 +1112,15 @@ class SettingsController extends Controller
                         'student_nee_name' => '-',
                         'eligibility_case_no' => 'SAMPLE-2025/002',
                         'admission_taken_in' => 'M.Com Part-I',
+                        'admission_taken_year' => '2025-2026',
                         'verification_of_marksheet_done_by_you' => 'Marksheet & Passing Certificate',
                     ],
                 ]),
             ],
             'dispatch_accounts' => [
+                'currentTime' => time(),
                 'arraySpace' => 'SAMPLE-BATCH-001',
+                'academic_year' => '2025-2026',
                 'date' => date('d/m/Y'),
                 'firstRow' => [
                     'to_name' => 'The Controller of Examinations',
@@ -1124,6 +1137,7 @@ class SettingsController extends Controller
                         'student_nee_name' => '-',
                         'eligibility_case_no' => 'SAMPLE-2025/001',
                         'admission_taken_in' => 'M.Com Part-I',
+                        'admission_taken_year' => '2025-2026',
                         'verification_of_marksheet_done_by_you' => 'Marksheet Verification',
                     ],
                     (object) [
@@ -1132,24 +1146,34 @@ class SettingsController extends Controller
                         'student_nee_name' => '-',
                         'eligibility_case_no' => 'SAMPLE-2025/002',
                         'admission_taken_in' => 'M.Com Part-I',
+                        'admission_taken_year' => '2025-2026',
                         'verification_of_marksheet_done_by_you' => 'Marksheet & Passing Certificate',
                     ],
                 ]),
                 'fees' => 150,
+                'totalFees' => 300,
                 'ddAmount' => 300,
                 'ddAmountWords' => 'Three Hundred Rupees Only',
             ],
             'confirmation_eligibility' => [
+                'currentTime' => time(),
                 'arraySpace' => 'SAMPLE-CONF-001',
+                'count' => 2,
+                'first' => (object) [
+                    'acd_year' => '2025-2026',
+                    'stream' => 'M.Com Part-I',
+                ],
                 'date' => date('d/m/Y'),
                 'records' => collect([
                     (object) [
                         'id' => 1,
                         'student_name' => 'Jane Sample Doe',
+                        'display_name' => 'Jane Sample Doe',
                         'student_nee_name' => '-',
                         'case_no' => 'SAMPLE-2025/001',
                         'stream' => 'M.Com Part-I',
                         'clg_add' => 'Sample University, Gujarat',
+                        'display_university' => 'Sample University, Gujarat',
                         'uni_add' => '',
                         'mig_TC' => 'Yes',
                         's_marks' => 'Yes',
@@ -1163,10 +1187,12 @@ class SettingsController extends Controller
                     (object) [
                         'id' => 2,
                         'student_name' => 'John Sample Smith',
+                        'display_name' => 'John Sample Smith',
                         'student_nee_name' => '-',
                         'case_no' => 'SAMPLE-2025/002',
                         'stream' => 'M.Com Part-I',
                         'clg_add' => 'Sample Board of Higher Education',
+                        'display_university' => 'Sample Board of Higher Education',
                         'uni_add' => '',
                         'mig_TC' => 'Yes',
                         's_marks' => 'Yes',
@@ -1180,9 +1206,14 @@ class SettingsController extends Controller
                 ]),
             ],
             'regularization' => [
+                'currentTime' => time(),
                 'date' => date('d/m/Y'),
                 'universityName' => 'Gujarat University, Ahmedabad',
                 'address' => "Navrangpura, Ahmedabad - 380009\nGujarat, India",
+                'states' => 'Gujarat',
+                'genCh1' => 'she',
+                'genCh2' => 'her',
+                'admDate' => '15/06/2025',
                 'record' => (object) [
                     'id' => 1,
                     'student_name' => 'Jane Sample Doe',
@@ -1197,8 +1228,10 @@ class SettingsController extends Controller
                 ],
             ],
             'university_reminder' => [
+                'currentTime' => time(),
                 'date' => date('d/m/Y'),
                 'universityName' => 'Sample University Campus',
+                'headName' => 'The Controller of Examinations',
                 'address' => "Navrangpura, Ahmedabad - 380009\nGujarat, India",
                 'batch' => (object) [
                     'id' => 1,
@@ -1233,16 +1266,22 @@ class SettingsController extends Controller
                 ]),
             ],
             'student_reminder' => [
+                'currentTime' => time(),
                 'date' => date('d/m/Y'),
+                'student' => (object) [
+                    'admission_taken_in' => 'M.Com Part-I',
+                    'admission_taken_year' => '2025-2026',
+                ],
                 'record' => (object) [
                     'id' => 1,
                     'student_name' => 'Jane Sample Doe',
                     'course_name' => 'M.Com Part-I',
+                    'academic_year' => '2025-2026',
                     'eligibility_case_no' => 'SAMPLE-2025/001',
                     'missing_doc' => 'Original Marksheet & Passing Certificate',
                 ],
             ],
-            default => ['date' => date('d/m/Y')],
+            default => ['date' => date('d/m/Y'), 'currentTime' => time()],
         };
 
         $viewName = match ($slug) {

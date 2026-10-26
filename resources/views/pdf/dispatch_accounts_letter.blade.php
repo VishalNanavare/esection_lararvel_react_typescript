@@ -1,3 +1,12 @@
+@php
+    $currentTime = $currentTime ?? ($arraySpace ?? time());
+    $students = $students ?? collect();
+    $academic_year = $academic_year ?? (count($students) ? ($students->first()->admission_taken_year ?? '') : '');
+    $firstRow = $firstRow ?? ['to_name' => 'The Secretary', 'university_name' => '', 'address' => '', 'in_favour_of' => ''];
+    $fees = $fees ?? 0;
+    $totalFees = $totalFees ?? ($ddAmount ?? ($fees * count($students)));
+    $ddAmountWords = $ddAmountWords ?? '';
+@endphp
 <!DOCTYPE html>
 <html>
 <head>
@@ -111,19 +120,44 @@
     </div>
 
     <div class="subject-block">
-        <b>Sub - :</b> Verification of Document/s for the academic year <b>{{ $academic_year }}.</b>
+        @if(!empty($subject))
+            <b>Sub - :</b> {!! $subject !!}
+        @else
+            <b>Sub - :</b> Verification of Document/s for the academic year <b>{{ $academic_year }}.</b>
+        @endif
     </div>
 
     <div class="salutation">
         <b>Sir/Madam,</b>
     </div>
 
-    <div class="para">
-        University of Mumbai has decided to verify the document/s of the student/s who have taken admission in our <b>Institue of Distance and Open Learning,</b> University of Mumbai, on the basis of earlier qualification.
-    </div>
-    <div class="para">
-        The following student/s has /have taken admission in the University of Mumbai as the/their details mentioned below. I am enclosing here with xerox copy/copies of the marksheet/s for your ready reference.
-    </div>
+    @if(!empty($body))
+        @php
+            $rawBody = trim($body ?? '');
+            $bodyParagraphs = $rawBody !== '' ? preg_split('/(?:<br\s*\/?>\s*){2,}|\r\n\r\n|\n\n/i', $rawBody) : [];
+        @endphp
+        @if(!empty($bodyParagraphs))
+            @foreach($bodyParagraphs as $bp)
+                @php $cleanBp = preg_replace('/^(?:&nbsp;|\s)+/i', '', trim($bp)); @endphp
+                @if($cleanBp !== '')
+                    <div class="para">
+                        {!! $cleanBp !!}
+                    </div>
+                @endif
+            @endforeach
+        @else
+            <div class="para">
+                {!! $body !!}
+            </div>
+        @endif
+    @else
+        <div class="para">
+            University of Mumbai has decided to verify the document/s of the student/s who have taken admission in our <b>Institue of Distance and Open Learning,</b> University of Mumbai, on the basis of earlier qualification.
+        </div>
+        <div class="para">
+            The following student/s has /have taken admission in the University of Mumbai as the/their details mentioned below. I am enclosing here with xerox copy/copies of the marksheet/s for your ready reference.
+        </div>
+    @endif
 
     <table class="cand-table">
         <thead>
@@ -152,21 +186,39 @@
     </table>
 
     <div class="closing-block">
-        <div class="para" style="margin-bottom: 2px;">
-            You are requestd to kindly verify the/their marksheet/s and confirm the validity of the same.
-            @if(!empty($fees) && $fees > 0)
-                I am also enclosing herewith a <b>D.D.</b> of <b>Rs. {{ ($fees * count($students)) }} /-</b> @ <b>Rs. {{ $fees }} /-</b> per document for the said purpose.
-            @endif
-        </div>
-        <div class="para" style="margin-bottom: 2px;">
-            I shall be grateful if you treat this matter as most urgent.
-        </div>
-        <div class="para" style="margin-bottom: 2px;">
-            Kindly mentioned the reference number and date of this letter in your further communication.
-        </div>
-        <div class="para" style="margin-bottom: 2px;">
-            Thanking you.
-        </div>
+        @php
+            $rawClosing = trim($closing ?? '');
+            $closingLines = $rawClosing !== '' ? preg_split('/(?:<br\s*\/?>\s*|\r\n|\n)+/i', $rawClosing) : [];
+        @endphp
+        @if(!empty($closingLines))
+            @foreach($closingLines as $ci => $line)
+                @php $cleanLine = preg_replace('/^(?:&nbsp;|\s)+/i', '', trim($line)); @endphp
+                @if($cleanLine !== '')
+                    <div class="para" style="margin-bottom: 2px;">
+                        {!! $cleanLine !!}
+                        @if($ci === 0 && !empty($fees) && $fees > 0 && !str_contains($cleanLine, 'D.D.'))
+                            I am also enclosing herewith a <b>D.D.</b> of <b>Rs. {{ ($fees * count($students)) }} /-</b> @ <b>Rs. {{ $fees }} /-</b> per document for the said purpose.
+                        @endif
+                    </div>
+                @endif
+            @endforeach
+        @else
+            <div class="para" style="margin-bottom: 2px;">
+                You are requestd to kindly verify the/their marksheet/s and confirm the validity of the same.
+                @if(!empty($fees) && $fees > 0)
+                    I am also enclosing herewith a <b>D.D.</b> of <b>Rs. {{ ($fees * count($students)) }} /-</b> @ <b>Rs. {{ $fees }} /-</b> per document for the said purpose.
+                @endif
+            </div>
+            <div class="para" style="margin-bottom: 2px;">
+                I shall be grateful if you treat this matter as most urgent.
+            </div>
+            <div class="para" style="margin-bottom: 2px;">
+                Kindly mentioned the reference number and date of this letter in your further communication.
+            </div>
+            <div class="para" style="margin-bottom: 2px;">
+                Thanking you.
+            </div>
+        @endif
     </div>
 
     <table class="sig-table">
@@ -174,7 +226,10 @@
             <td style="width: 50%;"></td>
             <td style="width: 50%; text-align: right; vertical-align: top;">
                 <div style="font-size: 9.5pt;">Your faithfully,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</div>
-                <div style="font-size: 9.5pt; font-weight: bold; margin-top: 8px;">
+                @for ($i = 0; $i < (int)($instituteSignatureSpaceLines ?? 3); $i++)
+                    <br/>
+                @endfor
+                <div style="font-size: 9.5pt; font-weight: bold;">
                     Off. Superintdent<br/>(Eligib/Sch)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
                 </div>
             </td>
@@ -205,6 +260,9 @@
         <tr>
             <td style="width: 50%;"></td>
             <td style="width: 50%; text-align: right; vertical-align: top;">
+                @for ($i = 0; $i < (int)($instituteSignatureSpaceLines ?? 3); $i++)
+                    <br/>
+                @endfor
                 <div style="font-size: 9.5pt; font-weight: bold;">
                     Off. Superintdent<br/>(Eligib/Sch)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
                 </div>
