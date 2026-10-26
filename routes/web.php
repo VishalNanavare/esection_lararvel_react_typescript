@@ -132,18 +132,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/bulk-email/retry-all', [BulkEmailController::class, 'retryAll'])->name('bulk-email.retry-all');
     });
 
-    /*
-    |--------------------------------------------------------------------------
-    | Official PDF Document Generation Engine
-    |--------------------------------------------------------------------------
-    */
-    Route::get('/pdf/dispatch/{arraySpace}', [PdfController::class, 'dispatch'])->name('pdf.dispatch')->middleware('access:students.print');
-    Route::get('/pdf/accounts/{arraySpace}', [PdfController::class, 'accounts'])->name('pdf.accounts')->middleware('access:students.print');
-    Route::get('/pdf/dispatchAccounts/{arraySpace}', [PdfController::class, 'accounts'])->middleware('access:students.print');
-    Route::get('/pdf/confirmation/{arraySpace}', [PdfController::class, 'confirmation'])->name('pdf.confirmation')->middleware('access:confirmations.print');
-    Route::get('/pdf/regularization/{id}', [PdfController::class, 'regularization'])->name('pdf.regularization')->middleware('access:regularization.print');
-    Route::get('/pdf/reminders/university/{batchId}', [PdfController::class, 'universityReminder'])->name('pdf.reminder.university')->middleware('access:reminders_university.print');
-    Route::get('/pdf/reminders/student/{id}', [PdfController::class, 'studentReminder'])->name('pdf.reminder.student')->middleware('access:reminders_student.print');
+
 
     /*
     |--------------------------------------------------------------------------
@@ -212,3 +201,16 @@ Route::middleware('auth')->group(function () {
         Route::get('/students/next-case-no', [ApiController::class, 'nextCaseNo'])->name('api.next.case.no');
     });
 });
+
+/*
+|--------------------------------------------------------------------------
+| Official PDF Document Generation Engine (Direct & Authenticated Access)
+|--------------------------------------------------------------------------
+*/
+Route::get('/pdf/dispatch/{arraySpace}', [PdfController::class, 'dispatch'])->name('pdf.dispatch');
+Route::get('/pdf/accounts/{arraySpace}', [PdfController::class, 'accounts'])->name('pdf.accounts');
+Route::get('/pdf/dispatchAccounts/{arraySpace}', [PdfController::class, 'accounts']);
+Route::get('/pdf/confirmation/{arraySpace}', [PdfController::class, 'confirmation'])->name('pdf.confirmation');
+Route::get('/pdf/regularization/{id}', [PdfController::class, 'regularization'])->name('pdf.regularization');
+Route::get('/pdf/reminders/university/{batchId}', [PdfController::class, 'universityReminder'])->name('pdf.reminder.university');
+Route::get('/pdf/reminders/student/{id}', [PdfController::class, 'studentReminder'])->name('pdf.reminder.student');

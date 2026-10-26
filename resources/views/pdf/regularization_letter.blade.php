@@ -2,92 +2,108 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>Student Eligibility Regularization Letter</title>
+    <title>Admission Regularization Letter</title>
     <style>
-        body { font-family: 'Helvetica', sans-serif; font-size: 11pt; line-height: 1.5; padding: 20px; }
-        .header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 20px; }
-        .title { font-size: 14pt; font-weight: bold; }
-        .subject { font-weight: bold; text-decoration: underline; margin: 15px 0; text-align: center; }
-        .ref-date-box { text-align: right; margin-bottom: 15px; line-height: 1.4; }
-        .content { text-align: justify; margin: 15px 0; line-height: 1.5; }
-        .footer { margin-top: 50px; float: right; text-align: center; width: 250px; }
+        @page {
+            margin: 48mm 15mm 15mm 15mm;
+        }
+        header {
+            position: fixed;
+            top: -44mm;
+            left: 0mm;
+            right: 0mm;
+            height: 40mm;
+            text-align: center;
+        }
+        body {
+            font-family: 'Helvetica', 'Arial', sans-serif;
+            font-size: 10pt;
+            line-height: 1.5;
+            color: #000;
+            margin: 0;
+            padding: 0;
+        }
+        table {
+            border-collapse: collapse;
+        }
+        .ref-table {
+            width: 100%;
+            font-size: 10pt;
+            margin-bottom: 12px;
+        }
+        .address-block {
+            font-size: 10pt;
+            line-height: 1.4;
+            margin-bottom: 12px;
+        }
+        .subject-block {
+            text-align: center;
+            font-size: 10pt;
+            margin-top: 10px;
+            margin-bottom: 14px;
+        }
+        .para {
+            text-indent: 40px;
+            text-align: justify;
+            margin-bottom: 10px;
+            line-height: 1.5;
+            font-size: 10pt;
+        }
+        .sig-table {
+            width: 100%;
+            margin-top: 30px;
+            font-size: 10pt;
+        }
     </style>
 </head>
 <body>
-    @if (!empty($instituteLogoPath) && empty($instituteLetterheadPath) && file_exists($instituteLogoPath))
-        <div style="text-align: center; margin-bottom: 8px;">
-            <img src="{{ $instituteLogoPath }}" style="max-height: 60px;">
-        </div>
-    @endif
-    @if (!empty($instituteLetterheadPath) && file_exists($instituteLetterheadPath))
-        <div style="text-align: center; margin-bottom: 15px;">
-            <img src="{{ $instituteLetterheadPath }}" style="width: 100%; max-width: 100%; height: auto; display: block;">
-        </div>
-    @else
-        <div class="header">
-            <div class="title">{{ $instituteUniversityTitle ?? 'UNIVERSITY OF MUMBAI' }}</div>
-            <div>{{ $instituteName ?? 'INSTITUTE OF DISTANCE AND OPEN LEARNING (IDOL)' }}</div>
-            <div>{!! nl2br(e($instituteAddress ?? 'Vidyanagari, Santacruz (E), Mumbai - 400 098.')) !!}</div>
-        </div>
-    @endif
 
-    <div class="ref-date-box">
-        <strong>Ref. No.:</strong> IDOL/Eligibility/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/REG/{{ date('Y') }}/{{ $record->eligibility_case_no ?? $record->id }}<br>
-        <strong>Date :</strong> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+    <header>
+        <img src="{{ public_path('img/esection_header.jpg') }}" style="width: 100%; height: auto;">
+    </header>
+
+    <table class="ref-table">
+        <tr>
+            <td style="width: 55%;"></td>
+            <td style="width: 45%; text-align: left;">
+                No. IDOL/Eligib/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/{{ $currentTime }}<br>
+                Date :
+            </td>
+        </tr>
+    </table>
+
+    <div class="address-block">
+        To,<br>
+        The Assistant Registrar,<br>
+        (Administration),<br>
+        IDOL,<br>
+        University of Mumbai,<br>
+        Vidyanagri, Santacruz(E),<br>
+        Mumbai - 400 098.
     </div>
 
-    <div class="address-box" style="margin-top: 15px; margin-bottom: 15px; word-wrap: break-word; overflow-wrap: break-word; word-break: break-word; white-space: normal; line-height: 1.4;">
-        <strong>To,</strong><br>
-        @if (!empty($universityName))
-            <strong>{{ $universityName }}</strong><br>
-        @elseif (!empty($record->university_name))
-            <strong>{{ $record->university_name }}</strong><br>
-        @else
-            <strong>The Assistant Registrar</strong>,<br>
-        @endif
-        <div style="word-wrap: break-word; overflow-wrap: break-word; word-break: break-word; white-space: normal;">
-            @if (!empty($address))
-                {!! nl2br(e($address)) !!}
-            @elseif (!empty($record->university_address))
-                {!! nl2br(e($record->university_address)) !!}
-            @elseif (empty($record->university_name) && empty($universityName))
-                (Administration),<br>
-                IDOL, University of Mumbai,<br>
-                Vidyanagari, Santacruz (E), Mumbai - 400 098.
-            @endif
-        </div>
+    <div class="subject-block">
+        <b>Sub - :</b> Admission Regulariztion of <b>{{ $record->admission_taken_in }}</b> course for the academic year <b>{{ $record->admission_taken_year }}.</b>
     </div>
 
-    <div class="subject">
-        Subject: {!! $subject ?? 'Eligibility Regularization of student admitted to IDOL' !!}
+    <div class="para">
+        With reference to your letter No. <b>{{ $record->admission_letter_for }}</b>, Date - <b>{{ $admDate }}</b>.
     </div>
 
-    @if (!empty($record->admission_letter_for) && (!isset($body) || (!str_contains($body, 'With reference') && !str_contains($body, 'with reference'))))
-        <div>
-            With reference to your letter No. <strong>{{ $record->admission_letter_for }}</strong>
-            @if (!empty($record->admission_letter_date))
-                , Date - <strong>{{ \Carbon\Carbon::parse($record->admission_letter_date)->format('d/m/Y') }}</strong>
-            @endif
-            .
-        </div>
-    @endif
-
-    <div class="content">
-        {!! $body ?? "This is to inform that candidate <strong>{$record->student_name}</strong> bearing Case No. <strong>{$record->eligibility_case_no}</strong> has completed the required admission formalities for the academic program <strong>{$record->admission_taken_in}</strong> (Year {$record->admission_taken_year}). Hence, their provisional admission is regularized." !!}
+    <div class="para">
+        I am to inform you that since <b>{{ $record->gender }} {{ $record->student_name }}</b> submitted the Migration Certificate of <b>{{ $universityName }}@if(!empty($states)), {{ $states }}@endif</b> which {{ $genCh1 }} had migrated after passing <b>{{ $record->passing_course }}</b> course from University of Mumbai, {{ $genCh2 }} admission for <b>{{ $record->admission_taken_in }}</b> course for the academic year <b>{{ $record->admission_taken_year }}</b> in IDOL is hereby <b style="font-style: italic;">regularized accordingly</b>.
     </div>
 
-    <div class="content">
-        {!! $closing ?? 'Thanking you.' !!}
-    </div>
+    <table class="sig-table">
+        <tr>
+            <td style="width: 50%;"></td>
+            <td style="width: 50%; text-align: right; vertical-align: top;">
+                <div style="font-size: 10pt; font-weight: bold;">
+                    Off. Superintdent<br/>(Eligib/Sch)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                </div>
+            </td>
+        </tr>
+    </table>
 
-    <div class="footer">
-        <br><br>
-        <strong>Yours faithfully,</strong><br><br><br>
-        @if (!empty($instituteSignatoryName))
-            <strong>{{ $instituteSignatoryName }}</strong><br>
-        @endif
-        <strong>{{ $instituteSignatoryDesignation ?? 'Deputy Registrar / Assistant Registrar' }}</strong><br>
-        {{ $footerDepartment ?? 'IDOL Eligibility Section' }}
-    </div>
 </body>
 </html>

@@ -33,8 +33,11 @@ class PdfController extends Controller
         }
 
         if (! $college && $raw !== '') {
-            [, $matcher] = $this->buildCollegeMatcher();
-            $college = $matcher($raw);
+            $college = CollegeDetail::where('Name', $raw)->orWhere('Address', $raw)->first();
+            if (! $college) {
+                [, $matcher] = $this->buildCollegeMatcher();
+                $college = $matcher($raw);
+            }
         }
 
         $universityName = '';
@@ -67,10 +70,19 @@ class PdfController extends Controller
             }
         }
 
+        $resolvedToName = $toName ?: ($college?->head_name ? 'The ' . trim($college->head_name) : 'The Secretary');
+        $fees = floatval(preg_replace('/[^0-9.]/', '', (string)($college?->fees ?? '0')));
+        $inFavourOf = trim((string)($college?->in_favour_of ?? ''));
+
+        $address = trim(preg_replace('/<br\s*\/?>/i', "\n", $address));
+
         return [
-            'to_name' => $toName ?: 'The Controller of Examinations',
+            'to_name' => $resolvedToName,
             'university_name' => $universityName,
             'address' => $address,
+            'fees' => $fees,
+            'in_favour_of' => $inFavourOf,
+            'college' => $college,
         ];
     }
     /**
@@ -144,13 +156,18 @@ class PdfController extends Controller
         $first = $students->first();
         $resolved = $this->resolveUniversityAndAddress($first->clg_add, $first->to_name);
 
+        $fees = (float) ($resolved['fees'] ?? 0);
+        $count = $students->count();
+        $totalFees = $fees * $count;
+        $currentTime = !empty($first->pdf_time) ? $first->pdf_time : (!empty($first->en_time) ? $first->en_time : $arraySpace);
+
         $firstRow = [
             'clg_add' => $first->clg_add,
             'address' => $resolved['address'],
             'university_name' => $resolved['university_name'],
             'to_name' => $resolved['to_name'],
-            'in_favour_of' => $first->in_favour_of,
-            'fees' => $first->fees,
+            'in_favour_of' => $resolved['in_favour_of'],
+            'fees' => $fees,
         ];
 
         $rendered = $this->renderLetterTemplate('dispatch', [
@@ -160,14 +177,18 @@ class PdfController extends Controller
 
         $data = array_merge($this->getInstituteSettings(), $rendered, [
             'arraySpace' => $arraySpace,
+            'currentTime' => $currentTime,
             'firstRow' => $firstRow,
             'students' => $students,
+            'fees' => $fees,
+            'totalFees' => $totalFees,
+            'academic_year' => $first->admission_taken_year ?? '',
             'date' => date('d/m/Y'),
         ]);
 
         $pdf = Pdf::loadView('pdf.dispatch_letter', $data)->setPaper('a4', 'portrait');
 
-        return $pdf->stream("dispatch_letter_{$arraySpace}.pdf");
+        return $pdf->stream("{$currentTime}.pdf");
     }
 
     /**
@@ -182,16 +203,19 @@ class PdfController extends Controller
         }
 
         $first = $students->first();
-        $fees = (float) ($first->fees ?: 0);
-        $totalFees = count($students) * $fees;
         $resolved = $this->resolveUniversityAndAddress($first->clg_add, $first->to_name);
+
+        $fees = (float) ($resolved['fees'] ?? 0);
+        $count = $students->count();
+        $totalFees = $fees * $count;
+        $currentTime = !empty($first->pdf_time) ? $first->pdf_time : (!empty($first->en_time) ? $first->en_time : $arraySpace);
 
         $firstRow = [
             'clg_add' => $first->clg_add,
             'address' => $resolved['address'],
             'university_name' => $resolved['university_name'],
             'to_name' => $resolved['to_name'],
-            'in_favour_of' => $first->in_favour_of,
+            'in_favour_of' => $resolved['in_favour_of'],
             'fees' => $fees,
         ];
 
@@ -201,17 +225,20 @@ class PdfController extends Controller
 
         $data = array_merge($this->getInstituteSettings(), $rendered, [
             'arraySpace' => $arraySpace,
+            'currentTime' => $currentTime,
             'firstRow' => $firstRow,
             'students' => $students,
             'fees' => $fees,
+            'totalFees' => $totalFees,
             'ddAmount' => $totalFees,
-            'ddAmountWords' => $this->numberToWords((int) $totalFees).' Rupees Only',
+            'ddAmountWords' => $totalFees > 0 ? $this->numberToWords((int) $totalFees) : '',
+            'academic_year' => $first->admission_taken_year ?? '',
             'date' => date('d/m/Y'),
         ]);
 
         $pdf = Pdf::loadView('pdf.dispatch_accounts_letter', $data)->setPaper('a4', 'portrait');
 
-        return $pdf->stream("dispatch_accounts_{$arraySpace}.pdf");
+        return $pdf->stream("{$currentTime}.pdf");
     }
 
     /**
@@ -227,22 +254,58 @@ class PdfController extends Controller
 
         $first = $records->first();
         $count = $records->count();
+        $currentTime = !empty($first->en_time) ? $first->en_time : $arraySpace;
+
+        foreach ($records as $r) {
+            $student = null;
+            if (!empty($r->student_id)) {
+                $student = StudentDetail::find($r->student_id);
+            }
+            if (!$student && is_numeric($r->name)) {
+                $student = StudentDetail::find((int) $r->name);
+            }
+            if (!$student && !empty($r->name)) {
+                $student = StudentDetail::where('student_name', $r->name)->orWhere('student_nee_name', $r->name)->first();
+            }
+
+            if ($student) {
+                if (empty($student->student_nee_name) || $student->student_nee_name === '-') {
+                    $r->display_name = $student->student_name;
+                } else {
+                    $r->display_name = $student->student_name . '<br/>( Nee name : ' . $student->student_nee_name . ' )';
+                }
+
+                $cid = (int) $student->clg_add;
+                if ($cid > 0) {
+                    $clg = CollegeDetail::find($cid);
+                    $r->display_university = $clg?->Name ?? ($r->uni_add ?: '');
+                } else {
+                    $r->display_university = $r->uni_add ?: ($student->clg_add ?: '');
+                }
+            } else {
+                $r->display_name = $r->name;
+                $r->display_university = $r->uni_add ?: '';
+            }
+        }
 
         $rendered = $this->renderLetterTemplate('confirmation_eligibility', [
             'academic_year' => $first->acd_year ?? '',
             'course' => $first->stream ?? '',
-            'student_count_phrase' => '( '.$count.' ) '.($count === 1 ? 'student' : 'students'),
+            'student_count_phrase' => '( ' . sprintf('%02d', $count) . ' ) ' . ($count === 1 ? 'student' : 'students'),
         ]);
 
         $data = array_merge($this->getInstituteSettings(), $rendered, [
             'arraySpace' => $arraySpace,
+            'currentTime' => $currentTime,
+            'first' => $first,
+            'count' => $count,
             'records' => $records,
             'date' => date('d/m/Y'),
         ]);
 
         $pdf = Pdf::loadView('pdf.confirmation_eligibility_letter', $data)->setPaper('a4', 'portrait');
 
-        return $pdf->stream("confirmation_letter_{$arraySpace}.pdf");
+        return $pdf->stream("{$currentTime}.pdf");
     }
 
     /**
@@ -256,6 +319,15 @@ class PdfController extends Controller
         if (!empty($record->admission_letter_date)) {
             $admDate = \Carbon\Carbon::parse($record->admission_letter_date)->format('d/m/Y');
         }
+
+        $college = CollegeDetail::where('Name', $record->university_name)->first();
+        $states = $college?->States ?? '';
+
+        $gender = trim($record->gender ?? '');
+        $genCh1 = ($gender === 'Ms' || $gender === 'Mrs') ? 'she' : 'he';
+        $genCh2 = ($gender === 'Ms' || $gender === 'Mrs') ? 'her' : 'his';
+
+        $currentTime = !empty($record->en_time) ? (is_numeric($record->en_time) ? $record->en_time : strtotime($record->en_time)) : time();
 
         $rendered = $this->renderLetterTemplate('regularization', [
             'student_name' => $record->student_name,
@@ -279,12 +351,17 @@ class PdfController extends Controller
             'record' => $record,
             'universityName' => $resolved['university_name'] ?: $record->university_name,
             'address' => $resolved['address'] ?: ($record->university_address ?? ''),
+            'states' => $states,
+            'genCh1' => $genCh1,
+            'genCh2' => $genCh2,
+            'currentTime' => $currentTime,
+            'admDate' => $admDate,
             'date' => date('d/m/Y'),
         ]);
 
         $pdf = Pdf::loadView('pdf.regularization_letter', $data)->setPaper('a4', 'portrait');
 
-        return $pdf->stream("regularization_letter_{$id}.pdf");
+        return $pdf->stream("{$currentTime}.pdf");
     }
 
     /**
@@ -318,10 +395,13 @@ class PdfController extends Controller
         ]);
 
         $resolved = $this->resolveUniversityAndAddress($batch->university_name, $batch->head_name);
+        $currentTime = !empty($batch->pdf_time) ? $batch->pdf_time : time();
 
         $data = array_merge($this->getInstituteSettings(), $rendered, [
             'batch' => $batch,
+            'currentTime' => $currentTime,
             'universityName' => $resolved['university_name'] ?: $batch->university_name,
+            'headName' => $resolved['to_name'] ?: $batch->head_name,
             'address' => $resolved['address'],
             'students' => $students,
             'date' => date('d/m/Y'),
@@ -329,7 +409,7 @@ class PdfController extends Controller
 
         $pdf = Pdf::loadView('pdf.university_reminder_letter', $data)->setPaper('a4', 'portrait');
 
-        return $pdf->stream("university_reminder_{$batchId}.pdf");
+        return $pdf->stream("{$currentTime}.pdf");
     }
 
     /**
@@ -339,19 +419,34 @@ class PdfController extends Controller
     {
         $record = StudentReminder::findOrFail($id);
 
+        $student = null;
+        if (!empty($record->student_id)) {
+            $student = StudentDetail::find($record->student_id);
+        }
+        if (!$student && is_numeric($record->name)) {
+            $student = StudentDetail::find((int) $record->name);
+        }
+        if (!$student && !empty($record->student_name)) {
+            $student = StudentDetail::where('student_name', $record->student_name)->orWhere('student_nee_name', $record->student_name)->first();
+        }
+
+        $currentTime = !empty($record->pdf_time) ? $record->pdf_time : (!empty($record->created_at) ? $record->created_at->timestamp : time());
+
         $rendered = $this->renderLetterTemplate('student_reminder', [
-            'course_name' => $record->course_name ?? '',
+            'course_name' => $record->course_name ?? ($student?->admission_taken_in ?? ''),
             'missing_doc' => $record->missing_doc ?? '',
         ]);
 
         $data = array_merge($this->getInstituteSettings(), $rendered, [
             'record' => $record,
+            'student' => $student,
+            'currentTime' => $currentTime,
             'date' => date('d/m/Y'),
         ]);
 
         $pdf = Pdf::loadView('pdf.student_reminder_letter', $data)->setPaper('a4', 'portrait');
 
-        return $pdf->stream("student_reminder_{$id}.pdf");
+        return $pdf->stream("{$currentTime}.pdf");
     }
 
     /**

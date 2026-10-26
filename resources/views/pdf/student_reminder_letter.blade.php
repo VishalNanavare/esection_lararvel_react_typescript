@@ -4,70 +4,142 @@
     <meta charset="utf-8">
     <title>Candidate Document Reminder Letter</title>
     <style>
-        body { font-family: 'Helvetica', sans-serif; font-size: 11pt; line-height: 1.5; padding: 20px; }
-        .header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 20px; }
-        .title { font-size: 14pt; font-weight: bold; }
-        .subject { font-weight: bold; text-decoration: underline; margin: 15px 0; text-align: center; }
-        .ref-date-box { text-align: right; margin-bottom: 15px; line-height: 1.4; }
-        .content { text-align: justify; margin: 15px 0; line-height: 1.5; }
-        .footer { margin-top: 50px; float: right; text-align: center; width: 250px; }
+        @page {
+            margin: 48mm 15mm 15mm 15mm;
+        }
+        header {
+            position: fixed;
+            top: -44mm;
+            left: 0mm;
+            right: 0mm;
+            height: 40mm;
+            text-align: center;
+        }
+        body {
+            font-family: 'Helvetica', 'Arial', sans-serif;
+            font-size: 9pt;
+            line-height: 1.35;
+            color: #000;
+            margin: 0;
+            padding: 0;
+        }
+        table {
+            border-collapse: collapse;
+        }
+        .ref-table {
+            width: 100%;
+            font-size: 9pt;
+            margin-bottom: 6px;
+        }
+        .address-block {
+            font-size: 9pt;
+            line-height: 1.35;
+            margin-bottom: 6px;
+        }
+        .subject-block {
+            text-align: center;
+            font-size: 9pt;
+            margin-top: 6px;
+            margin-bottom: 8px;
+        }
+        .salutation {
+            font-size: 9pt;
+            margin-bottom: 4px;
+        }
+        .para {
+            text-indent: 30px;
+            text-align: justify;
+            margin-bottom: 6px;
+            line-height: 1.35;
+            font-size: 9pt;
+        }
+        ul.missing-docs {
+            font-weight: bold;
+            font-size: 9pt;
+            margin-top: 4px;
+            margin-bottom: 6px;
+            padding-left: 25px;
+        }
+        ul.missing-docs li {
+            margin-bottom: 4px;
+        }
+        .sig-table {
+            width: 100%;
+            margin-top: 20px;
+            font-size: 9pt;
+        }
     </style>
 </head>
 <body>
-    @if (!empty($instituteLogoPath) && empty($instituteLetterheadPath) && file_exists($instituteLogoPath))
-        <div style="text-align: center; margin-bottom: 8px;">
-            <img src="{{ $instituteLogoPath }}" style="max-height: 60px;">
-        </div>
-    @endif
-    @if (!empty($instituteLetterheadPath) && file_exists($instituteLetterheadPath))
-        <div style="text-align: center; margin-bottom: 15px;">
-            <img src="{{ $instituteLetterheadPath }}" style="width: 100%; max-width: 100%; height: auto; display: block;">
-        </div>
-    @else
-        <div class="header">
-            <div class="title">{{ $instituteUniversityTitle ?? 'UNIVERSITY OF MUMBAI' }}</div>
-            <div>{{ $instituteName ?? 'INSTITUTE OF DISTANCE AND OPEN LEARNING (IDOL)' }}</div>
-            <div>{!! nl2br(e($instituteAddress ?? 'Vidyanagari, Santacruz (E), Mumbai - 400 098.')) !!}</div>
-        </div>
-    @endif
 
-    <div class="ref-date-box">
-        <strong>Ref. No.:</strong> IDOL/Eligibility/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/STUD-REM/{{ date('Y') }}/{{ $record->eligibility_case_no ?? $record->id }}<br>
-        <strong>Date :</strong> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+    <header>
+        <img src="{{ public_path('img/esection_header.jpg') }}" style="width: 100%; height: auto;">
+    </header>
+
+    <div style="text-align: center; margin-bottom: 4px;">
+        <b style="font-size: 14pt;">Most Urgent</b>
     </div>
 
-    <div class="address-box" style="margin-top: 15px; margin-bottom: 15px; word-wrap: break-word; overflow-wrap: break-word; word-break: break-word; white-space: normal; line-height: 1.4;">
-        <strong>To,</strong><br>
-        <strong>{{ $record->student_name }}</strong>,<br>
-        @if (!empty($record->address))
-            <div style="word-wrap: break-word; overflow-wrap: break-word; word-break: break-word; white-space: normal;">
-                {!! nl2br(e($record->address)) !!}
-            </div>
+    <table class="ref-table">
+        <tr>
+            <td style="width: 55%;"></td>
+            <td style="width: 45%; text-align: left;">
+                No. IDOL/Eligib/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/{{ $currentTime }}<br>
+                Date :
+            </td>
+        </tr>
+    </table>
+
+    <div class="address-block">
+        To,<br>
+        {{ $record->student_name }}<br>
+        @if(!empty($record->address))
+            {!! nl2br(e($record->address)) !!}<br>
         @endif
-        Admission Taken in IDOL: <strong>{{ $record->course_name ?: 'N/A' }}</strong><br>
-        Eligibility Case No.: <strong>{{ $record->eligibility_case_no }}</strong>
     </div>
 
-    <div class="subject">
-        Subject: {!! $subject ?? 'Reminder for submission of pending eligibility verification documents' !!}
+    <div class="subject-block">
+        <b>Ref. : </b> Admission to <b>{{ $student->admission_taken_in ?? ($record->course_name ?? '') }}</b> course for the academic year <b>{{ $student->admission_taken_year ?? '' }}</b>.
     </div>
 
-    <div class="content">
-        {!! $body ?? "You have taken provisional admission in IDOL, University of Mumbai. It is observed from your eligibility record that the following document(s) are still pending from your end: <br><br><strong>Pending Document(s): {$record->missing_doc}</strong><br><br>You are hereby instructed to submit the aforementioned original document(s) along with attested copies to IDOL Eligibility Section within 15 days, failing which your provisional admission will be cancelled." !!}
+    <div class="salutation">
+        <b>Sir/Madam,</b>
     </div>
 
-    <div class="content">
-        {!! $closing ?? 'Please treat this as urgent.' !!}
+    <div class="para">
+        With reference to your application for admission to the <b>{{ $student->admission_taken_in ?? ($record->course_name ?? '') }}</b> course, I am to request you to see the undersigned immediately (within a week) during the office hours at Room No.108-A (Eligibility/Scholarship Section) in connection with your admission in this Institute  is pending due to.
     </div>
 
-    <div class="footer">
-        <br><br>
-        <strong>Yours faithfully,</strong><br><br><br>
-        @if (!empty($instituteSignatoryName))
-            <strong>{{ $instituteSignatoryName }}</strong><br>
-        @endif
-        <strong>{{ $instituteSignatoryDesignation ?? 'Deputy Registrar / Assistant Registrar' }}</strong><br>
-        {{ $footerDepartment ?? 'IDOL Eligibility Section' }}
+    <ul class="missing-docs">
+        <li>Required Original Migration</li>
+        <li>Required SSC onwards documents(all attempts marksheets, Passing/Degree certificate)</li>
+        <li>Marriage/ Gazette certificate (if name change).</li>
+        <li>Required original T.C and Eligibility Confirmation letter (for T.C+ Eligibility Students)</li>
+        <li>Required Previous Eligibility Confirmation letter (for Old + Eligibility Students)</li>
+    </ul>
+
+    <div class="para">
+        If you fail to comply with the above mentioned requirement your admission will be treated as cancelled or your result of the aforesaid course will not be declared which may please be noted. Also please note that your admission in this Institute is still provisional.
     </div>
+
+    <div class="para">
+        Kindly treat this matter as most urgent.
+    </div>
+
+    <div class="para">
+        Your co-operation in this matter will be appreciated.
+    </div>
+
+    <table class="sig-table">
+        <tr>
+            <td style="width: 50%;"></td>
+            <td style="width: 50%; text-align: right; vertical-align: top;">
+                <div style="font-size: 9.5pt; font-weight: bold;">
+                    Off. Superintdent<br/>(Eligib/Sch)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                </div>
+            </td>
+        </tr>
+    </table>
+
 </body>
 </html>

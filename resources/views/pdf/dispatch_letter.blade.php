@@ -2,169 +2,186 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>Eligibility Verification Dispatch Letter</title>
+    <title>Dispatch Letter</title>
     <style>
+        @page {
+            margin: 48mm 15mm 15mm 15mm;
+        }
+        header {
+            position: fixed;
+            top: -44mm;
+            left: 0mm;
+            right: 0mm;
+            height: 40mm;
+            text-align: center;
+        }
         body {
             font-family: 'Helvetica', 'Arial', sans-serif;
-            font-size: 11pt;
-            line-height: 1.5;
+            font-size: 8.5pt;
+            line-height: 1.25;
             color: #000;
             margin: 0;
-            padding: 20px;
+            padding: 0;
         }
-        .header-table {
+        table {
+            border-collapse: collapse;
+        }
+        .ref-table {
             width: 100%;
-            border-bottom: 2px solid #000;
-            padding-bottom: 10px;
-            margin-bottom: 20px;
+            font-size: 8.5pt;
+            margin-bottom: 6px;
         }
-        .title {
-            font-size: 14pt;
-            font-weight: bold;
+        .address-block {
+            font-size: 8.5pt;
+            line-height: 1.3;
+            margin-bottom: 6px;
+        }
+        .subject-block {
             text-align: center;
-            text-transform: uppercase;
+            font-size: 8.5pt;
+            margin-top: 4px;
+            margin-bottom: 6px;
         }
-        .subtitle {
-            font-size: 10pt;
-            text-align: center;
+        .salutation {
+            font-size: 8.5pt;
+            margin-bottom: 4px;
         }
-        .ref-date-box {
-            text-align: right;
-            margin-bottom: 15px;
-            line-height: 1.4;
-        }
-        .address-box {
-            margin-top: 15px;
-            margin-bottom: 15px;
-            word-wrap: break-word;
-            overflow-wrap: break-word;
-            word-break: break-word;
-            white-space: normal;
-            line-height: 1.4;
-        }
-        .subject {
-            font-weight: bold;
-            margin-top: 15px;
-            margin-bottom: 15px;
-            text-decoration: underline;
-            text-align: center;
-        }
-        .content {
+        .para {
+            text-indent: 30px;
             text-align: justify;
-            margin-bottom: 15px;
+            margin-bottom: 4px;
+            line-height: 1.25;
+            font-size: 8.5pt;
         }
-        .student-table {
+        .cand-table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 15px;
-            margin-bottom: 20px;
+            margin-top: 6px;
+            margin-bottom: 6px;
+            font-size: 8.5pt;
         }
-        .student-table th, .student-table td {
+        .cand-table th, .cand-table td {
             border: 1px solid #000;
-            padding: 6px 8px;
-            font-size: 10pt;
-            text-align: left;
+            padding: 2.5px 4px;
+            font-size: 8.5pt;
+            vertical-align: middle;
         }
-        .student-table th {
-            background-color: #f2f2f2;
+        .cand-table th {
             font-weight: bold;
-        }
-        .footer-sig {
-            margin-top: 40px;
-            float: right;
             text-align: center;
-            width: 250px;
+            line-height: 1.15;
+        }
+        .cand-table td {
+            line-height: 1.15;
+        }
+        .closing-block {
+            margin-top: 6px;
+            font-size: 8.5pt;
+        }
+        .sig-table {
+            width: 100%;
+            margin-top: 12px;
+            font-size: 8.5pt;
         }
     </style>
 </head>
 <body>
 
-    @if (!empty($instituteLogoPath) && empty($instituteLetterheadPath) && file_exists($instituteLogoPath))
-        <div style="text-align: center; margin-bottom: 8px;">
-            <img src="{{ $instituteLogoPath }}" style="max-height: 60px;">
-        </div>
-    @endif
-    <table class="header-table">
-        @if (!empty($instituteLetterheadPath) && file_exists($instituteLetterheadPath))
-            <tr>
-                <td style="text-align: center; padding: 0;">
-                    <img src="{{ $instituteLetterheadPath }}" style="width: 100%; max-width: 100%; height: auto; display: block;">
-                </td>
-            </tr>
-        @else
-            <tr>
-                <td class="title">{{ $instituteUniversityTitle ?? 'UNIVERSITY OF MUMBAI' }}</td>
-            </tr>
-            <tr>
-                <td class="subtitle">{{ $instituteName ?? 'INSTITUTE OF DISTANCE AND OPEN LEARNING (IDOL)' }}</td>
-            </tr>
-            <tr>
-                <td class="subtitle">{!! nl2br(e($instituteAddress ?? 'Dr. Shankar Dayal Sharma Bhavan, Vidyanagari, Santacruz (E), Mumbai - 400 098.')) !!}</td>
-            </tr>
-        @endif
+    <header>
+        <img src="{{ public_path('img/esection_header.jpg') }}" style="width: 100%; height: auto;">
+    </header>
+
+    <table class="ref-table">
+        <tr>
+            <td style="width: 55%;"></td>
+            <td style="width: 45%; text-align: left;">
+                No. IDOL/Eligib/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/{{ $currentTime }}<br>
+                Date :
+            </td>
+        </tr>
     </table>
 
-    <div class="ref-date-box">
-        <strong>Ref. No.:</strong> IDOL/Eligibility/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/{{ $arraySpace }}<br>
-        <strong>Date :</strong> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-    </div>
-
-    <div class="address-box">
-        <strong>To,</strong><br>
-        @if (!empty($firstRow['university_name']))
-            <strong>{{ $firstRow['university_name'] }}</strong><br>
-        @elseif (!empty($firstRow['to_name']))
-            <strong>{{ $firstRow['to_name'] }}</strong><br>
+    <div class="address-block">
+        To,<br>
+        <b>{{ $firstRow['to_name'] }}</b><br>
+        @if(!empty($firstRow['university_name']))
+            {{ $firstRow['university_name'] }}<br>
         @endif
-        <div style="word-wrap: break-word; overflow-wrap: break-word; word-break: break-word; white-space: normal;">
-            {!! nl2br(e($firstRow['address'] ?? ($firstRow['clg_add'] ?? ''))) !!}
-        </div>
+        {!! nl2br(e($firstRow['address'])) !!}
     </div>
 
-    <div class="subject">
-        Subject: {!! $subject ?? 'Verification of Statement of Marks / Passing Certificates of students admitted in IDOL' !!}
+    <div class="subject-block">
+        <b>Sub - :</b> Verification of Document/s for the academic year <b>{{ $academic_year }}.</b>
     </div>
 
-    <div class="content">
-        {!! $body ?? 'With reference to the subject cited above, the following candidate(s) have been admitted to the program mentioned below. Kindly verify and confirm the authenticity of their educational documents issued by your institution.' !!}
+    <div class="salutation">
+        <b>Sir/Madam,</b>
     </div>
 
-    <table class="student-table">
+    <div class="para">
+        University of Mumbai has decided to verify the document/s of the student/s who have taken admission in our <b>Institue of Distance and Open Learning,</b> University of Mumbai, on the basis of earlier qualification.
+    </div>
+    <div class="para">
+        The following student/s has /have taken admission in the University of Mumbai as the/their details mentioned below. I am enclosing here with xerox copy/copies of the marksheet/s for your ready reference.
+    </div>
+
+    <table class="cand-table">
         <thead>
             <tr>
-                <th style="width: 30px;">Sr.</th>
-                <th>Candidate Full Name</th>
-                <th>Eligibility Case No.</th>
-                <th>Admission Taken in IDOL</th>
-                <th>Verification Done By You</th>
+                <th style="width: 25px;"><b><br/>No</b></th>
+                <th style="width: 180px;"><b><br/>Name of Students</b></th>
+                <th style="width: 100px;"><b>Eligibility<br/>Case<br/>No.</b></th>
+                <th style="width: 90px;"><b>Admission<br/>takenin<br/>IDOL</b></th>
+                <th style="width: 95px;"><b>Verification of<br/>marksheet to be<br/>done by you.</b></th>
             </tr>
         </thead>
         <tbody>
-            @foreach ($students as $index => $s)
+            @foreach ($students as $idx => $s)
+                @php
+                    $displayName = (!empty($s->student_nee_name) && $s->student_nee_name !== '-' && strpos($s->student_nee_name, '-') === false) ? $s->student_nee_name : $s->student_name;
+                @endphp
                 <tr>
-                    <td>{{ $index + 1 }}</td>
-                    <td><strong>{{ $s->student_name }}</strong></td>
-                    <td>{{ $s->eligibility_case_no }}</td>
-                    <td>{{ $s->admission_taken_in ?? '-' }}</td>
-                    <td>{{ $s->verification_of_marksheet_done_by_you ?: 'Marksheet Verification' }}</td>
+                    <td align="center" style="width: 25px;">{{ $idx + 1 }}</td>
+                    <td style="width: 180px;">{{ $displayName }}</td>
+                    <td align="center" style="width: 100px;">{{ $s->eligibility_case_no }}</td>
+                    <td align="center" style="width: 90px;">{{ $s->admission_taken_in }}</td>
+                    <td align="center" style="width: 95px;">{{ $s->verification_of_marksheet_done_by_you }}</td>
                 </tr>
             @endforeach
         </tbody>
     </table>
 
-    <div class="content">
-        {!! $closing ?? 'The verification report may kindly be sent to this office at an early date to regularize their admission.' !!}
+    <div class="closing-block">
+        <div class="para" style="margin-bottom: 2px;">
+            You are requestd to kindly verify the/their marksheet/s and confirm the validity of the same.
+            @if(!empty($fees) && $fees > 0)
+                I am also enclosing herewith a <b>D.D.</b> of <b>Rs. {{ ($fees * count($students)) }} /-</b> @ <b>Rs. {{ $fees }} /-</b> per document for the said purpose.
+            @endif
+        </div>
+        <div class="para" style="margin-bottom: 2px;">
+            I shall be grateful if you treat this matter as most urgent.
+        </div>
+        <div class="para" style="margin-bottom: 2px;">
+            Kindly mentioned the reference number and date of this letter in your further communication.
+        </div>
+        <div class="para" style="margin-bottom: 2px;">
+            Thanking you.
+        </div>
     </div>
 
-    <div class="footer-sig">
-        <br><br>
-        <strong>Yours faithfully,</strong><br><br><br>
-        @if (!empty($instituteSignatoryName))
-            <strong>{{ $instituteSignatoryName }}</strong><br>
-        @endif
-        <strong>{{ $instituteSignatoryDesignation ?? 'Deputy Registrar / Assistant Registrar' }}</strong><br>
-        {{ $footerDepartment ?? 'IDOL Eligibility Section' }}
-    </div>
+    <table class="sig-table">
+        <tr>
+            <td style="width: 50%; vertical-align: bottom;">
+                <b>Encl.:</b>
+            </td>
+            <td style="width: 50%; text-align: right; vertical-align: top;">
+                <div style="font-size: 9.5pt;">Your faithfully,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</div>
+                <div style="font-size: 9.5pt; font-weight: bold; margin-top: 8px;">
+                    Off. Superintdent<br/>(Eligib/Sch)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                </div>
+            </td>
+        </tr>
+    </table>
 
 </body>
 </html>
