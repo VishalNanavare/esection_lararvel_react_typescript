@@ -608,17 +608,20 @@ class SettingsController extends Controller
             'full_name' => 'nullable|string|max:100',
             'email' => 'nullable|email|max:100',
             'role' => 'required|in:admin,staff',
-            'password' => 'required|string|min:8|max:10',
+            'password' => 'required|string|min:6|max:64',
             'pages' => 'nullable|array',
             'pages.*' => 'string',
         ]);
+
+        $hashedPassword = Hash::make($validated['password']);
 
         $user = User::create([
             'username' => $validated['username'],
             'full_name' => $validated['full_name'] ?? '',
             'email' => $validated['email'] ?? '',
             'role' => $validated['role'],
-            'password' => Hash::make($validated['password']),
+            'password' => $hashedPassword,
+            'password_hash' => $hashedPassword,
             'is_active' => true,
         ]);
 
@@ -635,15 +638,7 @@ class SettingsController extends Controller
             }
         }
 
-        ActivityLog::create([
-            'user_id' => Auth::id(),
-            'username' => Auth::user()?->username ?? 'staff',
-            'action' => 'user.create',
-            'entity_type' => 'user',
-            'entity_id' => $user->id,
-            'description' => 'Created user '.$user->username,
-            'ip_address' => $request->ip(),
-        ]);
+        ActivityLog::record('user.create', 'Created user '.$user->username, 'user', $user->id);
 
         return redirect()->back()->with('success', "Staff user '{$user->username}' created successfully.");
     }
@@ -659,7 +654,7 @@ class SettingsController extends Controller
             'full_name' => 'nullable|string|max:100',
             'email' => 'nullable|email|max:100',
             'role' => 'required|in:admin,staff',
-            'password' => 'nullable|string|min:8|max:10',
+            'password' => 'nullable|string|min:6|max:64',
             'pages' => 'nullable|array',
             'pages.*' => 'string',
         ]);
@@ -667,11 +662,13 @@ class SettingsController extends Controller
         $data = [
             'full_name' => $validated['full_name'] ?? '',
             'email' => $validated['email'] ?? '',
-            'role' => $validated['role'],
+            'role' => $user->username === 'admin' ? 'admin' : $validated['role'],
         ];
 
         if (! empty($validated['password'])) {
-            $data['password'] = Hash::make($validated['password']);
+            $hashedPassword = Hash::make($validated['password']);
+            $data['password'] = $hashedPassword;
+            $data['password_hash'] = $hashedPassword;
         }
 
         $user->update($data);
@@ -694,15 +691,7 @@ class SettingsController extends Controller
             UserPageAccess::where('user_id', $user->id)->delete();
         }
 
-        ActivityLog::create([
-            'user_id' => Auth::id(),
-            'username' => Auth::user()?->username ?? 'staff',
-            'action' => 'user.update',
-            'entity_type' => 'user',
-            'entity_id' => $user->id,
-            'description' => 'Updated user '.$user->username,
-            'ip_address' => $request->ip(),
-        ]);
+        ActivityLog::record('user.update', 'Updated user '.$user->username, 'user', $user->id);
 
         return redirect()->back()->with('success', "Staff account '{$user->username}' updated successfully.");
     }
@@ -1074,8 +1063,10 @@ class SettingsController extends Controller
             'instituteSignatoryName' => $settings['institute_signatory_name'] ?? ($settings['signatory_name'] ?? ''),
             'instituteSignatoryDesignation' => $settings['institute_signatory_designation'] ?? ($settings['signatory_designation'] ?? 'Deputy Registrar / Assistant Registrar'),
             'instituteSignatureSpaceLines' => ! empty($settings['institute_signature_space_lines']) ? (int) $settings['institute_signature_space_lines'] : 3,
-            'instituteLogoPath' => ! empty($settings['institute_logo_path']) ? public_path($settings['institute_logo_path']) : null,
-            'instituteLetterheadPath' => ! empty($settings['institute_letterhead_path']) ? public_path($settings['institute_letterhead_path']) : null,
+            'instituteLogoPath' => ! empty($settings['institute_logo_path']) ? public_path(ltrim($settings['institute_logo_path'], '/')) : null,
+            'instituteLetterheadPath' => (! empty($settings['institute_letterhead_path']) && file_exists(public_path(ltrim($settings['institute_letterhead_path'], '/'))))
+                ? public_path(ltrim($settings['institute_letterhead_path'], '/'))
+                : (file_exists(public_path('img/esection_header.jpg')) ? public_path('img/esection_header.jpg') : null),
             'footerDepartment' => $settings['footer_department'] ?? 'IDOL Eligibility Section',
         ];
 

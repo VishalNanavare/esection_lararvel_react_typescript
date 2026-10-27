@@ -159,7 +159,7 @@ export default function Users({ users, permissionGroups }: Props) {
                 full_name: fullName,
                 email,
                 role,
-                password: password || null,
+                password: password.trim() ? password : null,
                 pages: role === 'staff' ? selectedPages : [],
             }, {
                 onSuccess: () => {
@@ -310,7 +310,7 @@ export default function Users({ users, permissionGroups }: Props) {
                                 <button type="button" onClick={closeModal} className="btn-close" aria-label="Close"></button>
                             </div>
 
-                            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', flex: '1 1 auto', minHeight: 0 }}>
+                            <form onSubmit={handleSubmit} autoComplete="off" style={{ display: 'flex', flexDirection: 'column', flex: '1 1 auto', minHeight: 0 }}>
                                 <div className="modal-body p-0" style={{ display: 'flex', flex: '1 1 auto', overflow: 'hidden' }}>
                                     <div className="row g-0 w-100" style={{ flex: '1 1 auto', flexWrap: 'nowrap', margin: 0 }}>
 
@@ -328,6 +328,7 @@ export default function Users({ users, permissionGroups }: Props) {
                                                     value={username}
                                                     onChange={(e) => setUsername(e.target.value)}
                                                     disabled={isEditing}
+                                                    autoComplete="off"
                                                     required
                                                 />
                                             </div>
@@ -344,8 +345,9 @@ export default function Users({ users, permissionGroups }: Props) {
                                                         onChange={(e) => setPassword(e.target.value)}
                                                         placeholder={isEditing ? 'Leave blank to keep current password' : '••••••••'}
                                                         required={!isEditing}
-                                                        minLength={6}
-                                                        maxLength={32}
+                                                        minLength={isEditing ? (password ? 6 : undefined) : 6}
+                                                        maxLength={64}
+                                                        autoComplete="new-password"
                                                     />
                                                     <button
                                                         type="button"
@@ -355,6 +357,11 @@ export default function Users({ users, permissionGroups }: Props) {
                                                     >
                                                         <i className={`fa ${showPassword ? 'fa-eye-slash' : 'fa-eye'}`}></i>
                                                     </button>
+                                                </div>
+                                                <div className="form-text small text-muted">
+                                                    {isEditing
+                                                        ? 'Leave blank to keep current password, or enter 6-64 characters to update.'
+                                                        : 'Password must be between 6 and 64 characters.'}
                                                 </div>
                                             </div>
 

@@ -222,6 +222,45 @@ test('admin can manage staff user accounts', function () {
     expect($user->is_active)->toBeFalse();
 });
 
+test('admin can create and update users with flexible password lengths', function () {
+    // 1. Create with >10 char password (which used to fail with max:10 rule)
+    $this->actingAs($this->admin)->post('/settings/users', [
+        'username' => 'staff_flex_pass',
+        'full_name' => 'Flex Pass User',
+        'role' => 'staff',
+        'password' => 'StaffPassword@2026',
+    ])->assertRedirect();
+
+    $user = User::where('username', 'staff_flex_pass')->first();
+    expect($user)->not->toBeNull();
+    expect(Hash::check('StaffPassword@2026', $user->password))->toBeTrue();
+    expect(Hash::check('StaffPassword@2026', $user->password_hash))->toBeTrue();
+
+    // 2. Update without changing password - preserves existing password
+    $oldHash = $user->password;
+    $this->actingAs($this->admin)->put("/settings/users/{$user->id}", [
+        'full_name' => 'Flex Pass User Edited',
+        'role' => 'staff',
+        'password' => null,
+    ])->assertRedirect();
+
+    $user->refresh();
+    expect($user->full_name)->toBe('Flex Pass User Edited');
+    expect($user->password)->toBe($oldHash);
+
+    // 3. Update with new password (>10 chars) - updates both password and password_hash
+    $this->actingAs($this->admin)->put("/settings/users/{$user->id}", [
+        'full_name' => 'Flex Pass User Edited',
+        'role' => 'staff',
+        'password' => 'NewStrongPassword#2026',
+    ])->assertRedirect();
+
+    $user->refresh();
+    expect(Hash::check('NewStrongPassword#2026', $user->password))->toBeTrue();
+    expect(Hash::check('NewStrongPassword#2026', $user->password_hash))->toBeTrue();
+});
+
+
 test('admin can update document numbering prefix', function () {
     $this->actingAs($this->admin)->post('/settings/numbering', [
         'case_no_prefix' => 'IDOL-ELIG',

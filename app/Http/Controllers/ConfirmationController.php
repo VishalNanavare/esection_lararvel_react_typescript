@@ -264,7 +264,26 @@ class ConfirmationController extends Controller
             $query->where('stream', $stream);
         }
         if ($university !== '') {
-            $query->where('uni_add', 'like', "%{$university}%");
+            $matchedColleges = CollegeDetail::where('Name', 'like', "%{$university}%")->get();
+            $matchedCollegeIds = $matchedColleges->pluck('id')->map(fn ($id) => (string) $id)->toArray();
+
+            $matchedStudentIds = StudentDetail::where(function ($sq) use ($university, $matchedCollegeIds) {
+                $sq->where('clg_add', 'like', "%{$university}%");
+                if (! empty($matchedCollegeIds)) {
+                    $sq->orWhereIn('clg_add', $matchedCollegeIds);
+                }
+            })->pluck('id')->toArray();
+
+            $query->where(function ($q) use ($university, $matchedCollegeIds, $matchedStudentIds) {
+                $q->where('uni_add', 'like', "%{$university}%");
+                if (! empty($matchedCollegeIds)) {
+                    $q->orWhereIn('uni_add', $matchedCollegeIds);
+                }
+                if (! empty($matchedStudentIds)) {
+                    $q->orWhereIn('student_id', $matchedStudentIds)
+                        ->orWhereIn('name', array_map('strval', $matchedStudentIds));
+                }
+            });
         }
         if ($studentName !== '') {
             $matchedStudentIds = StudentDetail::where(function ($sq) use ($studentName) {
@@ -364,22 +383,14 @@ class ConfirmationController extends Controller
                         : null;
 
                     $displayUniversity = '';
-                    if ($student && ! empty($student->clg_add)) {
-                        if (is_numeric($student->clg_add) && isset($collegesById[(int) $student->clg_add])) {
-                            $displayUniversity = $collegesById[(int) $student->clg_add]->Name;
-                        } else {
-                            $displayUniversity = $student->clg_add;
-                        }
-                    }
-
-                    if (empty($displayUniversity) || is_numeric($displayUniversity)) {
-                        if (! empty($r->uni_add)) {
-                            if (is_numeric($r->uni_add) && isset($collegesById[(int) $r->uni_add])) {
-                                $displayUniversity = $collegesById[(int) $r->uni_add]->Name;
-                            } else {
-                                $displayUniversity = $r->uni_add;
-                            }
-                        }
+                    if (! empty($r->uni_add) && is_numeric($r->uni_add) && isset($collegesById[(int) $r->uni_add])) {
+                        $displayUniversity = $collegesById[(int) $r->uni_add]->Name;
+                    } elseif ($student && ! empty($student->clg_add) && is_numeric($student->clg_add) && isset($collegesById[(int) $student->clg_add])) {
+                        $displayUniversity = $collegesById[(int) $student->clg_add]->Name;
+                    } elseif (! empty($r->uni_add) && ! is_numeric($r->uni_add) && $r->uni_add !== '-') {
+                        $displayUniversity = $r->uni_add;
+                    } elseif ($student && ! empty($student->clg_add)) {
+                        $displayUniversity = $student->clg_add;
                     }
 
                     return [
@@ -388,6 +399,7 @@ class ConfirmationController extends Controller
                         'student_name' => $displayName,
                         'student_nee_name' => $displayNeeName,
                         'university_name' => $displayUniversity,
+                        'college_address' => $student?->clg_add ?? '',
                         'case_no' => $r->case_no,
                         'mig_tc' => $r->mig_TC,
                         'p_degree' => $r->p_degree,
@@ -401,11 +413,13 @@ class ConfirmationController extends Controller
                     ];
                 })->values()->toArray();
 
-                $batchUniv = $first?->uni_add ?? '';
-                if (is_numeric($batchUniv) && isset($collegesById[(int) $batchUniv])) {
-                    $batchUniv = $collegesById[(int) $batchUniv]->Name;
+                $batchUniv = '';
+                if (! empty($first?->uni_add) && is_numeric($first->uni_add) && isset($collegesById[(int) $first->uni_add])) {
+                    $batchUniv = $collegesById[(int) $first->uni_add]->Name;
                 } elseif (! empty($candidates[0]['university_name'])) {
                     $batchUniv = $candidates[0]['university_name'];
+                } elseif (! empty($first?->uni_add)) {
+                    $batchUniv = $first->uni_add;
                 }
 
                 return [
@@ -461,43 +475,49 @@ class ConfirmationController extends Controller
             }
         } catch (\Throwable) {}
 
-        $collegeList = $univQuery->orderBy('Name', 'asc')
-            ->get()
-            ->map(function ($col) {
-                $name = trim((string) $col->Name, " ,\t\n\r\0\x0B");
-                return [
-                    'id' => $name,
-                    'value' => $name,
-                    'label' => $name,
-                    'text' => $name,
-                ];
-            })
-            ->filter(fn ($u) => ! empty($u['value']))
+        $isMysql = in_array(\Illuminate\Support\Facades\DB::connection()->getDriverName(), ['mysql', 'mariadb']);
+
+        if ($isMysql) {
+            $univQuery->whereRaw('Name NOT REGEXP "^[0-9]+$"');
+        }
+
+        $collegeList = $univQuery->whereNotNull('Name')
+            ->where('Name', '!=', '')
+            ->where('Name', '!=', '-')
+            ->orderBy('Name', 'asc')
+            ->pluck('Name')
+            ->map(fn ($n) => trim((string) $n, " ,\t\n\r\0\x0B"))
+            ->filter(fn ($n) => ! empty($n) && ! is_numeric($n) && $n !== '-')
+            ->unique()
             ->values()
             ->toArray();
 
-        $confirmedUnivs = ConfStudData::whereNotNull('uni_add')
+        $confQuery = ConfStudData::whereNotNull('uni_add')
             ->where('uni_add', '!=', '')
+            ->where('uni_add', '!=', '-');
+
+        if ($isMysql) {
+            $confQuery->whereRaw('uni_add NOT REGEXP "^[0-9]+$"');
+        }
+
+        $confirmedUnivs = $confQuery
             ->distinct()
             ->pluck('uni_add')
-            ->map(function ($u) {
-                $name = trim((string) $u, " ,\t\n\r\0\x0B");
-                return [
-                    'id' => $name,
-                    'value' => $name,
-                    'label' => $name,
-                    'text' => $name,
-                ];
-            })
-            ->filter(fn ($u) => ! empty($u['value']))
+            ->map(fn ($n) => trim((string) $n, " ,\t\n\r\0\x0B"))
+            ->filter(fn ($n) => ! empty($n) && ! is_numeric($n) && $n !== '-')
+            ->unique()
             ->values()
             ->toArray();
 
-        $allUnivs = collect(array_merge($collegeList, $confirmedUnivs))
-            ->unique('value')
-            ->sortBy('value', SORT_NATURAL | SORT_FLAG_CASE)
-            ->values()
-            ->toArray();
+        $allUnivNames = array_values(array_unique(array_merge($collegeList, $confirmedUnivs)));
+        sort($allUnivNames, SORT_NATURAL | SORT_FLAG_CASE);
+
+        $allUnivs = array_map(fn ($name) => [
+            'id' => $name,
+            'value' => $name,
+            'label' => $name,
+            'text' => $name,
+        ], $allUnivNames);
 
         return Inertia::render('Confirmations/History', [
             'title' => 'Confirmation Batch History',

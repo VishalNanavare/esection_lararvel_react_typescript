@@ -92,7 +92,14 @@
 <body>
 
     <header>
-        <img src="{{ public_path('img/esection_header.jpg') }}" style="width: 100%; height: auto;">
+        @php
+            $headerImg = (!empty($instituteLetterheadPath) && file_exists($instituteLetterheadPath))
+                ? $instituteLetterheadPath
+                : (file_exists(public_path('img/esection_header.jpg')) ? public_path('img/esection_header.jpg') : null);
+        @endphp
+        @if($headerImg)
+            <img src="{{ $headerImg }}" style="width: 100%; height: auto;">
+        @endif
     </header>
 
     <div style="text-align: center; margin-bottom: 4px;">

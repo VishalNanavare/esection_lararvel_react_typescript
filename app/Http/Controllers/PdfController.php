@@ -99,8 +99,10 @@ class PdfController extends Controller
             'instituteSignatoryName' => $settings['institute_signatory_name'] ?? ($settings['signatory_name'] ?? ''),
             'instituteSignatoryDesignation' => $settings['institute_signatory_designation'] ?? ($settings['signatory_designation'] ?? 'Deputy Registrar / Assistant Registrar'),
             'instituteSignatureSpaceLines' => ! empty($settings['institute_signature_space_lines']) ? (int) $settings['institute_signature_space_lines'] : 3,
-            'instituteLogoPath' => ! empty($settings['institute_logo_path']) ? public_path($settings['institute_logo_path']) : null,
-            'instituteLetterheadPath' => ! empty($settings['institute_letterhead_path']) ? public_path($settings['institute_letterhead_path']) : null,
+            'instituteLogoPath' => ! empty($settings['institute_logo_path']) ? public_path(ltrim($settings['institute_logo_path'], '/')) : null,
+            'instituteLetterheadPath' => (! empty($settings['institute_letterhead_path']) && file_exists(public_path(ltrim($settings['institute_letterhead_path'], '/'))))
+                ? public_path(ltrim($settings['institute_letterhead_path'], '/'))
+                : (file_exists(public_path('img/esection_header.jpg')) ? public_path('img/esection_header.jpg') : null),
             'footerDepartment' => $settings['footer_department'] ?? 'IDOL Eligibility Section',
         ];
     }
@@ -275,16 +277,36 @@ class PdfController extends Controller
                     $r->display_name = $student->student_name . '<br/>( Nee name : ' . $student->student_nee_name . ' )';
                 }
 
-                $cid = (int) $student->clg_add;
-                if ($cid > 0) {
-                    $clg = CollegeDetail::find($cid);
-                    $r->display_university = $clg?->Name ?? ($r->uni_add ?: '');
-                } else {
-                    $r->display_university = $r->uni_add ?: ($student->clg_add ?: '');
+                $displayUni = '';
+                if (!empty($r->uni_add) && is_numeric($r->uni_add)) {
+                    $clg = CollegeDetail::find((int) $r->uni_add);
+                    if ($clg) {
+                        $displayUni = $clg->Name;
+                    }
                 }
+                if (empty($displayUni) && $student && !empty($student->clg_add) && is_numeric($student->clg_add)) {
+                    $clg = CollegeDetail::find((int) $student->clg_add);
+                    if ($clg) {
+                        $displayUni = $clg->Name;
+                    }
+                }
+                if (empty($displayUni) && !empty($r->uni_add) && !is_numeric($r->uni_add) && $r->uni_add !== '-') {
+                    $displayUni = $r->uni_add;
+                }
+                if (empty($displayUni) && $student && !empty($student->clg_add)) {
+                    $displayUni = $student->clg_add;
+                }
+                $r->display_university = $displayUni ?: ($r->uni_add ?: '');
             } else {
                 $r->display_name = $r->name;
-                $r->display_university = $r->uni_add ?: '';
+                $displayUni = '';
+                if (!empty($r->uni_add) && is_numeric($r->uni_add)) {
+                    $clg = CollegeDetail::find((int) $r->uni_add);
+                    if ($clg) {
+                        $displayUni = $clg->Name;
+                    }
+                }
+                $r->display_university = $displayUni ?: ($r->uni_add ?: '');
             }
         }
 

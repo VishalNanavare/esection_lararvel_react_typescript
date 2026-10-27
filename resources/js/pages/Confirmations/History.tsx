@@ -10,6 +10,7 @@ interface CandidateItem {
     student_name: string;
     student_nee_name: string | null;
     university_name: string;
+    college_address?: string | null;
     case_no: string | null;
     mig_tc: string | null;
     p_degree: string | null;
@@ -331,9 +332,14 @@ export const History: React.FC<HistoryProps> = ({
                                                                 )}
                                                             </td>
                                                             <td>
-                                                                <div className="text-dark" style={{ lineHeight: '1.4' }}>
+                                                                <div className="fw-semibold text-dark" style={{ lineHeight: '1.4' }}>
                                                                     {c.university_name || b.uni_add || '—'}
                                                                 </div>
+                                                                {c.college_address && c.college_address !== c.university_name && (
+                                                                    <div className="text-muted mt-0.5" style={{ fontSize: '11px', lineHeight: '1.3' }}>
+                                                                        {c.college_address.replace(/<[^>]*>?/gm, ' ').replace(/\s+/g, ' ').trim()}
+                                                                    </div>
+                                                                )}
                                                             </td>
                                                             <td className="text-center font-monospace fw-bold text-indigo">
                                                                 {c.case_no || '—'}
