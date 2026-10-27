@@ -36,7 +36,7 @@ interface CandidateRow {
     student_nee_name: string;
     eligibility_case_no: string;
     verification_of_marksheet_done_by_you: string;
-    email: string;
+    email?: string;
 }
 
 interface SheetRow {
@@ -48,7 +48,7 @@ interface SheetRow {
         student_nee_name: string;
         eligibility_case_no: string;
         verification_by_you: string;
-        email: string;
+        email?: string;
     };
 }
 
@@ -179,7 +179,6 @@ export const NewForm: React.FC<NewFormProps> = ({
     const [studNeeName, setStudNeeName] = useState('');
     const [caseNo, setCaseNo] = useState(suggestedCaseNo);
     const [verificationRemarks, setVerificationRemarks] = useState('Marksheet Verification');
-    const [studEmail, setStudEmail] = useState('');
 
     // Editing mode for a candidate
     const [editingCandidateId, setEditingCandidateId] = useState<string | null>(null);
@@ -222,7 +221,7 @@ export const NewForm: React.FC<NewFormProps> = ({
                               student_nee_name: studNeeName.trim(),
                               eligibility_case_no: caseNo.trim(),
                               verification_of_marksheet_done_by_you: verificationRemarks.trim(),
-                              email: studEmail.trim(),
+                              email: '',
                           }
                         : c
                 )
@@ -236,7 +235,7 @@ export const NewForm: React.FC<NewFormProps> = ({
                 student_nee_name: studNeeName.trim(),
                 eligibility_case_no: caseNo.trim(),
                 verification_of_marksheet_done_by_you: verificationRemarks.trim(),
-                email: studEmail.trim(),
+                email: '',
             };
             setCandidates((prev) => [...prev, newRow]);
 
@@ -255,7 +254,6 @@ export const NewForm: React.FC<NewFormProps> = ({
         // Reset single candidate input fields (keep case number updated)
         setStudName('');
         setStudNeeName('');
-        setStudEmail('');
     };
 
     const handleEditCandidate = (c: CandidateRow) => {
@@ -264,14 +262,12 @@ export const NewForm: React.FC<NewFormProps> = ({
         setStudNeeName(c.student_nee_name);
         setCaseNo(c.eligibility_case_no);
         setVerificationRemarks(c.verification_of_marksheet_done_by_you);
-        setStudEmail(c.email);
     };
 
     const handleCancelEdit = () => {
         setEditingCandidateId(null);
         setStudName('');
         setStudNeeName('');
-        setStudEmail('');
     };
 
     const handleDeleteCandidate = (id: string) => {
@@ -501,408 +497,324 @@ export const NewForm: React.FC<NewFormProps> = ({
     );
 
     return (
-        <AppLayout title="New DD / Basic Student Verification - E-Section Portal">
+        <AppLayout title="Student Details Data Form - E-Section Portal">
             <div className="row">
                 <div className="col-12">
-                    <div className="glass-card p-4 mb-4">
+                    <div className="card shadow-sm border-0 mb-4">
                         {/* Header */}
-                        <div className="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
-                            <div>
-                                <h3 className="fw-bold mb-1">
-                                    <i className="fa fa-plus-circle me-2 text-indigo"></i> New DD / Basic Student Verification
-                                </h3>
-                                <p className="text-muted small mb-0">
-                                    Create eligibility verification dispatch cases for target universities across India.
-                                </p>
-                            </div>
+                        <div className="card-header bg-white py-3 d-flex align-items-center justify-content-between border-bottom flex-wrap gap-2">
+                            <h5 className="mb-0 fw-semibold text-dark">
+                                Student Details Data Form
+                            </h5>
                             <div className="d-flex align-items-center gap-2">
-                                {features.import && can('students.import') && (
-                                    <Link href="/students/import" className="btn btn-glass">
-                                        <i className="fa fa-file-excel-o me-1"></i> Import from Excel
-                                    </Link>
-                                )}
                                 {can('students.view') && (
-                                    <Link href="/students/history" className="btn btn-glass">
+                                    <Link href="/students/history" className="btn btn-sm btn-outline-secondary">
                                         <i className="fa fa-history me-1"></i> DD View
                                     </Link>
                                 )}
-                                <span className="badge badge-glass-indigo fs-6 px-3 py-2">
+                                <span className="badge bg-light text-dark border fs-6 px-3 py-2">
                                     Batch #: <span className="fw-bold font-monospace">{common_no}</span>
                                 </span>
                             </div>
                         </div>
 
-                        {/* University & Program Details */}
-                        <div className="row g-3 mb-4 filter-panel p-3 bg-light rounded-3 border">
-                            <div className="col-md-6">
-                                <label className="form-label text-secondary small fw-semibold" htmlFor="target_university_select">
-                                    Target University Name (Live Search)
-                                </label>
-                                <Select2
-                                    id="target_university_select"
-                                    value={selectedUniversityId}
-                                    onChange={handleSelectUniversity}
-                                    options={universityOptions}
-                                    placeholder="-- Type to search & select university with fees --"
-                                    allowClear={true}
-                                />
-                            </div>
-
-                            <div className="col-md-6">
-                                <label className="form-label text-secondary small fw-semibold">
-                                    To (Addressed Authority Title)
-                                </label>
-                                <input
-                                    type="text"
-                                    className="form-control"
-                                    value={toName}
-                                    onChange={(e) => setToName(e.target.value)}
-                                    placeholder="e.g. The Controller of Examinations"
-                                />
-                            </div>
-
-                            <div className="col-md-6">
-                                <label className="form-label text-secondary small fw-semibold">
-                                    Academic Admission Year
-                                </label>
-                                <Select2
-                                    id="admission_taken_year_select"
-                                    value={admissionTakenYear}
-                                    onChange={setAdmissionTakenYear}
-                                    options={yearOptions}
-                                    placeholder="-- Select Academic Year --"
-                                    allowClear={false}
-                                />
-                            </div>
-
-                            <div className="col-md-6">
-                                <label className="form-label text-secondary small fw-semibold">
-                                    Admitted Program / Stream
-                                </label>
-                                <Select2
-                                    id="admission_taken_in_select"
-                                    value={admissionTakenIn}
-                                    onChange={setAdmissionTakenIn}
-                                    options={streamOptions}
-                                    placeholder="-- Select Academic Program --"
-                                    allowClear={false}
-                                />
-                            </div>
-
-                            <div className="col-12">
-                                <div className="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-1">
-                                    <label className="form-label text-secondary small fw-semibold mb-0">
-                                        Favoring Authority Payment Instruction (In Favour Of)
-                                    </label>
-                                    {selectedUniversityFees !== null && (
-                                        <span
-                                            id="university_fees_badge"
-                                            className={`badge ${
-                                                selectedUniversityFees && selectedUniversityFees !== '0'
-                                                    ? 'badge-glass-indigo'
-                                                    : 'bg-light text-muted border'
-                                            } px-3 py-1.5 fs-7 d-inline-flex align-items-center`}
-                                        >
-                                            <i className="fa fa-money me-1.5 text-indigo"></i>
-                                            University Verification Fee:{' '}
-                                            <strong className="ms-1 font-monospace">
-                                                {selectedUniversityFees && selectedUniversityFees !== '0'
-                                                    ? `₹${selectedUniversityFees}`
-                                                    : 'Nil / Not Set'}
-                                            </strong>
-                                        </span>
-                                    )}
-                                </div>
-                                <div className="input-group">
-                                    <span className="input-group-text bg-white">
-                                        <i className="fa fa-university text-muted"></i>
-                                    </span>
-                                    <input
-                                        type="text"
-                                        className="form-control"
-                                        value={inFavourOf}
-                                        onChange={(e) => setInFavourOf(e.target.value)}
-                                        placeholder="Auto-populated payment title"
-                                    />
-                                    {selectedUniversityFees !== null && (
-                                        <span
-                                            className={`input-group-text ${
-                                                selectedUniversityFees && selectedUniversityFees !== '0'
-                                                    ? 'bg-indigo-subtle text-indigo fw-bold'
-                                                    : 'bg-light text-muted'
-                                            }`}
-                                            title="Applicable university verification fee"
-                                        >
-                                            {selectedUniversityFees && selectedUniversityFees !== '0'
-                                                ? `Fee: ₹${selectedUniversityFees}`
-                                                : 'Fee: —'}
-                                        </span>
-                                    )}
-                                </div>
-                                {selectedUniversityFees !== null && (
-                                    <div className="mt-1 d-flex align-items-center gap-2">
-                                        <small className="text-muted">
-                                            <i className="fa fa-info-circle me-1"></i>
-                                            Official DD / payment instruction required by target university.{' '}
-                                            {selectedUniversityFees && selectedUniversityFees !== '0' ? (
-                                                <>
-                                                    Verification fee of{' '}
-                                                    <strong className="text-dark">₹{selectedUniversityFees}</strong> applies per candidate.
-                                                </>
-                                            ) : (
-                                                'No verification fee configured for this institution.'
-                                            )}
-                                        </small>
+                        <div className="card-body p-4">
+                            {/* Top 2-Column Form matching old new_form.php */}
+                            <div className="row g-3 mb-4">
+                                {/* Left Column: To : & Choose University Address : */}
+                                <div className="col-lg-6">
+                                    <div className="mb-3">
+                                        <label className="form-label fw-semibold text-secondary small">
+                                            To :
+                                        </label>
+                                        <input
+                                            type="text"
+                                            className="form-control"
+                                            value={toName}
+                                            onChange={(e) => setToName(e.target.value)}
+                                            placeholder="Enter To : "
+                                        />
                                     </div>
-                                )}
+
+                                    <div className="mb-2">
+                                        <label className="form-label fw-semibold text-secondary small" htmlFor="target_university_select">
+                                            Choose University Address :
+                                        </label>
+                                        <Select2
+                                            id="target_university_select"
+                                            value={selectedUniversityId}
+                                            onChange={handleSelectUniversity}
+                                            options={universityOptions}
+                                            placeholder="Select University Name"
+                                            allowClear={true}
+                                        />
+                                        {selectedUniversityFees !== null && (
+                                            <h6 className="text-success small fw-semibold mt-2 mb-0">
+                                                Fees : {selectedUniversityFees && selectedUniversityFees !== '0' ? selectedUniversityFees : '0'}
+                                                {clgAdd ? ` | ${clgAdd.split('\n')[0]}` : ''}
+                                            </h6>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Right Column: Admission Taken Year & Admission Taken In */}
+                                <div className="col-lg-6">
+                                    <div className="mb-3">
+                                        <label className="form-label fw-semibold text-secondary small">
+                                            Admission Taken Year
+                                        </label>
+                                        <Select2
+                                            id="admission_taken_year_select"
+                                            value={admissionTakenYear}
+                                            onChange={setAdmissionTakenYear}
+                                            options={yearOptions}
+                                            placeholder="Select Admission Taken Year"
+                                            allowClear={false}
+                                        />
+                                    </div>
+
+                                    <div className="mb-3">
+                                        <label className="form-label fw-semibold text-secondary small">
+                                            Admission Taken In
+                                        </label>
+                                        <Select2
+                                            id="admission_taken_in_select"
+                                            value={admissionTakenIn}
+                                            onChange={setAdmissionTakenIn}
+                                            options={streamOptions}
+                                            placeholder="Select Admission Taken In"
+                                            allowClear={false}
+                                        />
+                                    </div>
+                                </div>
                             </div>
 
-                            <div className="col-12">
-                                <label className="form-label text-secondary small fw-semibold">
-                                    Full Postal Address
-                                </label>
-                                <textarea
-                                    className="form-control"
-                                    rows={2}
-                                    value={clgAdd}
-                                    onChange={(e) => setClgAdd(e.target.value)}
-                                    placeholder="University full postal address"
-                                ></textarea>
-                            </div>
-                        </div>
+                            <hr className="my-4" />
 
-                        {/* Candidate Input Entry Panel */}
-                        <div className="p-3 mb-4 rounded-3 border bg-white shadow-sm">
-                            <h5 className="fw-bold mb-3">
-                                <i className="fa fa-user-plus me-2 text-emerald"></i>{' '}
-                                {editingCandidateId ? 'Edit Candidate Details' : 'Add Candidate to Batch Dispatch'}
-                            </h5>
-                            <div className="row g-3">
-                                <div className="col-sm-6 col-lg-3">
-                                    <label className="form-label small text-muted">Student Full Name *</label>
-                                    <input
-                                        type="text"
-                                        className="form-control"
-                                        placeholder="Student Full Name"
-                                        value={studName}
-                                        onChange={(e) => setStudName(e.target.value)}
-                                    />
-                                </div>
-                                <div className="col-sm-6 col-lg-3">
-                                    <label className="form-label small text-muted">Nee / Maiden Name</label>
-                                    <input
-                                        type="text"
-                                        className="form-control"
-                                        placeholder="Nee / Maiden Name (Optional)"
-                                        value={studNeeName}
-                                        onChange={(e) => setStudNeeName(e.target.value)}
-                                    />
-                                </div>
-                                <div className="col-sm-6 col-lg-3">
-                                    <label className="form-label small text-muted">Eligibility Case No. *</label>
-                                    <input
-                                        type="text"
-                                        className="form-control font-monospace"
-                                        placeholder="Eligibility Case No."
-                                        value={caseNo}
-                                        onChange={(e) => setCaseNo(e.target.value)}
-                                    />
-                                </div>
-                                <div className="col-sm-6 col-lg-3">
-                                    <label className="form-label small text-muted">Verification Remarks</label>
-                                    <input
-                                        type="text"
-                                        className="form-control"
-                                        placeholder="Verification Remarks"
-                                        value={verificationRemarks}
-                                        onChange={(e) => setVerificationRemarks(e.target.value)}
-                                    />
-                                </div>
-                                <div className="col-sm-6 col-lg-3">
-                                    <label className="form-label small text-muted">Email (Optional)</label>
-                                    <input
-                                        type="email"
-                                        className="form-control"
-                                        placeholder="Email (Optional)"
-                                        value={studEmail}
-                                        onChange={(e) => setStudEmail(e.target.value)}
-                                    />
-                                </div>
-                                <div className="col-12 text-end d-flex justify-content-end align-items-end gap-2">
-                                    <button
-                                        type="button"
-                                        className="btn btn-glass"
-                                        id="btn_open_candidate_sheet"
-                                        onClick={handleOpenExcelModal}
-                                    >
-                                        <i className="fa fa-file-excel-o me-1 text-emerald"></i> Fill from Excel
-                                    </button>
-                                    {editingCandidateId && (
+                            {/* Candidate Input Entry Panel */}
+                            <div className="p-3 mb-4 rounded-3 border bg-light bg-opacity-50">
+                                <div className="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+                                    <h5 className="fw-bold mb-0 text-dark">
+                                        Student <b>Details</b>
+                                    </h5>
+                                    <div className="d-flex align-items-center gap-2">
                                         <button
                                             type="button"
-                                            className="btn btn-glass text-muted"
-                                            onClick={handleCancelEdit}
+                                            className="btn btn-primary btn-sm"
+                                            id="btn_open_candidate_sheet"
+                                            onClick={handleOpenExcelModal}
                                         >
-                                            <i className="fa fa-times me-1"></i> Cancel Edit
+                                            <i className="fa fa-file-excel-o me-1"></i> Student Data Upload
                                         </button>
+                                    </div>
+                                </div>
+
+                                <div className="row g-3 align-items-end">
+                                    <div className="col-sm-6 col-lg-3">
+                                        <label className="form-label small text-secondary fw-semibold">Student Name *</label>
+                                        <input
+                                            type="text"
+                                            className="form-control"
+                                            placeholder="Student Name"
+                                            value={studName}
+                                            onChange={(e) => setStudName(e.target.value)}
+                                        />
+                                    </div>
+                                    <div className="col-sm-6 col-lg-3">
+                                        <label className="form-label small text-secondary fw-semibold">Nee Name</label>
+                                        <input
+                                            type="text"
+                                            className="form-control"
+                                            placeholder="Nee Name"
+                                            value={studNeeName}
+                                            onChange={(e) => setStudNeeName(e.target.value)}
+                                        />
+                                    </div>
+                                    <div className="col-sm-6 col-lg-3">
+                                        <label className="form-label small text-secondary fw-semibold">E Case No. *</label>
+                                        <input
+                                            type="text"
+                                            className="form-control font-monospace"
+                                            placeholder="E Case No."
+                                            value={caseNo}
+                                            onChange={(e) => setCaseNo(e.target.value)}
+                                        />
+                                    </div>
+                                    <div className="col-sm-6 col-lg-3">
+                                        <label className="form-label small text-secondary fw-semibold">Verfiy By You</label>
+                                        <input
+                                            type="text"
+                                            className="form-control"
+                                            placeholder="Verfiy By You"
+                                            value={verificationRemarks}
+                                            onChange={(e) => setVerificationRemarks(e.target.value)}
+                                        />
+                                    </div>
+
+                                    <div className="col-12 text-end d-flex justify-content-end align-items-center gap-2 mt-2">
+                                        {editingCandidateId && (
+                                            <button
+                                                type="button"
+                                                className="btn btn-outline-secondary btn-sm"
+                                                onClick={handleCancelEdit}
+                                            >
+                                                <i className="fa fa-times me-1"></i> Cancel Edit
+                                            </button>
+                                        )}
+                                        <button
+                                            type="button"
+                                            className="btn btn-info text-white btn-sm px-3"
+                                            onClick={handleAddOrUpdateCandidate}
+                                        >
+                                            <i className="fa fa-plus me-1"></i>{' '}
+                                            {editingCandidateId ? 'Update Candidate' : 'Add New'}
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Table Controls */}
+                            <div className="d-flex flex-wrap gap-3 align-items-center justify-content-between mb-3">
+                                <div className="d-flex align-items-center gap-2" style={{ maxWidth: '350px' }}>
+                                    <div className="input-group input-group-sm">
+                                        <span className="input-group-text bg-white border-end-0">
+                                            <i className="fa fa-search text-muted"></i>
+                                        </span>
+                                        <input
+                                            type="text"
+                                            className="form-control border-start-0"
+                                            placeholder="Filter by student name..."
+                                            value={filterQuery}
+                                            onChange={(e) => setFilterQuery(e.target.value)}
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="d-flex align-items-center gap-2">
+                                    {selectedIds.length > 0 && (
+                                        <span className="badge bg-primary px-3 py-2">
+                                            {selectedIds.length} Selected
+                                        </span>
                                     )}
                                     <button
                                         type="button"
-                                        className="btn btn-emerald"
-                                        onClick={handleAddOrUpdateCandidate}
+                                        className="btn btn-sm btn-outline-danger"
+                                        disabled={selectedIds.length === 0}
+                                        onClick={handleBulkDelete}
                                     >
-                                        <i className="fa fa-plus me-1"></i>{' '}
-                                        {editingCandidateId ? 'Save Candidate' : 'Add Candidate to List'}
+                                        <i className="fa fa-trash me-1"></i> Remove Selected
                                     </button>
                                 </div>
                             </div>
-                        </div>
 
-                        {/* Table Controls */}
-                        <div className="d-flex flex-wrap gap-3 align-items-center justify-content-between mb-3">
-                            <div className="d-flex align-items-center gap-2" style={{ maxWidth: '350px' }}>
-                                <div className="input-group">
-                                    <span className="input-group-text bg-white border-end-0">
-                                        <i className="fa fa-search text-muted"></i>
-                                    </span>
-                                    <input
-                                        type="text"
-                                        className="form-control border-start-0"
-                                        placeholder="Filter by candidate name..."
-                                        value={filterQuery}
-                                        onChange={(e) => setFilterQuery(e.target.value)}
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="d-flex align-items-center gap-2">
-                                {selectedIds.length > 0 && (
-                                    <span className="badge badge-glass-indigo px-3 py-2">
-                                        {selectedIds.length} Selected
-                                    </span>
-                                )}
-                                <button
-                                    type="button"
-                                    className="btn btn-sm btn-glass text-danger"
-                                    disabled={selectedIds.length === 0}
-                                    onClick={handleBulkDelete}
-                                >
-                                    <i className="fa fa-trash me-1"></i> Remove Selected
-                                </button>
-                            </div>
-                        </div>
-
-                        {/* Candidates Table */}
-                        <div className="table-responsive mb-4 rounded-3 border" style={{ maxHeight: '420px', overflowY: 'auto' }}>
-                            <table className="table table-glass align-middle mb-0">
-                                <thead className="table-light sticky-top">
-                                    <tr>
-                                        <th style={{ width: '40px' }}>
-                                            <input
-                                                type="checkbox"
-                                                className="form-check-input"
-                                                checked={
-                                                    filteredCandidates.length > 0 &&
-                                                    selectedIds.length === filteredCandidates.length
-                                                }
-                                                onChange={handleSelectAll}
-                                            />
-                                        </th>
-                                        <th style={{ width: '50px' }}>#</th>
-                                        <th>Student Full Name</th>
-                                        <th>Nee / Maiden Name</th>
-                                        <th>Eligibility Case No.</th>
-                                        <th>Verification Remarks</th>
-                                        <th>Email</th>
-                                        <th className="text-end">Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {filteredCandidates.length === 0 ? (
+                            {/* Candidates Table matching old new_form.php columns */}
+                            <div className="table-responsive mb-4 rounded-3 border" style={{ maxHeight: '420px', overflowY: 'auto' }}>
+                                <table className="table table-bordered table-hover align-middle mb-0" id="student-list">
+                                    <thead className="table-light sticky-top">
                                         <tr>
-                                            <td colSpan={8} className="text-center text-muted py-5">
-                                                No candidates added to this batch yet. Use the form above to add students.
-                                            </td>
+                                            <th style={{ width: '40px' }} className="text-center">
+                                                <input
+                                                    type="checkbox"
+                                                    className="form-check-input"
+                                                    checked={
+                                                        filteredCandidates.length > 0 &&
+                                                        selectedIds.length === filteredCandidates.length
+                                                    }
+                                                    onChange={handleSelectAll}
+                                                />
+                                            </th>
+                                            <th style={{ width: '50px' }}>#</th>
+                                            <th>Student Name</th>
+                                            <th>Nee Name</th>
+                                            <th>E Case No.</th>
+                                            <th>Verfiy By You</th>
+                                            <th className="text-end" style={{ width: '100px' }}>Actions</th>
                                         </tr>
-                                    ) : (
-                                        filteredCandidates.map((c, idx) => (
-                                            <tr
-                                                key={c.id}
-                                                className={
-                                                    editingCandidateId === c.id
-                                                        ? 'table-success'
-                                                        : selectedIds.includes(c.id)
-                                                        ? 'table-primary'
-                                                        : ''
-                                                }
-                                            >
-                                                <td>
-                                                    <input
-                                                        type="checkbox"
-                                                        className="form-check-input"
-                                                        checked={selectedIds.includes(c.id)}
-                                                        onChange={() => handleToggleSelect(c.id)}
-                                                    />
-                                                </td>
-                                                <td className="fw-semibold text-muted">
-                                                    {String(idx + 1).padStart(2, '0')}
-                                                </td>
-                                                <td className="fw-bold text-dark">{c.student_name}</td>
-                                                <td className="text-muted">{c.student_nee_name || '—'}</td>
-                                                <td>
-                                                    <span className="font-monospace fw-semibold text-indigo">
-                                                        {c.eligibility_case_no}
-                                                    </span>
-                                                </td>
-                                                <td>{c.verification_of_marksheet_done_by_you || '—'}</td>
-                                                <td className="small text-muted">{c.email || '—'}</td>
-                                                <td className="text-end">
-                                                    <button
-                                                        type="button"
-                                                        className="btn btn-sm btn-glass text-indigo me-1"
-                                                        onClick={() => handleEditCandidate(c)}
-                                                        title="Edit Candidate"
-                                                    >
-                                                        <i className="fa fa-pencil"></i>
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        className="btn btn-sm btn-glass text-danger"
-                                                        onClick={() => handleDeleteCandidate(c.id)}
-                                                        title="Remove Candidate"
-                                                    >
-                                                        <i className="fa fa-trash"></i>
-                                                    </button>
+                                    </thead>
+                                    <tbody>
+                                        {filteredCandidates.length === 0 ? (
+                                            <tr>
+                                                <td colSpan={7} className="text-center text-muted py-4">
+                                                    No students added to this batch yet.
                                                 </td>
                                             </tr>
-                                        ))
+                                        ) : (
+                                            filteredCandidates.map((c, idx) => (
+                                                <tr
+                                                    key={c.id}
+                                                    className={
+                                                        editingCandidateId === c.id
+                                                            ? 'table-warning'
+                                                            : selectedIds.includes(c.id)
+                                                            ? 'table-primary'
+                                                            : ''
+                                                    }
+                                                >
+                                                    <td className="text-center">
+                                                        <input
+                                                            type="checkbox"
+                                                            className="form-check-input"
+                                                            checked={selectedIds.includes(c.id)}
+                                                            onChange={() => handleToggleSelect(c.id)}
+                                                        />
+                                                    </td>
+                                                    <td className="fw-semibold text-muted">
+                                                        {String(idx + 1).padStart(2, '0')}
+                                                    </td>
+                                                    <td className="fw-bold text-dark">{c.student_name}</td>
+                                                    <td className="text-muted">{c.student_nee_name || '-'}</td>
+                                                    <td>
+                                                        <span className="font-monospace fw-semibold text-primary">
+                                                            {c.eligibility_case_no}
+                                                        </span>
+                                                    </td>
+                                                    <td>{c.verification_of_marksheet_done_by_you || '—'}</td>
+                                                    <td className="text-end">
+                                                        <button
+                                                            type="button"
+                                                            className="btn btn-sm btn-link text-warning p-1 me-2"
+                                                            onClick={() => handleEditCandidate(c)}
+                                                            title="Edit"
+                                                        >
+                                                            <i className="fa fa-pencil fs-6"></i>
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            className="btn btn-sm btn-link text-danger p-1"
+                                                            onClick={() => handleDeleteCandidate(c.id)}
+                                                            title="Delete"
+                                                        >
+                                                            <i className="fa fa-trash fs-6"></i>
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            ))
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            {/* Footer Actions */}
+                            <div className="d-flex justify-content-between align-items-center pt-3 border-top">
+                                <Link href="/dashboard" className="btn btn-outline-secondary">
+                                    <i className="fa fa-arrow-left me-1"></i> Back to Dashboard
+                                </Link>
+
+                                <button
+                                    type="button"
+                                    className="btn btn-primary px-4 py-2"
+                                    onClick={handleSaveBatch}
+                                    disabled={isSubmittingBatch || candidates.length === 0}
+                                >
+                                    {isSubmittingBatch ? (
+                                        <>
+                                            <i className="fa fa-spinner fa-spin me-2"></i> Creating PDF...
+                                        </>
+                                    ) : (
+                                        'Create PDF'
                                     )}
-                                </tbody>
-                            </table>
-                        </div>
-
-                        {/* Footer Actions */}
-                        <div className="d-flex justify-content-between align-items-center pt-3 border-top">
-                            <Link href="/dashboard" className="btn btn-glass">
-                                <i className="fa fa-arrow-left me-1"></i> Back to Dashboard
-                            </Link>
-
-                            <button
-                                type="button"
-                                className="btn btn-indigo px-4 py-2"
-                                onClick={handleSaveBatch}
-                                disabled={isSubmittingBatch || candidates.length === 0}
-                            >
-                                {isSubmittingBatch ? (
-                                    <>
-                                        <i className="fa fa-spinner fa-spin me-2"></i> Saving Dispatch Case...
-                                    </>
-                                ) : (
-                                    <>
-                                        <i className="fa fa-file-pdf-o me-2"></i> Create PDF &amp; Save Dispatch Case
-                                    </>
-                                )}
-                            </button>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -937,39 +849,36 @@ export const NewForm: React.FC<NewFormProps> = ({
                                 {excelStep === 'pick' ? (
                                     <div id="sheet_step_pick">
                                         <p className="text-muted small">
-                                            Upload an <strong>.xlsx</strong> file whose first sheet has these five columns, in this order.
+                                            Upload an <strong>.xlsx</strong> file whose first sheet has these four columns, in this order.
                                             The heading row is ignored, so name the headings whatever you like.
                                         </p>
 
                                         <div className="table-responsive mb-3">
-                                            <table className="table table-sm table-glass mb-0">
-                                                <thead>
+                                            <table className="table table-sm table-bordered mb-0">
+                                                <thead className="table-light">
                                                     <tr>
                                                         <th>A</th>
                                                         <th>B</th>
                                                         <th>C</th>
                                                         <th>D</th>
-                                                        <th>E</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
                                                     <tr>
                                                         <td>
-                                                            Candidate name <span className="badge badge-glass-indigo">required</span>
+                                                            Student Name <span className="badge bg-primary">required</span>
                                                         </td>
-                                                        <td>Nee / maiden name</td>
+                                                        <td>Nee Name</td>
                                                         <td>
-                                                            Eligibility case no. <span className="badge badge-glass-indigo">required</span>
+                                                            E Case No. <span className="badge bg-primary">required</span>
                                                         </td>
-                                                        <td>Verification remarks</td>
-                                                        <td>Email</td>
+                                                        <td>Verfiy By You</td>
                                                     </tr>
                                                     <tr className="text-muted small">
                                                         <td>Priya Sharma</td>
                                                         <td>Priya Deshmukh</td>
-                                                        <td>IDOL/2026/0142</td>
+                                                        <td>CASE-2026/0142</td>
                                                         <td>Marksheet Verification</td>
-                                                        <td>priya@example.com</td>
                                                     </tr>
                                                 </tbody>
                                             </table>
@@ -989,7 +898,7 @@ export const NewForm: React.FC<NewFormProps> = ({
                                             <div className="col-sm-4 d-grid">
                                                 <button
                                                     type="button"
-                                                    className="btn btn-emerald"
+                                                    className="btn btn-primary"
                                                     id="btn_read_sheet"
                                                     onClick={handleReadSheet}
                                                     disabled={isReadingSheet || !excelFile}
@@ -1009,17 +918,17 @@ export const NewForm: React.FC<NewFormProps> = ({
 
                                         <p className="text-muted small mt-2 mb-0">
                                             Blank rows are skipped. Nothing is saved until you press{' '}
-                                            <strong>Save &amp; Generate PDF</strong> on the form behind this window.
+                                            <strong>Create PDF</strong> on the form behind this window.
                                         </p>
                                     </div>
                                 ) : (
                                     <div id="sheet_step_review">
                                         <div className="d-flex flex-wrap justify-content-between align-items-center mb-2 gap-2">
                                             <div>
-                                                <span className="badge badge-glass-emerald" id="sheet_ok_count">
+                                                <span className="badge bg-success" id="sheet_ok_count">
                                                     {sheetResult?.ok_count ?? 0} usable
                                                 </span>
-                                                <span className="badge badge-glass-danger ms-1" id="sheet_error_count">
+                                                <span className="badge bg-danger ms-1" id="sheet_error_count">
                                                     {sheetResult?.error_count ?? 0} with problems
                                                 </span>
                                                 {sheetResult?.sheet && (
@@ -1031,7 +940,7 @@ export const NewForm: React.FC<NewFormProps> = ({
                                             <div>
                                                 <button
                                                     type="button"
-                                                    className="btn btn-sm btn-glass me-1"
+                                                    className="btn btn-sm btn-outline-secondary me-1"
                                                     id="btn_sheet_select_all"
                                                     onClick={() => {
                                                         const usable =
@@ -1045,7 +954,7 @@ export const NewForm: React.FC<NewFormProps> = ({
                                                 </button>
                                                 <button
                                                     type="button"
-                                                    className="btn btn-sm btn-glass me-1"
+                                                    className="btn btn-sm btn-outline-secondary me-1"
                                                     id="btn_sheet_select_none"
                                                     onClick={() => setSelectedSheetLines([])}
                                                 >
@@ -1053,7 +962,7 @@ export const NewForm: React.FC<NewFormProps> = ({
                                                 </button>
                                                 <button
                                                     type="button"
-                                                    className="btn btn-sm btn-glass text-primary"
+                                                    className="btn btn-sm btn-outline-primary"
                                                     id="btn_sheet_back"
                                                     onClick={handleResetToPicker}
                                                 >
@@ -1069,8 +978,8 @@ export const NewForm: React.FC<NewFormProps> = ({
                                         )}
 
                                         <div className="table-responsive" style={{ maxHeight: '46vh', overflowY: 'auto' }}>
-                                            <table className="table table-sm table-glass table-sticky-id mb-0" id="sheet_preview_table">
-                                                <thead>
+                                            <table className="table table-sm table-bordered mb-0" id="sheet_preview_table">
+                                                <thead className="table-light">
                                                     <tr>
                                                         <th style={{ width: '2.5rem' }}>
                                                             <input
@@ -1096,11 +1005,10 @@ export const NewForm: React.FC<NewFormProps> = ({
                                                             />
                                                         </th>
                                                         <th style={{ width: '4rem' }}>Row</th>
-                                                        <th>Candidate name</th>
-                                                        <th>Nee / maiden</th>
-                                                        <th>Case no.</th>
-                                                        <th>Remarks</th>
-                                                        <th>Email</th>
+                                                        <th>Student Name</th>
+                                                        <th>Nee Name</th>
+                                                        <th>E Case No.</th>
+                                                        <th>Verfiy By You</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
@@ -1146,7 +1054,6 @@ export const NewForm: React.FC<NewFormProps> = ({
                                                                     )}
                                                                 </td>
                                                                 <td>{row.data.verification_by_you}</td>
-                                                                <td className="text-muted">{row.data.email || '—'}</td>
                                                             </tr>
                                                         );
                                                     })}

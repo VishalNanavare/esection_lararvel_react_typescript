@@ -78,7 +78,7 @@ class StudentController extends Controller
             });
 
         return Inertia::render('Students/NewForm', [
-            'title' => 'New DD / Basic Student Verification',
+            'title' => 'Student Details Data Form',
             'common_no' => $commonNo,
             'suggestedCaseNo' => $suggestedCaseNo,
             'academicYears' => $academicYears,
