@@ -105,10 +105,8 @@ export default function University({
 
     const hasUniversity = Boolean(university.trim() || (filters.clg_add && filters.clg_add.trim()));
 
-    // Select eligible candidates by default
-    const [selectedIds, setSelectedIds] = useState<number[]>(() => {
-        return students.data.filter((s) => s.is_eligible !== false).map((s) => s.id);
-    });
+    // Checkboxes start unchecked by default so users choose candidates explicitly
+    const [selectedIds, setSelectedIds] = useState<number[]>([]);
     const [reminderType, setReminderType] = useState('1st Reminder Notice');
     const [headName, setHeadName] = useState('');
 
@@ -243,9 +241,9 @@ export default function University({
         }
     }, []);
 
-    // Update selectedIds when student data changes
+    // Prune any selectedIds that are no longer in students data, without auto-selecting all
     useEffect(() => {
-        setSelectedIds(students.data.filter((s) => s.is_eligible !== false).map((s) => s.id));
+        setSelectedIds((prev) => prev.filter((id) => students.data.some((s) => s.id === id)));
     }, [students.data]);
 
     const handleFilter = (e?: React.FormEvent, overrideStatus?: string) => {
@@ -360,6 +358,41 @@ export default function University({
     const activeUnivName = activeUnivOption?.name || activeUnivOption?.value || university || filters.clg_add || '';
     const activeUnivFees = activeUnivOption?.fees;
 
+    // Selected candidates analysis for batch constraints
+    const selectedStudentsList = students.data.filter((s) => selectedIds.includes(s.id));
+
+    // Universities among selected candidates
+    const selectedUnivs = Array.from(
+        new Set(
+            selectedStudentsList
+                .map((s) => (s.university_name || (s.clg_add ? s.clg_add.replace(/<[^>]*>/g, '').split(/[\n,]/)[0].trim() : '')).trim())
+                .filter(Boolean)
+        )
+    );
+
+    // Courses / Programs (admission_taken_in) among selected candidates
+    const selectedCourses = Array.from(
+        new Set(
+            selectedStudentsList
+                .map((s) => (s.admission_taken_in || '').trim())
+                .filter(Boolean)
+        )
+    );
+
+    // Academic Years (admission_taken_year) among selected candidates
+    const selectedYears = Array.from(
+        new Set(
+            selectedStudentsList
+                .map((s) => (s.admission_taken_year || '').trim())
+                .filter(Boolean)
+        )
+    );
+
+    const hasUnivMismatch = selectedUnivs.length > 1;
+    const hasCourseMismatch = selectedCourses.length > 1;
+    const hasYearMismatch = selectedYears.length > 1;
+    const hasAnyMismatch = hasUnivMismatch || hasCourseMismatch || hasYearMismatch;
+
     const handleGenerateReminder = (e: React.FormEvent) => {
         e.preventDefault();
 
@@ -368,40 +401,49 @@ export default function University({
             return;
         }
 
-        const selectedStudentsList = students.data.filter((s) => selectedIds.includes(s.id));
+        // Validate constraint 1: Same University
+        if (hasUnivMismatch) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Single University Required',
+                text: `Selected candidates belong to ${selectedUnivs.length} different universities (${selectedUnivs.slice(0, 3).join(', ')}${selectedUnivs.length > 3 ? '...' : ''}). A reminder notice must be generated for only one university.`,
+            });
+            return;
+        }
 
-        // Determine target university: from filter or inferred from selected candidates
-        let targetUniv = activeUnivName.trim();
+        // Validate constraint 2: Same Course / Program
+        if (hasCourseMismatch) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Same Course / Program Required',
+                text: `Selected candidates have ${selectedCourses.length} different courses (${selectedCourses.slice(0, 3).join(', ')}${selectedCourses.length > 3 ? '...' : ''}). All candidates in a reminder notice must have the same course / program (admission taken in).`,
+            });
+            return;
+        }
+
+        // Validate constraint 3: Same Academic Year
+        if (hasYearMismatch) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Same Academic Year Required',
+                text: `Selected candidates belong to ${selectedYears.length} different academic years (${selectedYears.slice(0, 3).join(', ')}${selectedYears.length > 3 ? '...' : ''}). All candidates in a reminder notice must belong to the same academic year.`,
+            });
+            return;
+        }
+
+        let targetUniv = activeUnivName.trim() || selectedUnivs[0] || '';
         if (!targetUniv) {
-            const candidateUnivs = Array.from(
-                new Set(
-                    selectedStudentsList
-                        .map((s) => (s.university_name || s.clg_add || '').trim())
-                        .filter(Boolean)
-                )
-            );
-
-            if (candidateUnivs.length === 1) {
-                targetUniv = candidateUnivs[0];
-            } else if (candidateUnivs.length > 1) {
-                Swal.fire({
-                    icon: 'warning',
-                    title: 'Multiple Universities Selected',
-                    text: 'The selected candidates belong to different institutions (' + candidateUnivs.slice(0, 3).join(', ') + (candidateUnivs.length > 3 ? '...' : '') + '). Please select candidates from the same university or filter by Target University first.',
-                });
-                return;
-            } else {
-                Swal.fire({
-                    icon: 'warning',
-                    title: 'Target University Required',
-                    text: 'Please select a Target University before generating a reminder notice.',
-                });
-                return;
-            }
+            Swal.fire({
+                icon: 'warning',
+                title: 'Target University Required',
+                text: 'Please select a Target University before generating a reminder notice.',
+            });
+            return;
         }
 
         setIsSubmitting(true);
-        const academicYear = year || selectedStudentsList[0]?.admission_taken_year || '';
+        const academicYear = selectedYears[0] || year || selectedStudentsList[0]?.admission_taken_year || '';
+        const courseName = selectedCourses[0] || stream || selectedStudentsList[0]?.admission_taken_in || null;
 
         router.post(
             '/reminders/university',
@@ -411,7 +453,7 @@ export default function University({
                 note_date: new Date().toISOString().split('T')[0],
                 academic_year: academicYear,
                 university_name: targetUniv,
-                admission_taken_in: stream || null,
+                admission_taken_in: courseName,
                 head_name: headName || 'The Controller of Examinations',
             },
             {
@@ -903,6 +945,58 @@ export default function University({
                                     </table>
                                 </div>
 
+                                {/* Single University, Same Course, and Same Academic Year Validation Alerts */}
+                                {selectedIds.length > 0 && hasAnyMismatch && (
+                                    <div className="alert alert-danger d-flex align-items-start gap-3 p-3 mb-3 rounded-3 border-danger shadow-sm">
+                                        <i className="fa fa-exclamation-triangle fs-4 text-danger mt-1"></i>
+                                        <div className="flex-grow-1">
+                                            <strong className="d-block text-danger fs-6 mb-1">
+                                                Cannot Generate PDF: Single Batch Constraint Violated
+                                            </strong>
+                                            <p className="small mb-2 text-dark">
+                                                A reminder PDF notice can only be generated when all selected candidates belong to <strong>one University</strong>, have the <strong>same Course / Program (admission taken in)</strong>, and <strong>same Academic Year</strong>:
+                                            </p>
+                                            <ul className="small mb-2 ps-3 text-danger">
+                                                {hasUnivMismatch && (
+                                                    <li>
+                                                        <strong>Multiple Universities ({selectedUnivs.length}):</strong>{' '}
+                                                        {selectedUnivs.slice(0, 3).join(', ')}{selectedUnivs.length > 3 ? '...' : ''}
+                                                    </li>
+                                                )}
+                                                {hasCourseMismatch && (
+                                                    <li>
+                                                        <strong>Multiple Courses / Programs ({selectedCourses.length}):</strong>{' '}
+                                                        {selectedCourses.slice(0, 3).join(', ')}{selectedCourses.length > 3 ? '...' : ''}
+                                                    </li>
+                                                )}
+                                                {hasYearMismatch && (
+                                                    <li>
+                                                        <strong>Multiple Academic Years ({selectedYears.length}):</strong>{' '}
+                                                        {selectedYears.slice(0, 3).join(', ')}{selectedYears.length > 3 ? '...' : ''}
+                                                    </li>
+                                                )}
+                                            </ul>
+                                            <div className="small text-muted fst-italic">
+                                                Please uncheck mismatched candidates or use the top filters (Target University, Academic Year, and Program / Stream) to select candidates from the same batch.
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {selectedIds.length > 0 && !hasAnyMismatch && (
+                                    <div className="alert alert-success d-flex align-items-center justify-content-between p-2 px-3 mb-3 rounded-3 border-success bg-success bg-opacity-10 shadow-sm">
+                                        <div className="small text-success d-flex align-items-center gap-2">
+                                            <i className="fa fa-check-circle fs-5"></i>
+                                            <span>
+                                                <strong>Valid Batch Selection:</strong> {selectedIds.length} candidate(s) ready for{' '}
+                                                <strong>{selectedUnivs[0] || activeUnivName || 'Target University'}</strong> &bull;{' '}
+                                                <strong>{selectedCourses[0] || 'Selected Course'}</strong> &bull;{' '}
+                                                <strong>{selectedYears[0] || 'Selected Year'}</strong>
+                                            </span>
+                                        </div>
+                                    </div>
+                                )}
+
                                 <div className="d-flex align-items-center justify-content-between flex-wrap gap-2">
                                     <div className="text-muted small">
                                         Selected: <strong>{selectedIds.length}</strong> of <strong>{eligibleStudents.length}</strong> eligible candidate(s)
@@ -911,7 +1005,14 @@ export default function University({
                                     <button
                                         type="submit"
                                         className="btn btn-emerald py-2 px-4"
-                                        disabled={isSubmitting || selectedIds.length === 0}
+                                        disabled={isSubmitting || selectedIds.length === 0 || hasAnyMismatch}
+                                        title={
+                                            hasAnyMismatch
+                                                ? 'Cannot generate notice: All candidates must belong to the same university, course, and academic year'
+                                                : selectedIds.length === 0
+                                                ? 'Please select at least one candidate'
+                                                : 'Generate reminder PDF notice for selected candidates'
+                                        }
                                     >
                                         {isSubmitting ? (
                                             <>

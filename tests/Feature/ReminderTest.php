@@ -334,7 +334,7 @@ test('staff can filter university students by reminder status', function () {
     );
 });
 
-test('staff can record reminder for students across multiple academic years and courses', function () {
+test('recording reminder for students across multiple academic years and courses is rejected', function () {
     $s1 = StudentDetail::create([
         'student_name' => 'Course 1 Student',
         'eligibility_case_no' => 'CASE-P1',
@@ -360,15 +360,8 @@ test('staff can record reminder for students across multiple academic years and 
     ]);
 
     $response->assertRedirect();
-
-    $this->assertDatabaseHas('university_reminder_batches', [
-        'university_name' => 'Savitribai Phule Pune University',
-    ]);
-
-    $batch = UniversityReminderBatch::where('university_name', 'Savitribai Phule Pune University')->first();
-    expect($batch->academic_year)->toContain('2023-2024');
-    expect($batch->academic_year)->toContain('2024-2025');
-    expect($batch->admission_taken_in)->toBe('Multiple Programs (2)');
+    $response->assertSessionHas('error');
+    expect(session('error'))->toContain('Cannot generate university reminder notice');
 });
 
 test('staff can dispatch email reminder to university with candidate list and pdf notice', function () {
@@ -952,8 +945,8 @@ test('recording university reminder succeeds when all candidates belong to the s
     $s2 = StudentDetail::create([
         'student_name' => 'Same Univ Student 2',
         'eligibility_case_no' => 'SU-002',
-        'admission_taken_in' => 'M.Com',
-        'admission_taken_year' => '2023-2024',
+        'admission_taken_in' => 'B.Com',
+        'admission_taken_year' => '2024-2025',
         'clg_add' => 'Sector 7, Nerul, Navi Mumbai, Maharashtra 400706',
         'array_space' => 'batch_same_2',
     ]);
@@ -975,6 +968,78 @@ test('recording university reminder succeeds when all candidates belong to the s
     expect($batch->notes()->count())->toBe(2);
 
     expect(UniversityReminderNote::where('batch_id', $batch->id)->count())->toBe(2);
+});
+
+test('recording university reminder is rejected if candidates have different courses', function () {
+    CollegeDetail::create([
+        'Name' => 'Shivaji University, Kolhapur',
+        'Address' => 'Vidyanagar, Kolhapur, Maharashtra 416004',
+        'is_active' => true,
+    ]);
+
+    $s1 = StudentDetail::create([
+        'student_name' => 'Course Test Student 1',
+        'eligibility_case_no' => 'CR-001',
+        'admission_taken_in' => 'B.Com',
+        'admission_taken_year' => '2024-2025',
+        'clg_add' => 'Vidyanagar, Kolhapur, Maharashtra 416004',
+        'array_space' => 'batch_cr_1',
+    ]);
+
+    $s2 = StudentDetail::create([
+        'student_name' => 'Course Test Student 2',
+        'eligibility_case_no' => 'CR-002',
+        'admission_taken_in' => 'M.Com',
+        'admission_taken_year' => '2024-2025',
+        'clg_add' => 'Vidyanagar, Kolhapur, Maharashtra 416004',
+        'array_space' => 'batch_cr_2',
+    ]);
+
+    $response = $this->actingAs($this->user)->post('/reminders/university', [
+        'student_ids' => [$s1->id, $s2->id],
+        'note_text' => '1st Reminder Notice',
+        'university_name' => 'Shivaji University, Kolhapur',
+    ]);
+
+    $response->assertRedirect();
+    $response->assertSessionHas('error');
+    expect(session('error'))->toContain('All candidates in a notice must belong to the same course / program');
+});
+
+test('recording university reminder is rejected if candidates have different academic years', function () {
+    CollegeDetail::create([
+        'Name' => 'Solapur University',
+        'Address' => 'Kegaon, Solapur - Pune National Highway, Solapur, Maharashtra 413255',
+        'is_active' => true,
+    ]);
+
+    $s1 = StudentDetail::create([
+        'student_name' => 'Year Test Student 1',
+        'eligibility_case_no' => 'YR-001',
+        'admission_taken_in' => 'B.Com',
+        'admission_taken_year' => '2024-2025',
+        'clg_add' => 'Kegaon, Solapur - Pune National Highway, Solapur, Maharashtra 413255',
+        'array_space' => 'batch_yr_1',
+    ]);
+
+    $s2 = StudentDetail::create([
+        'student_name' => 'Year Test Student 2',
+        'eligibility_case_no' => 'YR-002',
+        'admission_taken_in' => 'B.Com',
+        'admission_taken_year' => '2023-2024',
+        'clg_add' => 'Kegaon, Solapur - Pune National Highway, Solapur, Maharashtra 413255',
+        'array_space' => 'batch_yr_2',
+    ]);
+
+    $response = $this->actingAs($this->user)->post('/reminders/university', [
+        'student_ids' => [$s1->id, $s2->id],
+        'note_text' => '1st Reminder Notice',
+        'university_name' => 'Solapur University',
+    ]);
+
+    $response->assertRedirect();
+    $response->assertSessionHas('error');
+    expect(session('error'))->toContain('All candidates in a notice must belong to the same academic year');
 });
 
 test('staff can filter university reminder portal by student_name', function () {

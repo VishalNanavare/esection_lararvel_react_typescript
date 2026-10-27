@@ -13,7 +13,10 @@ class UniversityReminderBatch extends Model
         'university_name',
         'admission_taken_in',
         'head_name',
+        'legacy_array_space',
         'created_by',
+        'created_at',
+        'updated_at',
         'is_consolidated',
         'consolidated_meta',
     ];

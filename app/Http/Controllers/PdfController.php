@@ -469,11 +469,17 @@ class PdfController extends Controller
         $notes = UniversityReminderNote::where('batch_id', $batchId)->orderBy('student_id')->orderBy('id')->get();
         $studentIds = $notes->pluck('student_id')->unique();
 
-        $students = StudentDetail::with('confirmation')
+        $allBatchStudents = StudentDetail::with('confirmation')
             ->whereIn('id', $studentIds)
-            ->get()
+            ->get();
+
+        $students = $allBatchStudents
             ->filter(fn ($s) => $s->isEligibleForReminder())
             ->values();
+
+        if ($students->isEmpty() && $allBatchStudents->isNotEmpty()) {
+            $students = $allBatchStudents;
+        }
 
         $allStudentNotes = UniversityReminderNote::whereIn('student_id', $students->pluck('id'))->orderBy('id')->get();
         foreach ($students as $student) {

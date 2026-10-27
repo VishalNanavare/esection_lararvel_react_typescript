@@ -257,41 +257,30 @@ class ReminderController extends Controller
         }
 
         $eligibleIds = $eligibleStudents->pluck('id')->all();
+
+        // Validate that all candidates have the same academic year
         $distinctYears = $eligibleStudents->pluck('admission_taken_year')->filter()->unique()->values();
-
-        $batchYear = ! empty($validated['academic_year']) ? trim((string) $validated['academic_year']) : null;
-        if (empty($batchYear)) {
-            if ($distinctYears->count() === 1) {
-                $batchYear = $distinctYears->first();
-            } elseif ($distinctYears->count() > 1) {
-                $batchYear = mb_substr($distinctYears->implode(', '), 0, 60);
-            } else {
-                $batchYear = date('Y').'-'.(date('Y') + 1);
-            }
+        if ($distinctYears->count() > 1) {
+            return redirect()->back()->with('error', 'Cannot generate university reminder notice: All candidates in a notice must belong to the same academic year. Selected candidates span ' . $distinctYears->count() . ' academic years: ' . $distinctYears->implode(', ') . '.');
         }
 
+        // Validate that all candidates have the same course / program
         $distinctStreams = $eligibleStudents->pluck('admission_taken_in')->filter()->unique()->values();
-        $batchStream = ! empty($validated['admission_taken_in']) ? trim((string) $validated['admission_taken_in']) : null;
-        if (empty($batchStream)) {
-            if ($distinctStreams->count() === 1) {
-                $batchStream = $distinctStreams->first();
-            } elseif ($distinctStreams->count() > 1) {
-                $batchStream = 'Multiple Programs ('.$distinctStreams->count().')';
-            }
+        if ($distinctStreams->count() > 1) {
+            return redirect()->back()->with('error', 'Cannot generate university reminder notice: All candidates in a notice must belong to the same course / program (admission taken in). Selected candidates span ' . $distinctStreams->count() . ' courses: ' . $distinctStreams->implode(', ') . '.');
         }
 
-        // Find or create batch for this (academic_year, university_name)
-        $batch = UniversityReminderBatch::firstOrCreate(
-            [
-                'academic_year' => $batchYear,
-                'university_name' => $univName,
-            ],
-            [
-                'admission_taken_in' => $batchStream,
-                'head_name' => $validated['head_name'] ?? 'The Controller of Examinations',
-                'created_by' => $username,
-            ]
-        );
+        $batchYear = $distinctYears->first() ?: (! empty($validated['academic_year']) ? trim((string) $validated['academic_year']) : date('Y').'-'.(date('Y') + 1));
+        $batchStream = $distinctStreams->first() ?: (! empty($validated['admission_taken_in']) ? trim((string) $validated['admission_taken_in']) : null);
+
+        // Create new batch for this reminder event
+        $batch = UniversityReminderBatch::create([
+            'academic_year' => $batchYear,
+            'university_name' => $univName,
+            'admission_taken_in' => $batchStream,
+            'head_name' => $validated['head_name'] ?? 'The Controller of Examinations',
+            'created_by' => $username,
+        ]);
 
         $noteDate = ! empty($validated['note_date']) ? $validated['note_date'] : date('Y-m-d');
 
@@ -326,8 +315,14 @@ class ReminderController extends Controller
      */
     public function universityHistory(Request $request): Response
     {
+        // Auto self-heal: if university_reminder_batches is empty and rem_db has data, sync automatically
+        if (UniversityReminderBatch::count() === 0 && Schema::hasTable('rem_db') && DB::table('rem_db')->count() > 0) {
+            Artisan::call('app:sync-legacy-reminders');
+        }
+
         $university = trim((string) $request->input('university', ''));
         $year = trim((string) $request->input('year', ''));
+        $studentName = trim((string) $request->input('student_name', ''));
 
         $query = UniversityReminderBatch::query();
 
@@ -336,6 +331,13 @@ class ReminderController extends Controller
         }
         if ($year !== '') {
             $query->where('academic_year', $year);
+        }
+        if ($studentName !== '') {
+            $matchingBatchIds = UniversityReminderNote::whereHas('student', function ($q) use ($studentName) {
+                $q->where('student_name', 'like', "%{$studentName}%")
+                  ->orWhere('eligibility_case_no', 'like', "%{$studentName}%");
+            })->pluck('batch_id')->unique();
+            $query->whereIn('id', $matchingBatchIds);
         }
 
         $batches = $query->orderBy('id', 'desc')->paginate(20)->withQueryString();
@@ -352,6 +354,7 @@ class ReminderController extends Controller
             'filters' => [
                 'university' => $university,
                 'year' => $year,
+                'student_name' => $studentName,
             ],
         ]);
     }

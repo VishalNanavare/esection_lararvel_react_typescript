@@ -9,6 +9,7 @@ interface BatchSummary {
     university_name: string;
     admission_taken_in: string | null;
     student_count?: number;
+    legacy_array_space?: number | null;
     is_consolidated?: boolean;
     consolidated_meta?: any;
     created_at: string | null;
@@ -77,12 +78,14 @@ interface Props {
     filters: {
         university: string;
         year: string;
+        student_name?: string;
     };
 }
 
 export default function UniversityHistory({ batches, filters }: Props) {
     const [university, setUniversity] = useState(filters.university || '');
     const [year, setYear] = useState(filters.year || '');
+    const [studentName, setStudentName] = useState(filters.student_name || '');
 
     // Batch consolidation selection state
     const [selectedBatchIds, setSelectedBatchIds] = useState<number[]>([]);
@@ -99,6 +102,7 @@ export default function UniversityHistory({ batches, filters }: Props) {
         router.get('/reminders/university/history', {
             university,
             year,
+            student_name: studentName,
         }, {
             preserveState: true,
             replace: true,
@@ -285,7 +289,7 @@ export default function UniversityHistory({ batches, filters }: Props) {
 
                         {/* Filter */}
                         <form onSubmit={handleFilter} className="row g-3 mb-4 filter-panel p-3 bg-light rounded border">
-                            <div className="col-md-5">
+                            <div className="col-md-4">
                                 <label className="form-label small fw-semibold text-secondary">University Name</label>
                                 <input
                                     type="text"
@@ -295,7 +299,7 @@ export default function UniversityHistory({ batches, filters }: Props) {
                                     onChange={(e) => setUniversity(e.target.value)}
                                 />
                             </div>
-                            <div className="col-md-4">
+                            <div className="col-md-3">
                                 <label className="form-label small fw-semibold text-secondary">Academic Year</label>
                                 <input
                                     type="text"
@@ -305,7 +309,17 @@ export default function UniversityHistory({ batches, filters }: Props) {
                                     onChange={(e) => setYear(e.target.value)}
                                 />
                             </div>
-                            <div className="col-md-3 d-flex align-items-end gap-2">
+                            <div className="col-md-3">
+                                <label className="form-label small fw-semibold text-secondary">Student Name / Case No</label>
+                                <input
+                                    type="text"
+                                    className="form-control"
+                                    placeholder="Search student or case no..."
+                                    value={studentName}
+                                    onChange={(e) => setStudentName(e.target.value)}
+                                />
+                            </div>
+                            <div className="col-md-2 d-flex align-items-end gap-2">
                                 <Link href="/reminders/university/history" className="btn btn-glass" title="Reset">
                                     <i className="fa fa-refresh"></i>
                                 </Link>
@@ -397,6 +411,11 @@ export default function UniversityHistory({ batches, filters }: Props) {
                                                             {b.is_consolidated && (
                                                                 <span className="badge badge-glass-indigo" title="Consolidated from multiple source batches">
                                                                     <i className="fa fa-object-group me-1"></i>Consolidated
+                                                                </span>
+                                                            )}
+                                                            {b.legacy_array_space !== undefined && b.legacy_array_space !== null && b.legacy_array_space > 0 && (
+                                                                <span className="badge bg-secondary bg-opacity-10 text-secondary border px-2 py-0" title={`Old Batch ID array_space #${b.legacy_array_space} (from rem_view.php)`}>
+                                                                    Old Batch #{b.legacy_array_space}
                                                                 </span>
                                                             )}
                                                         </div>
