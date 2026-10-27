@@ -93,7 +93,19 @@ class ConfirmationController extends Controller
             });
         }
 
-        $students = $query->orderBy('student_details.id', 'desc')->paginate(25)->withQueryString();
+        $selectedStatus = trim((string) $request->input('status', ''));
+
+        if ($selectedStatus === 'pending') {
+            $query->whereNull('conf_stud_data.id');
+        } elseif ($selectedStatus === 'confirmed') {
+            $query->whereNotNull('conf_stud_data.id');
+        }
+
+        $students = $query
+            ->orderByRaw('conf_stud_data.id IS NULL DESC')
+            ->orderBy('student_details.id', 'desc')
+            ->paginate(50)
+            ->withQueryString();
 
         $students->getCollection()->transform(function ($s) use ($matchCollege) {
             $col = $matchCollege($s->clg_add);
@@ -128,7 +140,7 @@ class ConfirmationController extends Controller
         $universityOptions = $this->buildUniversityOptions($distinctUnivs, $matchCollege);
 
         return Inertia::render('Confirmations/Index', [
-            'title' => 'Eligibility Confirmation Portal',
+            'title' => 'Confirmation Portal (Pending For Approval)',
             'students' => $students,
             'academicYears' => $academicYears,
             'streams' => $streams,
@@ -138,6 +150,7 @@ class ConfirmationController extends Controller
                 'stream' => $selectedStream,
                 'university' => $selectedUniversity,
                 'q' => $searchQuery,
+                'status' => $selectedStatus,
             ],
         ]);
     }
