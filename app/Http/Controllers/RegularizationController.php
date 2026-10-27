@@ -3,11 +3,15 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\SanitizesSpreadsheetCells;
+use App\Models\AcademicYear;
+use App\Models\CollegeDetail;
 use App\Models\Regularization;
 use App\Models\Setting;
+use App\Models\StreamDetail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -21,7 +25,53 @@ class RegularizationController extends Controller
      */
     public function index(): Response
     {
-        return Inertia::render('Regularization/Index');
+        $academicYears = AcademicYear::orderBy('id', 'desc')->get()->map(fn ($y) => [
+            'id' => $y->year_label,
+            'text' => $y->year_label,
+            'is_current' => (bool) $y->is_current,
+        ]);
+
+        $streamDivisions = StreamDetail::whereNotNull('Division')
+            ->where('Division', '!=', '')
+            ->orderBy('Division', 'asc')
+            ->pluck('Division')
+            ->toArray();
+
+        $legacyStreams = [
+            'MA', 'MCOM', 'MA Edu', 'PGDFM', 'PGDORM',
+            'MSC IT', 'MSC MATHS', 'MMS', 'BAF', 'BMS',
+        ];
+
+        $combinedStreams = array_values(array_unique(array_merge($streamDivisions, $legacyStreams)));
+        sort($combinedStreams, SORT_NATURAL | SORT_FLAG_CASE);
+
+        $streams = array_map(fn ($s) => [
+            'id' => $s,
+            'text' => $s,
+            'Division' => $s,
+        ], $combinedStreams);
+
+        $universities = CollegeDetail::where('is_active', true)
+            ->orWhereNull('is_active')
+            ->orderBy('Name', 'asc')
+            ->get()
+            ->map(function ($col) {
+                $name = trim((string) $col->Name, " ,\t\n\r\0\x0B");
+
+                return [
+                    'id' => $col->id,
+                    'value' => $name,
+                    'label' => $name,
+                    'name' => $name,
+                    'text' => $name,
+                ];
+            });
+
+        return Inertia::render('Regularization/Index', [
+            'academicYears' => $academicYears,
+            'streams' => $streams,
+            'universities' => $universities,
+        ]);
     }
 
     /**
@@ -58,6 +108,21 @@ class RegularizationController extends Controller
             'passing_course' => $course,
             'created_by' => Auth::user()?->username ?? 'staff',
         ]);
+
+        try {
+            DB::table('reg_data')->insert([
+                'gender' => $validated['gender'] ?? 'Mr',
+                'Name' => $validated['student_name'],
+                'Admission_letter_date' => $validated['admission_letter_date'] ?? null,
+                'Adm_taken_yr' => $validated['admission_taken_year'] ?? null,
+                'Adm_taken_in' => $validated['admission_taken_in'] ?? null,
+                'Uni_add' => $univ,
+                'Adm_letter' => $validated['admission_letter_for'] ?? '',
+                'Pass_Course' => $course,
+            ]);
+        } catch (\Throwable $e) {
+            // Silently ignore if legacy table not present
+        }
 
         return redirect()->route('regularization.history')->with([
             'success' => 'Regularization letter generated successfully.',

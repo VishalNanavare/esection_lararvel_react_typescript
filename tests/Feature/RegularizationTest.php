@@ -20,10 +20,15 @@ test('guests are redirected from regularization page to login', function () {
     $response->assertRedirect('/login');
 });
 
-test('authenticated staff can view regularization form', function () {
+test('authenticated staff can view regularization form with dropdown options', function () {
     $response = $this->actingAs($this->user)->get('/regularization');
     $response->assertOk();
-    $response->assertInertia(fn ($page) => $page->component('Regularization/Index'));
+    $response->assertInertia(fn ($page) => $page
+        ->component('Regularization/Index')
+        ->has('academicYears')
+        ->has('streams')
+        ->has('universities')
+    );
 });
 
 test('can store regularization letter', function () {
@@ -44,6 +49,29 @@ test('can store regularization letter', function () {
         'student_name' => 'Priya Sharma',
         'eligibility_case_no' => '501/2026',
         'university_name' => 'Savitribai Phule Pune University',
+    ]);
+});
+
+test('can store regularization letter matching old form fields without eligibility_case_no', function () {
+    $response = $this->actingAs($this->user)->post('/regularization', [
+        'student_name' => 'Rohan Mane',
+        'gender' => 'Mr',
+        'admission_letter_for' => 'Admission In MCA',
+        'admission_letter_date' => '2026-10-27',
+        'admission_taken_year' => '2024-2025',
+        'admission_taken_in' => 'MSC IT',
+        'clg_add' => 'Savitribai Phule Pune University',
+        'admission_passing_course' => 'B.Sc IT',
+    ]);
+
+    $response->assertRedirect('/regularization/history');
+    $this->assertDatabaseHas('regularizations', [
+        'student_name' => 'Rohan Mane',
+        'gender' => 'Mr',
+        'university_name' => 'Savitribai Phule Pune University',
+        'passing_course' => 'B.Sc IT',
+        'admission_taken_in' => 'MSC IT',
+        'admission_taken_year' => '2024-2025',
     ]);
 });
 

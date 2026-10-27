@@ -300,6 +300,7 @@ export const Select2: React.FC<Select2Props> = ({
                             placeholder="Type to search..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
+                            onInput={(e: any) => setSearchTerm(e.target.value)}
                         />
                     </span>
 
