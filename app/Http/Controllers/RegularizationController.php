@@ -51,9 +51,16 @@ class RegularizationController extends Controller
             'Division' => $s,
         ], $combinedStreams);
 
-        $universities = CollegeDetail::where('is_active', true)
-            ->orWhereNull('is_active')
-            ->orderBy('Name', 'asc')
+        $univQuery = CollegeDetail::query();
+        try {
+            if (\Illuminate\Support\Facades\Schema::hasColumn('college_details', 'is_active')) {
+                $univQuery->where(function ($q) {
+                    $q->where('is_active', true)->orWhereNull('is_active');
+                });
+            }
+        } catch (\Throwable) {}
+
+        $universities = $univQuery->orderBy('Name', 'asc')
             ->get()
             ->map(function ($col) {
                 $name = trim((string) $col->Name, " ,\t\n\r\0\x0B");

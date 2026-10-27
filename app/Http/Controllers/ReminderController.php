@@ -749,23 +749,25 @@ class ReminderController extends Controller
         $oldStatus = $student->computed_status;
         $newStatus = $validated['status'];
 
-        if ($newStatus === 'verified') {
-            $student->verification_status = 'verified';
-            $student->exclusion_reason = null;
-            $student->verified_at = now();
-            $student->verified_by = Auth::user()?->username ?? 'staff';
-        } elseif ($newStatus === 'excluded') {
-            $student->verification_status = 'excluded';
-            $student->exclusion_reason = $validated['reason'] ?? 'Manually excluded by staff';
-            $student->verified_at = null;
-            $student->verified_by = null;
-        } else {
-            $student->verification_status = 'pending';
-            $student->exclusion_reason = null;
-            $student->verified_at = null;
-            $student->verified_by = null;
+        if (StudentDetail::hasVerificationStatusColumn()) {
+            if ($newStatus === 'verified') {
+                $student->verification_status = 'verified';
+                $student->exclusion_reason = null;
+                $student->verified_at = now();
+                $student->verified_by = Auth::user()?->username ?? 'staff';
+            } elseif ($newStatus === 'excluded') {
+                $student->verification_status = 'excluded';
+                $student->exclusion_reason = $validated['reason'] ?? 'Manually excluded by staff';
+                $student->verified_at = null;
+                $student->verified_by = null;
+            } else {
+                $student->verification_status = 'pending';
+                $student->exclusion_reason = null;
+                $student->verified_at = null;
+                $student->verified_by = null;
+            }
+            $student->save();
         }
-        $student->save();
 
         ActivityLog::record(
             action: 'update_verification_status',

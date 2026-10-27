@@ -47,14 +47,41 @@ class StudentDetail extends Model
         return $this->hasMany(UniversityReminderNote::class, 'student_id', 'id');
     }
 
+    protected static ?bool $hasVerificationStatusCol = null;
+
+    public static function hasVerificationStatusColumn(): bool
+    {
+        if (static::$hasVerificationStatusCol === null) {
+            try {
+                static::$hasVerificationStatusCol = \Illuminate\Support\Facades\Schema::hasColumn('student_details', 'verification_status');
+                if (! static::$hasVerificationStatusCol) {
+                    \Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
+                    static::$hasVerificationStatusCol = \Illuminate\Support\Facades\Schema::hasColumn('student_details', 'verification_status');
+                }
+            } catch (\Throwable) {
+                static::$hasVerificationStatusCol = false;
+            }
+        }
+
+        return (bool) static::$hasVerificationStatusCol;
+    }
+
     public function isVerified(): bool
     {
-        return $this->verification_status === 'verified' || $this->confirmation !== null;
+        if (static::hasVerificationStatusColumn() && $this->getAttribute('verification_status') === 'verified') {
+            return true;
+        }
+
+        return $this->confirmation !== null;
     }
 
     public function isExcluded(): bool
     {
-        return $this->verification_status === 'excluded';
+        if (static::hasVerificationStatusColumn()) {
+            return $this->getAttribute('verification_status') === 'excluded';
+        }
+
+        return false;
     }
 
     public function isEligibleForReminder(): bool
@@ -81,6 +108,10 @@ class StudentDetail extends Model
 
     public function scopeVerified($query)
     {
+        if (! static::hasVerificationStatusColumn()) {
+            return $query->whereHas('confirmation');
+        }
+
         return $query->where(function ($q) {
             $q->where('verification_status', 'verified')
                 ->orWhereHas('confirmation');
@@ -89,11 +120,19 @@ class StudentDetail extends Model
 
     public function scopeExcluded($query)
     {
+        if (! static::hasVerificationStatusColumn()) {
+            return $query->whereRaw('0 = 1');
+        }
+
         return $query->where('verification_status', 'excluded');
     }
 
     public function scopeEligibleForReminder($query)
     {
+        if (! static::hasVerificationStatusColumn()) {
+            return $query->doesntHave('confirmation');
+        }
+
         return $query->where(function ($q) {
             $q->whereNull('verification_status')
                 ->orWhere(function ($sub) {

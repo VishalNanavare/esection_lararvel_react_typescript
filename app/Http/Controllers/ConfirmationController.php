@@ -252,50 +252,265 @@ class ConfirmationController extends Controller
         $stream = trim((string) $request->input('stream', ''));
         $search = trim((string) $request->input('q', ''));
         $batch = trim((string) $request->input('batch', ''));
+        $university = trim((string) $request->input('university', ''));
+        $studentName = trim((string) $request->input('student_name', ''));
 
         $query = ConfStudData::query();
 
         if ($batch !== '') {
-            $query->where('array_space', $batch);
+            $query->where('array_space', 'like', "%{$batch}%");
         }
         if ($stream !== '') {
             $query->where('stream', $stream);
         }
+        if ($university !== '') {
+            $query->where('uni_add', 'like', "%{$university}%");
+        }
+        if ($studentName !== '') {
+            $matchedStudentIds = StudentDetail::where(function ($sq) use ($studentName) {
+                $sq->where('student_name', 'like', "%{$studentName}%")
+                    ->orWhere('student_nee_name', 'like', "%{$studentName}%");
+            })->pluck('id')->toArray();
+
+            $query->where(function ($q) use ($studentName, $matchedStudentIds) {
+                $q->where('name', 'like', "%{$studentName}%");
+                if (! empty($matchedStudentIds)) {
+                    $q->orWhereIn('student_id', $matchedStudentIds)
+                        ->orWhereIn('name', array_map('strval', $matchedStudentIds));
+                }
+            });
+        }
         if ($search !== '') {
-            $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
+            $matchedSearchStudentIds = StudentDetail::where(function ($sq) use ($search) {
+                $sq->where('student_name', 'like', "%{$search}%")
+                    ->orWhere('student_nee_name', 'like', "%{$search}%");
+            })->pluck('id')->toArray();
+
+            $query->where(function ($q) use ($search, $matchedSearchStudentIds) {
+                $q->where('array_space', 'like', "%{$search}%")
                     ->orWhere('case_no', 'like', "%{$search}%")
-                    ->orWhere('uni_add', 'like', "%{$search}%");
+                    ->orWhere('uni_add', 'like', "%{$search}%")
+                    ->orWhere('name', 'like', "%{$search}%");
+                if (! empty($matchedSearchStudentIds)) {
+                    $q->orWhereIn('student_id', $matchedSearchStudentIds)
+                        ->orWhereIn('name', array_map('strval', $matchedSearchStudentIds));
+                }
             });
         }
 
         // Group by confirmation batch
-        $batchQuery = (clone $query)
-            ->selectRaw('
-                array_space,
-                MAX(uni_add) as uni_add,
-                MAX(stream) as stream,
-                MAX(en_time) as en_time,
-                MAX(en_by) as en_by,
-                MAX(dd_no) as dd_no,
-                MAX(dd_amount) as dd_amount,
-                COUNT(*) as student_count
-            ')
+        $batchSpacesQuery = (clone $query)
+            ->select('array_space')
             ->whereNotNull('array_space')
             ->where('array_space', '!=', '')
             ->groupBy('array_space')
             ->orderByRaw('MAX(id) DESC');
 
-        $batches = $batchQuery->paginate(20)->withQueryString();
+        $paginatedBatches = $batchSpacesQuery->paginate(15)->withQueryString();
+
+        $pageSpaces = collect($paginatedBatches->items())
+            ->pluck('array_space')
+            ->filter()
+            ->values()
+            ->toArray();
+
+        if (! empty($pageSpaces)) {
+            $batchRecords = ConfStudData::whereIn('array_space', $pageSpaces)
+                ->orderBy('id', 'asc')
+                ->get();
+
+            $studentIds = $batchRecords->pluck('student_id')->filter()->unique()->toArray();
+            $numericNames = $batchRecords->filter(fn ($r) => is_numeric($r->name))->pluck('name')->map(fn ($n) => (int) $n)->unique()->toArray();
+            $allStudentIds = array_unique(array_merge($studentIds, $numericNames));
+
+            $studentsById = ! empty($allStudentIds)
+                ? StudentDetail::whereIn('id', $allStudentIds)->get()->keyBy('id')
+                : collect();
+
+            $collegeIdsFromStudents = $studentsById->pluck('clg_add')
+                ->filter(fn ($c) => is_numeric($c))
+                ->map(fn ($c) => (int) $c)
+                ->toArray();
+
+            $collegeIdsFromUniAdd = $batchRecords->pluck('uni_add')
+                ->filter(fn ($c) => is_numeric($c))
+                ->map(fn ($c) => (int) $c)
+                ->toArray();
+
+            $collegeIds = array_unique(array_merge($collegeIdsFromStudents, $collegeIdsFromUniAdd));
+
+            $collegesById = ! empty($collegeIds)
+                ? CollegeDetail::whereIn('id', $collegeIds)->get()->keyBy('id')
+                : collect();
+
+            $groupedBySpace = $batchRecords->groupBy('array_space');
+
+            $enrichedBatches = collect($paginatedBatches->items())->map(function ($item) use ($groupedBySpace, $studentsById, $collegesById) {
+                $space = (string) $item->array_space;
+                $records = $groupedBySpace->get($space, collect());
+                $first = $records->first();
+
+                $candidates = $records->map(function ($r) use ($studentsById, $collegesById) {
+                    $student = null;
+                    if (! empty($r->student_id) && isset($studentsById[$r->student_id])) {
+                        $student = $studentsById[$r->student_id];
+                    } elseif (is_numeric($r->name) && isset($studentsById[(int) $r->name])) {
+                        $student = $studentsById[(int) $r->name];
+                    }
+
+                    $displayName = $student ? $student->student_name : $r->name;
+                    $displayNeeName = $student && ! empty($student->student_nee_name) && $student->student_nee_name !== '-'
+                        ? $student->student_nee_name
+                        : null;
+
+                    $displayUniversity = '';
+                    if ($student && ! empty($student->clg_add)) {
+                        if (is_numeric($student->clg_add) && isset($collegesById[(int) $student->clg_add])) {
+                            $displayUniversity = $collegesById[(int) $student->clg_add]->Name;
+                        } else {
+                            $displayUniversity = $student->clg_add;
+                        }
+                    }
+
+                    if (empty($displayUniversity) || is_numeric($displayUniversity)) {
+                        if (! empty($r->uni_add)) {
+                            if (is_numeric($r->uni_add) && isset($collegesById[(int) $r->uni_add])) {
+                                $displayUniversity = $collegesById[(int) $r->uni_add]->Name;
+                            } else {
+                                $displayUniversity = $r->uni_add;
+                            }
+                        }
+                    }
+
+                    return [
+                        'id' => $r->id,
+                        'student_id' => $student?->id ?? (is_numeric($r->name) ? (int) $r->name : null),
+                        'student_name' => $displayName,
+                        'student_nee_name' => $displayNeeName,
+                        'university_name' => $displayUniversity,
+                        'case_no' => $r->case_no,
+                        'mig_tc' => $r->mig_TC,
+                        'p_degree' => $r->p_degree,
+                        's_marks' => $r->s_marks,
+                        'letter_no_date' => $r->letter_no_date,
+                        'remark' => $r->remark,
+                        'conf_from' => $r->conf_from,
+                        'conf_from_select' => $r->conf_from_select,
+                        'conf_from_text' => $r->conf_from_text,
+                        'etc_data' => $r->etc_data,
+                    ];
+                })->values()->toArray();
+
+                $batchUniv = $first?->uni_add ?? '';
+                if (is_numeric($batchUniv) && isset($collegesById[(int) $batchUniv])) {
+                    $batchUniv = $collegesById[(int) $batchUniv]->Name;
+                } elseif (! empty($candidates[0]['university_name'])) {
+                    $batchUniv = $candidates[0]['university_name'];
+                }
+
+                return [
+                    'array_space' => $space,
+                    'stream' => $first?->stream ?? '',
+                    'uni_add' => $batchUniv,
+                    'en_time' => $first?->en_time ?? '',
+                    'en_by' => $first?->en_by ?? 'Staff',
+                    'dd_no' => $first?->dd_no ?? null,
+                    'bank_name' => $first?->bank_name ?? null,
+                    'dd_date' => $first?->dd_date ?? null,
+                    'dd_amount' => $first?->dd_amount ?? null,
+                    'student_count' => count($candidates),
+                    'candidates' => $candidates,
+                ];
+            });
+
+            $paginatedBatches->setCollection($enrichedBatches);
+        }
+
+        // Prepare Select2 streams options
+        $streamDivisions = StreamDetail::whereNotNull('Division')
+            ->where('Division', '!=', '')
+            ->orderBy('Division', 'asc')
+            ->pluck('Division')
+            ->toArray();
+        $legacyStreams = [
+            'MA', 'MCOM', 'MA Edu', 'PGDFM', 'PGDORM',
+            'MSC IT', 'MSC MATHS', 'MMS', 'BAF', 'BMS',
+            'FYBA', 'SYBA', 'TYBA', 'FYBCOM', 'SYBCOM', 'TYBCOM',
+        ];
+        $confirmedStreams = ConfStudData::whereNotNull('stream')
+            ->where('stream', '!=', '')
+            ->distinct()
+            ->pluck('stream')
+            ->toArray();
+        $allStreams = array_values(array_unique(array_merge($streamDivisions, $legacyStreams, $confirmedStreams)));
+        sort($allStreams, SORT_NATURAL | SORT_FLAG_CASE);
+        $streams = array_map(fn ($s) => [
+            'id' => $s,
+            'text' => $s,
+            'value' => $s,
+            'label' => $s,
+        ], $allStreams);
+
+        // Prepare Select2 universities options
+        $univQuery = CollegeDetail::query();
+        try {
+            if (\Illuminate\Support\Facades\Schema::hasColumn('college_details', 'is_active')) {
+                $univQuery->where(function ($q) {
+                    $q->where('is_active', true)->orWhereNull('is_active');
+                });
+            }
+        } catch (\Throwable) {}
+
+        $collegeList = $univQuery->orderBy('Name', 'asc')
+            ->get()
+            ->map(function ($col) {
+                $name = trim((string) $col->Name, " ,\t\n\r\0\x0B");
+                return [
+                    'id' => $name,
+                    'value' => $name,
+                    'label' => $name,
+                    'text' => $name,
+                ];
+            })
+            ->filter(fn ($u) => ! empty($u['value']))
+            ->values()
+            ->toArray();
+
+        $confirmedUnivs = ConfStudData::whereNotNull('uni_add')
+            ->where('uni_add', '!=', '')
+            ->distinct()
+            ->pluck('uni_add')
+            ->map(function ($u) {
+                $name = trim((string) $u, " ,\t\n\r\0\x0B");
+                return [
+                    'id' => $name,
+                    'value' => $name,
+                    'label' => $name,
+                    'text' => $name,
+                ];
+            })
+            ->filter(fn ($u) => ! empty($u['value']))
+            ->values()
+            ->toArray();
+
+        $allUnivs = collect(array_merge($collegeList, $confirmedUnivs))
+            ->unique('value')
+            ->sortBy('value', SORT_NATURAL | SORT_FLAG_CASE)
+            ->values()
+            ->toArray();
 
         return Inertia::render('Confirmations/History', [
             'title' => 'Confirmation Batch History',
-            'batches' => $batches,
+            'batches' => $paginatedBatches,
+            'streams' => $streams,
+            'universities' => $allUnivs,
             'filters' => [
                 'year' => $year,
                 'stream' => $stream,
-                'q' => $search,
+                'university' => $university,
+                'student_name' => $studentName,
                 'batch' => $batch,
+                'q' => $search,
             ],
         ]);
     }
