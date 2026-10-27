@@ -111,7 +111,7 @@
         <tr>
             <td style="width: 55%;"></td>
             <td style="width: 45%; text-align: left;">
-                No. IDOL/Eligib/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/{{ $currentTime }}<br>
+                No. CDOE/Eligib/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/{{ $currentTime }}<br>
                 Date :
             </td>
         </tr>
@@ -248,7 +248,7 @@
     <table style="width: 100%; font-size: 8.5pt; font-weight: bold; margin-bottom: 6px;">
         <tr>
             <td style="text-align: left;">
-                <b>No. IDOL/Eligib/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/{{ $currentTime }}</b>
+                <b>No. CDOE/Eligib/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/{{ $currentTime }}</b>
             </td>
             <td style="text-align: right;">
                 <b>Dated:-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</b>
@@ -258,7 +258,7 @@
 
     @if(!empty($fees) && $fees > 0)
         <div style="font-size: 8.5pt; line-height: 1.35; margin-top: 4px; margin-bottom: 6px;">
-            Copy forwarded to the Assistant Registrar (F & A) IDOL for information. He/She is requested to issue<br/>
+            Copy forwarded to the Assistant Registrar (F & A) CDOE for information. He/She is requested to issue<br/>
             <b>D.D. of Rs. {{ $totalFees }} ( {{ $ddAmountWords }} Only. ) In Favour of {{ $firstRow['in_favour_of'] }}</b>
         </div>
     @endif

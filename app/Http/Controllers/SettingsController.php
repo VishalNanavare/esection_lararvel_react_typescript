@@ -855,7 +855,7 @@ class SettingsController extends Controller
                     'gen_ch2',
                 ],
                 'default_subject' => 'Admission Regulariztion of {admission_course} course for the academic year {academic_year}.',
-                'default_body' => "With reference to your letter No. <b>{admission_letter_for}</b>, Date - <b>{admission_letter_date}</b>.\n\nI am to inform you that since <b>{gender} {student_name}</b> submitted the Migration Certificate of <b>{Last_Attended_University}</b> which {gen_ch1} had migrated after passing <b>{passing_course}</b> course from University of Mumbai, {gen_ch2} admission for <b>{admission_course}</b> course for the academic year <b>{academic_year}</b> in IDOL is hereby <b style=\"font-style: italic;\">regularized accordingly</b>.",
+                'default_body' => "With reference to your letter No. <b>{admission_letter_for}</b>, Date - <b>{admission_letter_date}</b>.\n\nI am to inform you that since <b>{gender} {student_name}</b> submitted the Migration Certificate of <b>{Last_Attended_University}</b> which {gen_ch1} had migrated after passing <b>{passing_course}</b> course from University of Mumbai, {gen_ch2} admission for <b>{admission_course}</b> course for the academic year <b>{academic_year}</b> in CDOE is hereby <b style=\"font-style: italic;\">regularized accordingly</b>.",
                 'default_closing' => '',
             ],
             'university_reminder' => [

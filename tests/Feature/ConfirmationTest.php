@@ -297,3 +297,70 @@ test('user can delete a confirmation record', function () {
         'id' => $conf->id,
     ]);
 });
+
+test('confirmation eligibility letter renders No. CDOE/Eligib, Center For Distance and Online Education (CDOE), and clean university name', function () {
+    \App\Models\CollegeDetail::create([
+        'Name' => 'Yashwantrao Chavan Maharashtra Open University',
+        'Address' => 'Dnyngangotri, Near Gangapur Dam, Nashik-422 222 <br>Phone: - (0253) - 2230734',
+        'fees' => '400',
+        'is_active' => true,
+    ]);
+
+    $student = StudentDetail::create([
+        'array_space' => '998877',
+        'to_name' => 'The Controller of Examinations',
+        'clg_add' => 'Dnyngangotri, Near Gangapur Dam, Nashik-422 222 <br>Phone: - (0253) - 2230734',
+        'admission_taken_year' => '2026-2027',
+        'admission_taken_in' => 'MCA - I',
+        'student_name' => 'Test Student Name',
+        'eligibility_case_no' => 'CASE-2026/9999',
+        'en_time' => now(),
+    ]);
+
+    ConfStudData::create([
+        'student_id' => $student->id,
+        'case_no' => 'CASE-2026/9999',
+        'name' => (string) $student->id,
+        'stream' => 'MCA - I',
+        'uni_add' => 'Yashwantrao Chavan Maharashtra Open University Dnyngangotri, Near Gangapur Dam, Nashik-422 222 <br>Phone: - (0253) - 2230734',
+        'mig_TC' => 'Yes',
+        'p_degree' => 'Yes',
+        's_marks' => 'Yes',
+        'array_space' => '998877',
+        'en_time' => now(),
+        'en_by' => 'confirm_staff',
+    ]);
+
+    $response = $this->actingAs($this->user)->get(route('pdf.confirmation', ['arraySpace' => '998877']));
+    $response->assertOk();
+
+    // Verify blade view render data
+    $records = ConfStudData::where('array_space', '998877')->get();
+    $ctrl = app(\App\Http\Controllers\PdfController::class);
+    foreach ($records as $r) {
+        $resolved = $ctrl->resolveUniversityAndAddress($r->uni_add);
+        $displayUni = $resolved['university_name'] ?? '';
+        expect($displayUni)->toBe('Yashwantrao Chavan Maharashtra Open University');
+        expect($displayUni)->not->toContain('<br>');
+        expect($displayUni)->not->toContain('Phone:');
+        expect($displayUni)->not->toContain('Dnyngangotri');
+    }
+
+    $bladeView = view('pdf.confirmation_eligibility_letter', [
+        'records' => $records,
+        'arraySpace' => '998877',
+        'currentTime' => time(),
+        'first' => $records->first(),
+        'count' => 1,
+        'date' => date('d/m/Y'),
+        'subject' => 'Confirmation of Eligibility',
+        'body' => 'Eligibility body text',
+    ])->render();
+
+    expect($bladeView)->toContain('No. CDOE/Eligib/');
+    expect($bladeView)->toContain('Center For Distance and Online Education (CDOE)');
+    expect($bladeView)->not->toContain('No. IDOL/Eligib/');
+    expect($bladeView)->not->toContain('Institute of Distance and Open Learning (IDOL)');
+    expect($bladeView)->toContain('Yashwantrao Chavan Maharashtra Open University');
+    expect($bladeView)->not->toContain('<br>Phone: - (0253) - 2230734');
+});

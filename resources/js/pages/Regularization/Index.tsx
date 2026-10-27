@@ -164,7 +164,7 @@ export default function Index({
             return;
         }
         if (!formData.admission_taken_in) {
-            Swal.fire('Required', 'Please select Admission Taken In IDOL', 'warning');
+            Swal.fire('Required', 'Please select Admission Taken In CDOE', 'warning');
             return;
         }
 
@@ -295,7 +295,7 @@ export default function Index({
                                 <div className="col-lg-4 d-none d-lg-block"></div>
                             </div>
 
-                            {/* Row 3: Name Of Student : | Acadmic Year | Admission Taken In IDOL : */}
+                            {/* Row 3: Name Of Student : | Acadmic Year | Admission Taken In CDOE : */}
                             <div className="row g-3 mb-4">
                                 <div className="col-lg-4">
                                     <label className="form-label fw-semibold text-secondary small">
@@ -350,7 +350,7 @@ export default function Index({
 
                                 <div className="col-lg-4">
                                     <label className="form-label fw-semibold text-secondary small">
-                                        Admission Taken In IDOL :
+                                        Admission Taken In CDOE :
                                     </label>
                                     <Select2
                                         id="admission_taken_in"

@@ -82,7 +82,7 @@
         <tr>
             <td style="width: 55%;"></td>
             <td style="width: 45%; text-align: left;">
-                No. IDOL/Eligib/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/{{ $currentTime }}<br>
+                No. CDOE/Eligib/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/{{ $currentTime }}<br>
                 Date :
             </td>
         </tr>
@@ -92,7 +92,7 @@
         To,<br>
         The Assistant Registrar,<br>
         (Administration),<br>
-        IDOL,<br>
+        CDOE,<br>
         University of Mumbai,<br>
         Vidyanagri, Santacruz(E),<br>
         Mumbai - 400 098.
@@ -131,7 +131,7 @@
         </div>
 
         <div class="para">
-            I am to inform you that since <b>{{ $record->gender }} {{ $record->student_name }}</b> submitted the Migration Certificate of <b>{{ $universityName }}@if(!empty($states)), {{ $states }}@endif</b> which {{ $genCh1 }} had migrated after passing <b>{{ $record->passing_course }}</b> course from University of Mumbai, {{ $genCh2 }} admission for <b>{{ $record->admission_taken_in }}</b> course for the academic year <b>{{ $record->admission_taken_year }}</b> in IDOL is hereby <b style="font-style: italic;">regularized accordingly</b>.
+            I am to inform you that since <b>{{ $record->gender }} {{ $record->student_name }}</b> submitted the Migration Certificate of <b>{{ $universityName }}@if(!empty($states)), {{ $states }}@endif</b> which {{ $genCh1 }} had migrated after passing <b>{{ $record->passing_course }}</b> course from University of Mumbai, {{ $genCh2 }} admission for <b>{{ $record->admission_taken_in }}</b> course for the academic year <b>{{ $record->admission_taken_year }}</b> in CDOE is hereby <b style="font-style: italic;">regularized accordingly</b>.
         </div>
     @endif
 

@@ -276,38 +276,41 @@ class PdfController extends Controller
                 } else {
                     $r->display_name = $student->student_name . '<br/>( Nee name : ' . $student->student_nee_name . ' )';
                 }
-
-                $displayUni = '';
-                if (!empty($r->uni_add) && is_numeric($r->uni_add)) {
-                    $clg = CollegeDetail::find((int) $r->uni_add);
-                    if ($clg) {
-                        $displayUni = $clg->Name;
-                    }
-                }
-                if (empty($displayUni) && $student && !empty($student->clg_add) && is_numeric($student->clg_add)) {
-                    $clg = CollegeDetail::find((int) $student->clg_add);
-                    if ($clg) {
-                        $displayUni = $clg->Name;
-                    }
-                }
-                if (empty($displayUni) && !empty($r->uni_add) && !is_numeric($r->uni_add) && $r->uni_add !== '-') {
-                    $displayUni = $r->uni_add;
-                }
-                if (empty($displayUni) && $student && !empty($student->clg_add)) {
-                    $displayUni = $student->clg_add;
-                }
-                $r->display_university = $displayUni ?: ($r->uni_add ?: '');
             } else {
                 $r->display_name = $r->name;
-                $displayUni = '';
-                if (!empty($r->uni_add) && is_numeric($r->uni_add)) {
-                    $clg = CollegeDetail::find((int) $r->uni_add);
-                    if ($clg) {
-                        $displayUni = $clg->Name;
-                    }
-                }
-                $r->display_university = $displayUni ?: ($r->uni_add ?: '');
             }
+
+            // Resolve ONLY the University Name
+            $displayUni = '';
+            if (!empty($r->uni_add) && is_numeric($r->uni_add)) {
+                $clg = CollegeDetail::find((int) $r->uni_add);
+                if ($clg) {
+                    $displayUni = trim((string) $clg->Name, " ,\t\n\r\0\x0B");
+                }
+            }
+            if (empty($displayUni) && $student && !empty($student->clg_add) && is_numeric($student->clg_add)) {
+                $clg = CollegeDetail::find((int) $student->clg_add);
+                if ($clg) {
+                    $displayUni = trim((string) $clg->Name, " ,\t\n\r\0\x0B");
+                }
+            }
+            if (empty($displayUni) && !empty($r->uni_add) && $r->uni_add !== '-') {
+                $resolved = $this->resolveUniversityAndAddress($r->uni_add);
+                $displayUni = $resolved['university_name'] ?? '';
+            }
+            if (empty($displayUni) && $student && !empty($student->clg_add) && $student->clg_add !== '-') {
+                $resolved = $this->resolveUniversityAndAddress($student->clg_add);
+                $displayUni = $resolved['university_name'] ?? '';
+            }
+            if (empty($displayUni)) {
+                $rawUni = (!empty($r->uni_add) && $r->uni_add !== '-') ? $r->uni_add : ($student->clg_add ?? '');
+                if (!empty($rawUni)) {
+                    $lines = preg_split('/(<br\s*\/?>|\r\n|\n|\r)/i', (string) $rawUni);
+                    $displayUni = trim(strip_tags($lines[0] ?? (string) $rawUni));
+                }
+            }
+
+            $r->display_university = $displayUni ?: ($r->uni_add ?: '');
         }
 
         $rendered = $this->renderLetterTemplate('confirmation_eligibility', [

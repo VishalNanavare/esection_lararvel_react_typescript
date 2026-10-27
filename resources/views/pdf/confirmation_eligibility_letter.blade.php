@@ -101,7 +101,7 @@
         <tr>
             <td style="width: 55%;"></td>
             <td style="width: 45%; text-align: left;">
-                No. IDOL/Eligib/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/{{ $currentTime }}<br>
+                No. CDOE/Eligib/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/{{ $currentTime }}<br>
                 Date :
             </td>
         </tr>
@@ -111,7 +111,7 @@
         To,<br>
         <b>Assistant Registrar.</b><br>
         Administration/I.T. Section,<br>
-        Institute of Distance and Open Learning (IDOL)<br>
+        Center For Distance and Online Education (CDOE)<br>
         University of Mumbai,<br>
         Vidyanagari, Santacruz (East),<br>
         Mumbai - 400 098.
@@ -168,7 +168,13 @@
             @foreach ($records as $i => $r)
                 @php
                     $displayName = $r->display_name ?? ($r->student_name ?? ($r->name ?? ''));
-                    $displayUni = $r->display_university ?? ($r->uni_add ?? ($r->clg_add ?? ''));
+                    $rawUniVal = $r->display_university ?? ($r->uni_add ?? ($r->clg_add ?? ''));
+                    if (!empty($rawUniVal)) {
+                        $uniLines = preg_split('/(<br\s*\/?>|\r\n|\n|\r)/i', (string) $rawUniVal);
+                        $displayUni = trim(strip_tags($uniLines[0] ?? (string) $rawUniVal));
+                    } else {
+                        $displayUni = '';
+                    }
                 @endphp
                 <tr>
                     <td align="center" style="width: 20px;">{{ $i + 1 }}</td>
