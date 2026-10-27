@@ -26,10 +26,10 @@ test('reminders route redirects or serves university portal', function () {
     $response2->assertStatus(200);
 });
 
-test('reminders university export returns csv stream', function () {
+test('reminders university export returns xlsx stream', function () {
     $response = $this->actingAs($this->admin)->get('/reminders/university/export');
     $response->assertStatus(200);
-    $response->assertHeader('Content-Type', 'text/csv; charset=UTF-8');
+    $response->assertHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
 });
 
 test('regularization form is accessible and stores record', function () {

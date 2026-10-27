@@ -8,6 +8,7 @@ use App\Models\UniversityReminderBatch;
 use App\Models\UniversityReminderNote;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
+use PhpOffice\PhpSpreadsheet\IOFactory;
 
 beforeEach(function () {
     $this->user = User::create([
@@ -139,13 +140,29 @@ test('university reminder history export does not crash and reports distinct can
     $response = $this->actingAs($this->user)->get('/reminders/university/history/export');
 
     $response->assertOk();
-    $csv = $response->streamedContent();
-    expect($csv)->toContain('University of Mumbai');
-    // 2 distinct students, not 3 notes.
-    expect($csv)->toContain(',2,');
+    $tmpFile = tempnam(sys_get_temp_dir(), 'xlsx');
+    file_put_contents($tmpFile, $response->streamedContent());
+    $spreadsheet = IOFactory::load($tmpFile);
+    $sheet = $spreadsheet->getActiveSheet();
+    $values = [];
+    foreach ($sheet->getRowIterator() as $row) {
+        foreach ($row->getCellIterator() as $cell) {
+            $values[] = (string) $cell->getValue();
+        }
+    }
+    unlink($tmpFile);
+
+    expect($values)->toContain('University of Mumbai')
+        ->toContain('2');
 });
 
-test('university reminder student export returns csv with program stream column and filters by student name', function () {
+test('university reminder student export returns xlsx with university name, program stream column and filters by student name', function () {
+    CollegeDetail::create([
+        'Name' => 'Madras University',
+        'Address' => 'Madras University, Chennai',
+        'Email' => 'info@madras.edu',
+    ]);
+
     StudentDetail::create([
         'student_name' => 'Kavita Krishnan',
         'eligibility_case_no' => 'REM-EXP-001',
@@ -166,11 +183,24 @@ test('university reminder student export returns csv with program stream column 
 
     $response = $this->actingAs($this->user)->get('/reminders/university/export?student_name=Kavita');
     $response->assertOk();
-    $csv = $response->streamedContent();
 
-    expect($csv)->toContain('Candidate Name')
+    $tmpFile = tempnam(sys_get_temp_dir(), 'xlsx');
+    file_put_contents($tmpFile, $response->streamedContent());
+    $spreadsheet = IOFactory::load($tmpFile);
+    $sheet = $spreadsheet->getActiveSheet();
+    $values = [];
+    foreach ($sheet->getRowIterator() as $row) {
+        foreach ($row->getCellIterator() as $cell) {
+            $values[] = (string) $cell->getValue();
+        }
+    }
+    unlink($tmpFile);
+
+    expect($values)->toContain('Candidate Name')
+        ->toContain('University Name')
         ->toContain('Program / Stream')
         ->toContain('Kavita Krishnan')
+        ->toContain('Madras University')
         ->toContain('M.Sc. Computer Science')
         ->not->toContain('Arun Joseph');
 });
@@ -947,8 +977,20 @@ test('staff can export university reminders filtered by student_name', function 
 
     $response = $this->actingAs($this->user)->get('/reminders/university/export?student_name=Amitabh');
     $response->assertOk();
-    $content = $response->streamedContent();
-    expect($content)->toContain('Amitabh Bachchan');
-    expect($content)->not->toContain('Shah Rukh Khan');
+
+    $tmpFile = tempnam(sys_get_temp_dir(), 'xlsx');
+    file_put_contents($tmpFile, $response->streamedContent());
+    $spreadsheet = IOFactory::load($tmpFile);
+    $sheet = $spreadsheet->getActiveSheet();
+    $values = [];
+    foreach ($sheet->getRowIterator() as $row) {
+        foreach ($row->getCellIterator() as $cell) {
+            $values[] = (string) $cell->getValue();
+        }
+    }
+    unlink($tmpFile);
+
+    expect($values)->toContain('Amitabh Bachchan')
+        ->not->toContain('Shah Rukh Khan');
 });
 

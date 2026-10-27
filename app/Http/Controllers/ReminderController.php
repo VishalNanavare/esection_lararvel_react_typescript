@@ -24,6 +24,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Inertia\Inertia;
 use Inertia\Response;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ReminderController extends Controller
@@ -873,7 +875,7 @@ class ReminderController extends Controller
     }
 
     /**
-     * Export Candidate Reminders to CSV.
+     * Export Candidate Reminders to XLSX.
      */
     public function studentExport(): StreamedResponse
     {
@@ -881,32 +883,47 @@ class ReminderController extends Controller
 
         $records = StudentReminder::orderBy('id', 'desc')->get();
 
-        $headers = [
-            'Content-Type' => 'text/csv',
-            'Content-Disposition' => 'attachment; filename="candidate_reminders_'.date('Ymd_His').'.csv"',
-        ];
+        $spreadsheet = new Spreadsheet;
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Candidate Reminders');
 
-        return response()->stream(function () use ($records) {
-            $handle = fopen('php://output', 'w');
-            fputcsv($handle, ['ID', 'Candidate Name', 'Case No', 'Course', 'Missing Documents', 'Created By', 'Created At']);
+        $headers = ['ID', 'Candidate Name', 'Case No', 'Course', 'Missing Documents', 'Created By', 'Created At'];
+        $sheet->fromArray($headers, null, 'A1');
+        $sheet->getStyle('A1:G1')->getFont()->setBold(true);
 
-            foreach ($records as $r) {
-                fputcsv($handle, $this->sanitizeRow([
-                    $r->id,
-                    $r->student_name,
-                    $r->eligibility_case_no,
-                    $r->course_name,
-                    $r->missing_doc,
-                    $r->created_by,
-                    $r->created_at,
-                ]));
-            }
-            fclose($handle);
-        }, 200, $headers);
+        $rows = [];
+        foreach ($records as $r) {
+            $rows[] = $this->sanitizeRow([
+                $r->id,
+                $r->student_name,
+                $r->eligibility_case_no,
+                $r->course_name,
+                $r->missing_doc,
+                $r->created_by,
+                $r->created_at ? $r->created_at->format('d/m/Y H:i') : '-',
+            ]);
+        }
+
+        if (! empty($rows)) {
+            $sheet->fromArray($rows, null, 'A2');
+        }
+
+        foreach (range('A', 'G') as $colId) {
+            $sheet->getColumnDimension($colId)->setAutoSize(true);
+        }
+
+        $filename = 'candidate_reminders_'.date('Ymd_His').'.xlsx';
+
+        return response()->streamDownload(function () use ($spreadsheet) {
+            $writer = new Xlsx($spreadsheet);
+            $writer->save('php://output');
+        }, $filename, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ]);
     }
 
     /**
-     * Export University Reminders Pending Cases to CSV.
+     * Export University Reminders Pending Cases to XLSX with University Name.
      */
     public function universityExport(Request $request): StreamedResponse
     {
@@ -958,33 +975,67 @@ class ReminderController extends Controller
             ->pluck('total', 'student_id')
             ->toArray();
 
+        $spreadsheet = new Spreadsheet;
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('University Reminders');
+
         $headers = [
-            'Content-Type' => 'text/csv',
-            'Content-Disposition' => 'attachment; filename="reminders_university_'.date('Ymd_His').'.csv"',
+            'Candidate Name',
+            'Eligibility Case No.',
+            'University Name',
+            'Target University Address',
+            'Academic Year',
+            'Program / Stream',
+            'Prior Reminder Notices',
         ];
+        $sheet->fromArray($headers, null, 'A1');
+        $sheet->getStyle('A1:G1')->getFont()->setBold(true);
 
-        return response()->stream(function () use ($students, $noteCounts) {
-            $handle = fopen('php://output', 'w');
-            fputcsv($handle, ['Candidate Name', 'Eligibility Case No.', 'Target University Address', 'Academic Year', 'Program / Stream', 'Prior Reminder Notices']);
-
-            foreach ($students as $s) {
-                $count = $noteCounts[$s->id] ?? 0;
-                $cleanAddr = strip_tags(str_replace(['<br>', '<br/>', '<br />', '<br/ >'], "\n", (string) $s->clg_add));
-                fputcsv($handle, $this->sanitizeRow([
-                    $s->student_name,
-                    $s->eligibility_case_no,
-                    $cleanAddr,
-                    $s->admission_taken_year,
-                    $s->admission_taken_in,
-                    $count > 0 ? "{$count} prior notice(s)" : 'None yet',
-                ]));
+        $rows = [];
+        foreach ($students as $s) {
+            $col = $matchCollege($s->clg_add);
+            $univName = $col ? trim((string) $col->Name, " ,\t\n\r\0\x0B") : '';
+            if (empty($univName) && ! empty($s->clg_add)) {
+                $cleanFirst = trim(explode('<br>', (string) $s->clg_add)[0]);
+                if ($cleanFirst !== '') {
+                    $univName = $cleanFirst;
+                }
             }
-            fclose($handle);
-        }, 200, $headers);
+
+            $count = $noteCounts[$s->id] ?? 0;
+            $cleanAddr = strip_tags(str_replace(['<br>', '<br/>', '<br />', '<br/ >'], "\n", (string) $s->clg_add));
+
+            $rows[] = $this->sanitizeRow([
+                $s->student_name,
+                $s->eligibility_case_no ?: '—',
+                $univName ?: '—',
+                $cleanAddr ?: '—',
+                $s->admission_taken_year ?: '—',
+                $s->admission_taken_in ?: '—',
+                $count > 0 ? "{$count} prior notice(s)" : 'None yet',
+            ]);
+        }
+
+        if (! empty($rows)) {
+            $sheet->fromArray($rows, null, 'A2');
+        }
+
+        foreach (range('A', 'G') as $colId) {
+            $sheet->getColumnDimension($colId)->setAutoSize(true);
+        }
+
+        $filename = 'reminders_university_'.date('Ymd_His').'.xlsx';
+
+        return response()->streamDownload(function () use ($spreadsheet) {
+            $writer = new Xlsx($spreadsheet);
+            $writer->save('php://output');
+        }, $filename, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ]);
     }
 
     /**
-     * Export University Reminders History to CSV.
+     * Export University Reminders History to XLSX.
      */
     public function universityHistoryExport(Request $request): StreamedResponse
     {
@@ -1002,25 +1053,40 @@ class ReminderController extends Controller
 
         $batches = $query->orderBy('id', 'desc')->get();
 
-        $headers = [
-            'Content-Type' => 'text/csv',
-            'Content-Disposition' => 'attachment; filename="reminders_university_history_'.date('Ymd_His').'.csv"',
-        ];
+        $spreadsheet = new Spreadsheet;
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Reminder History');
 
-        return response()->stream(function () use ($batches) {
-            $handle = fopen('php://output', 'w');
-            fputcsv($handle, ['University', 'Academic Year', 'Course', 'Candidates', 'Started']);
+        $headers = ['University Name', 'Academic Year', 'Course', 'Candidates', 'Started'];
+        $sheet->fromArray($headers, null, 'A1');
+        $sheet->getStyle('A1:E1')->getFont()->setBold(true);
 
-            foreach ($batches as $b) {
-                fputcsv($handle, $this->sanitizeRow([
-                    $b->university_name,
-                    $b->academic_year,
-                    $b->admission_taken_in ?: '-',
-                    $b->candidate_count,
-                    $b->created_at ? $b->created_at->format('d/m/Y H:i') : '-',
-                ]));
-            }
-            fclose($handle);
-        }, 200, $headers);
+        $rows = [];
+        foreach ($batches as $b) {
+            $rows[] = $this->sanitizeRow([
+                $b->university_name,
+                $b->academic_year,
+                $b->admission_taken_in ?: '-',
+                $b->candidate_count,
+                $b->created_at ? $b->created_at->format('d/m/Y H:i') : '-',
+            ]);
+        }
+
+        if (! empty($rows)) {
+            $sheet->fromArray($rows, null, 'A2');
+        }
+
+        foreach (range('A', 'E') as $colId) {
+            $sheet->getColumnDimension($colId)->setAutoSize(true);
+        }
+
+        $filename = 'reminders_university_history_'.date('Ymd_His').'.xlsx';
+
+        return response()->streamDownload(function () use ($spreadsheet) {
+            $writer = new Xlsx($spreadsheet);
+            $writer->save('php://output');
+        }, $filename, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ]);
     }
 }

@@ -417,8 +417,8 @@ export default function University({
                             </div>
                             <div className="d-flex gap-2">
                                 {canExport && (
-                                    <a href={exportUrl} className="btn btn-outline-success" id="export_excel_btn">
-                                        <i className="fa fa-file-excel-o me-1"></i> Export to Excel
+                                    <a href={exportUrl} className="btn btn-outline-success" id="export_excel_btn" title="Download filtered candidates spreadsheet in Microsoft Excel (.xlsx) format">
+                                        <i className="fa fa-file-excel-o me-1"></i> Export to Excel (.xlsx)
                                     </a>
                                 )}
                                 <Link href="/reminders/university/history" className="btn btn-indigo">
@@ -523,16 +523,16 @@ export default function University({
 
                             <div className="col-md-3">
                                 <label className="form-label text-secondary small fw-semibold" htmlFor="filter_university">
-                                    Target University (AJAX, optional)
+                                    Target University <span className="text-danger fw-bold">* (Required)</span>
                                 </label>
                                 <Select2
                                     id="filter_university"
                                     name="clg_add"
                                     value={university}
                                     onChange={(val) => setUniversity(val)}
-                                    placeholder="-- All Universities --"
+                                    placeholder="-- Select Target University --"
                                     options={[
-                                        { value: '', label: '-- All Universities --' },
+                                        { value: '', label: '-- Select Target University --' },
                                         ...universityOptions,
                                     ]}
                                     allowClear={true}
@@ -592,7 +592,19 @@ export default function University({
                                     )}
                                 </div>
                             </div>
-                        ) : null}
+                        ) : (
+                            <div className="alert alert-warning border-0 shadow-sm rounded-3 p-3 mb-4 d-flex align-items-center gap-3">
+                                <div className="rounded-circle p-2 bg-warning bg-opacity-25 text-warning flex-shrink-0">
+                                    <i className="fa fa-university fs-4"></i>
+                                </div>
+                                <div>
+                                    <div className="fw-bold text-dark">Target University Selection Required</div>
+                                    <div className="small text-muted">
+                                        University reminders are official verification notices addressed directly to a specific institution. Please select a <strong>Target University</strong> above to filter candidates for that institution and generate reminder letters.
+                                    </div>
+                                </div>
+                            </div>
+                        )}
 
                         {/* Reminder Notice Form & Student Selection Table */}
                         {students.data.length > 0 ? (
