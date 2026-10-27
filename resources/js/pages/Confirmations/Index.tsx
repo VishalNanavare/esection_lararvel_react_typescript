@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Link, router, usePage } from '@inertiajs/react';
 import Swal from 'sweetalert2';
 import { AppLayout } from '../../components/AppLayout';
@@ -58,6 +58,8 @@ interface IndexProps {
         year: string;
         stream: string;
         university?: string;
+        case_no?: string;
+        student_name?: string;
         q: string;
         status?: string;
     };
@@ -96,8 +98,26 @@ export const Index: React.FC<IndexProps> = ({
     // Filter states
     const [filterYear, setFilterYear] = useState(filters.year || '');
     const [filterStream, setFilterStream] = useState(filters.stream || '');
+    const [filterUniversity, setFilterUniversity] = useState(filters.university || '');
+    const [filterCaseNo, setFilterCaseNo] = useState(filters.case_no || '');
+    const [filterStudentName, setFilterStudentName] = useState(filters.student_name || '');
     const [filterStatus, setFilterStatus] = useState(filters.status || 'pending');
     const [searchQuery, setSearchQuery] = useState(filters.q || '');
+
+    const universityOptions = useMemo(() => {
+        return [
+            { value: '', label: '-- All Target Universities --' },
+            ...universities.map((u) => {
+                if (typeof u === 'string') {
+                    return { value: u, label: u };
+                }
+                return {
+                    value: u.value || u.name,
+                    label: u.name || u.label,
+                };
+            }),
+        ];
+    }, [universities]);
 
     // Selected students for confirmation
     const [selectedStudentIds, setSelectedStudentIds] = useState<number[]>([]);
@@ -127,8 +147,11 @@ export const Index: React.FC<IndexProps> = ({
             {
                 year: filterYear,
                 stream: filterStream,
+                university: filterUniversity,
+                case_no: filterCaseNo.trim(),
+                student_name: filterStudentName.trim(),
                 status: filterStatus,
-                q: searchQuery,
+                q: searchQuery.trim(),
             },
             { preserveState: true }
         );
@@ -137,9 +160,12 @@ export const Index: React.FC<IndexProps> = ({
     const handleReset = () => {
         setFilterYear('');
         setFilterStream('');
+        setFilterUniversity('');
+        setFilterCaseNo('');
+        setFilterStudentName('');
         setFilterStatus('pending');
         setSearchQuery('');
-        router.get('/confirmations', { status: 'pending' }, { preserveState: true });
+        router.get('/confirmations', { status: 'pending' }, { preserveState: false });
     };
 
     const toggleSelectStudent = (id: number) => {
@@ -370,13 +396,19 @@ export const Index: React.FC<IndexProps> = ({
         }
     };
 
-    const isFiltered = Boolean(filterYear || filterStream || searchQuery || filterStatus !== 'pending');
+    const isFiltered = Boolean(
+        filterYear || filterStream || filterUniversity || filterCaseNo || filterStudentName || searchQuery || filterStatus !== 'pending'
+    );
     const selectedCandidates = students.data.filter((s) => selectedStudentIds.includes(s.id));
     const pendingCandidatesCount = students.data.filter((s) => !s.confirmation_id).length;
 
     const exportUrl = `/confirmations/export?year=${encodeURIComponent(
         filterYear
-    )}&stream=${encodeURIComponent(filterStream)}&q=${encodeURIComponent(searchQuery)}`;
+    )}&stream=${encodeURIComponent(filterStream)}&university=${encodeURIComponent(
+        filterUniversity
+    )}&case_no=${encodeURIComponent(filterCaseNo)}&student_name=${encodeURIComponent(
+        filterStudentName
+    )}&status=${encodeURIComponent(filterStatus)}&q=${encodeURIComponent(searchQuery)}`;
 
     return (
         <AppLayout title="Confirmation Portal (Pending For Approval) - E-Section">
@@ -385,79 +417,190 @@ export const Index: React.FC<IndexProps> = ({
                     /* ================= STEP 1: PENDING FOR APPROVAL LIST (dd_page.php style) ================= */
                     <div className="card shadow-sm border-0 mb-4">
                         <div className="card-header bg-white py-3 border-bottom">
-                            <div className="row align-items-center g-3">
-                                <div className="col-lg-5">
+                            <div className="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+                                <div>
                                     <h5 className="fw-bold mb-0 text-dark">
                                         Confirmation Portal <small className="text-muted fw-normal">(Pending For Approval)</small>
                                     </h5>
+                                    <p className="text-muted small mb-0">
+                                        Search candidate eligibility records, filter by academic year, stream, university, case number, or student name.
+                                    </p>
                                 </div>
-                                <div className="col-lg-7">
-                                    <form onSubmit={handleFilterSubmit} className="row g-2 justify-content-lg-end align-items-center">
-                                        <div className="col-sm-4 col-md-3">
-                                            <Select2
-                                                id="filter_year"
-                                                name="year"
-                                                value={filterYear}
-                                                onChange={(val) => setFilterYear(val)}
-                                                placeholder="Select ACD Year"
-                                                options={[
-                                                    { value: '', label: 'Select ACD Year' },
-                                                    ...academicYears.map((y) => ({
-                                                        value: y.id,
-                                                        label: y.text,
-                                                    })),
-                                                ]}
-                                            />
-                                        </div>
-                                        <div className="col-sm-4 col-md-3">
-                                            <Select2
-                                                id="filter_stream"
-                                                name="stream"
-                                                value={filterStream}
-                                                onChange={(val) => setFilterStream(val)}
-                                                placeholder="Select Stream"
-                                                options={[
-                                                    { value: '', label: 'Select Stream' },
-                                                    ...streams.map((s) => ({
-                                                        value: s.id,
-                                                        label: s.text,
-                                                    })),
-                                                ]}
-                                            />
-                                        </div>
-                                        <div className="col-auto d-flex gap-1">
-                                            <button type="submit" className="btn btn-primary btn-sm px-3" id="btn_search_confirmations">
-                                                Search
-                                            </button>
-                                            {isFiltered && (
-                                                <button type="button" className="btn btn-outline-secondary btn-sm" onClick={handleReset}>
-                                                    Reset
-                                                </button>
-                                            )}
-                                        </div>
-                                        <div className="col-auto ms-auto d-flex gap-1">
-                                            {canExport && (
-                                                <a href={exportUrl} className="btn btn-sm btn-outline-success" title="Export to Excel">
-                                                    <i className="fa fa-file-excel-o me-1"></i> Excel
-                                                </a>
-                                            )}
-                                            <Link href="/confirmations/history" className="btn btn-sm btn-outline-dark">
-                                                <i className="fa fa-history me-1"></i> History
-                                            </Link>
-                                        </div>
-                                    </form>
+                                <div className="d-flex align-items-center gap-2">
+                                    {canExport && (
+                                        <a href={exportUrl} className="btn btn-sm btn-outline-success" title="Export to Excel">
+                                            <i className="fa fa-file-excel-o me-1"></i> Excel
+                                        </a>
+                                    )}
+                                    <Link href="/confirmations/history" className="btn btn-sm btn-outline-dark">
+                                        <i className="fa fa-history me-1"></i> History
+                                    </Link>
                                 </div>
                             </div>
+
+                            {/* Search & Filter Panel */}
+                            <form onSubmit={handleFilterSubmit} className="p-3 bg-light rounded-3 border">
+                                <div className="row g-2 align-items-end">
+                                    <div className="col-12 col-sm-6 col-md-4 col-lg-2">
+                                        <label className="form-label text-secondary small fw-semibold mb-1" htmlFor="filter_year">
+                                            Academic Year
+                                        </label>
+                                        <Select2
+                                            id="filter_year"
+                                            name="year"
+                                            value={filterYear}
+                                            onChange={(val) => setFilterYear(val)}
+                                            placeholder="-- All ACD Years --"
+                                            options={[
+                                                { value: '', label: '-- All ACD Years --' },
+                                                ...academicYears.map((y) => ({
+                                                    value: y.id,
+                                                    label: y.text,
+                                                })),
+                                            ]}
+                                            allowClear={true}
+                                        />
+                                    </div>
+                                    <div className="col-12 col-sm-6 col-md-4 col-lg-2">
+                                        <label className="form-label text-secondary small fw-semibold mb-1" htmlFor="filter_stream">
+                                            Program / Stream
+                                        </label>
+                                        <Select2
+                                            id="filter_stream"
+                                            name="stream"
+                                            value={filterStream}
+                                            onChange={(val) => setFilterStream(val)}
+                                            placeholder="-- All Programs / Streams --"
+                                            options={[
+                                                { value: '', label: '-- All Programs / Streams --' },
+                                                ...streams.map((s) => ({
+                                                    value: s.id,
+                                                    label: s.text,
+                                                })),
+                                            ]}
+                                            allowClear={true}
+                                        />
+                                    </div>
+                                    <div className="col-12 col-sm-6 col-md-4 col-lg-3">
+                                        <label className="form-label text-secondary small fw-semibold mb-1" htmlFor="filter_university">
+                                            Search University
+                                        </label>
+                                        <Select2
+                                            id="filter_university"
+                                            name="university"
+                                            value={filterUniversity}
+                                            onChange={(val) => setFilterUniversity(val)}
+                                            placeholder="-- All Target Universities --"
+                                            options={universityOptions}
+                                            allowClear={true}
+                                        />
+                                    </div>
+                                    <div className="col-12 col-sm-6 col-md-6 col-lg-2">
+                                        <label className="form-label text-secondary small fw-semibold mb-1" htmlFor="filter_case_no">
+                                            E. Case No.
+                                        </label>
+                                        <input
+                                            type="text"
+                                            id="filter_case_no"
+                                            name="case_no"
+                                            className="form-control"
+                                            placeholder="e.g. IDOL 2425..."
+                                            value={filterCaseNo}
+                                            onChange={(e) => setFilterCaseNo(e.target.value)}
+                                        />
+                                    </div>
+                                    <div className="col-12 col-sm-6 col-md-6 col-lg-3">
+                                        <label className="form-label text-secondary small fw-semibold mb-1" htmlFor="filter_student_name">
+                                            Student Name
+                                        </label>
+                                        <input
+                                            type="text"
+                                            id="filter_student_name"
+                                            name="student_name"
+                                            className="form-control"
+                                            placeholder="Search candidate name..."
+                                            value={filterStudentName}
+                                            onChange={(e) => setFilterStudentName(e.target.value)}
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="d-flex align-items-center justify-content-between flex-wrap gap-2 mt-3 pt-2 border-top">
+                                    <div className="d-flex align-items-center gap-2">
+                                        <span className="text-secondary small fw-semibold">Status:</span>
+                                        <div className="btn-group btn-group-sm" role="group">
+                                            <button
+                                                type="button"
+                                                className={`btn ${filterStatus === 'pending' ? 'btn-primary' : 'btn-outline-secondary'}`}
+                                                onClick={() => setFilterStatus('pending')}
+                                            >
+                                                Pending Approval
+                                            </button>
+                                            <button
+                                                type="button"
+                                                className={`btn ${filterStatus === 'confirmed' ? 'btn-primary' : 'btn-outline-secondary'}`}
+                                                onClick={() => setFilterStatus('confirmed')}
+                                            >
+                                                Confirmed
+                                            </button>
+                                            <button
+                                                type="button"
+                                                className={`btn ${filterStatus === 'all' ? 'btn-primary' : 'btn-outline-secondary'}`}
+                                                onClick={() => setFilterStatus('all')}
+                                            >
+                                                All Records
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div className="d-flex align-items-center gap-2">
+                                        <button type="submit" className="btn btn-primary px-3" id="btn_search_confirmations">
+                                            <i className="fa fa-search me-1"></i> Search Confirmations
+                                        </button>
+                                        {isFiltered && (
+                                            <button type="button" className="btn btn-outline-secondary" onClick={handleReset}>
+                                                <i className="fa fa-times me-1"></i> Clear Filters
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+                            </form>
                         </div>
 
                         <div className="card-body p-3">
-                            {/* Action Banner above Table */}
                             <div className="row align-items-center mb-3">
                                 <div className="col-md-8">
-                                    {filterYear || filterStream ? (
-                                        <span className="text-primary fw-semibold" style={{ fontSize: '15px' }}>
-                                            Admission Year = &ldquo;{filterYear || 'All'}&rdquo; &amp; Admission Stream = &ldquo;{filterStream || 'All'}&rdquo;
-                                        </span>
+                                    {isFiltered ? (
+                                        <div className="d-flex align-items-center gap-2 flex-wrap">
+                                            <span className="badge bg-light text-dark border">
+                                                Found {students.total} {students.total === 1 ? 'candidate' : 'candidates'}
+                                            </span>
+                                            {filterYear && (
+                                                <span className="badge bg-primary-subtle text-primary border border-primary-subtle">
+                                                    Year: {filterYear}
+                                                </span>
+                                            )}
+                                            {filterStream && (
+                                                <span className="badge bg-info-subtle text-info border border-info-subtle">
+                                                    Stream: {filterStream}
+                                                </span>
+                                            )}
+                                            {filterUniversity && (
+                                                <span className="badge bg-success-subtle text-success border border-success-subtle">
+                                                    Univ: {filterUniversity}
+                                                </span>
+                                            )}
+                                            {filterCaseNo && (
+                                                <span className="badge bg-secondary-subtle text-secondary border border-secondary-subtle">
+                                                    Case: {filterCaseNo}
+                                                </span>
+                                            )}
+                                            {filterStudentName && (
+                                                <span className="badge bg-dark-subtle text-dark border border-dark-subtle">
+                                                    Name: {filterStudentName}
+                                                </span>
+                                            )}
+                                        </div>
                                     ) : (
                                         <span className="text-secondary small">
                                             Select candidates using the checkboxes below, then click <strong>Create Confirmation</strong>.

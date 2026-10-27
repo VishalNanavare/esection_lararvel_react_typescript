@@ -44,7 +44,10 @@ class ConfirmationController extends Controller
         $selectedYear = trim((string) $request->input('year', ''));
         $selectedStream = trim((string) $request->input('stream', ''));
         $selectedUniversity = trim((string) $request->input('university', ''));
+        $caseNo = trim((string) $request->input('case_no', ''));
+        $studentName = trim((string) $request->input('student_name', ''));
         $searchQuery = trim((string) $request->input('q', ''));
+        $selectedStatus = trim((string) $request->input('status', 'pending'));
 
         [$colleges, $matchCollege] = $this->buildCollegeMatcher();
 
@@ -68,32 +71,47 @@ class ConfirmationController extends Controller
         }
 
         if ($selectedUniversity !== '') {
-            $col = $matchCollege($selectedUniversity);
-            if ($col) {
-                $query->where(function ($q) use ($selectedUniversity, $col) {
-                    $q->where('student_details.clg_add', $selectedUniversity)
-                        ->orWhere('student_details.clg_add', 'like', "%{$selectedUniversity}%");
-                    if (! empty($col->Address)) {
-                        $q->orWhere('student_details.clg_add', 'like', "%{$col->Address}%");
+            $matchedColleges = CollegeDetail::where('Name', 'like', "%{$selectedUniversity}%")->get();
+            $matchedCollegeIds = $matchedColleges->pluck('id')->map(fn ($id) => (string) $id)->toArray();
+            $matchedAddresses = $matchedColleges->pluck('Address')
+                ->filter()
+                ->map(fn ($a) => trim(explode('<br>', $a)[0]))
+                ->filter()
+                ->toArray();
+
+            $query->where(function ($q) use ($selectedUniversity, $matchedCollegeIds, $matchedAddresses) {
+                $q->where('student_details.clg_add', $selectedUniversity)
+                    ->orWhere('student_details.clg_add', 'like', "%{$selectedUniversity}%");
+                if (! empty($matchedCollegeIds)) {
+                    $q->orWhereIn('student_details.clg_add', $matchedCollegeIds);
+                }
+                foreach ($matchedAddresses as $addr) {
+                    if (strlen($addr) >= 6) {
+                        $q->orWhere('student_details.clg_add', 'like', "%{$addr}%");
                     }
-                    if (! empty($col->Name)) {
-                        $q->orWhere('student_details.clg_add', 'like', "%{$col->Name}%");
-                    }
-                });
-            } else {
-                $query->where('student_details.clg_add', 'like', "%{$selectedUniversity}%");
-            }
+                }
+            });
+        }
+
+        if ($caseNo !== '') {
+            $query->where('student_details.eligibility_case_no', 'like', "%{$caseNo}%");
+        }
+
+        if ($studentName !== '') {
+            $query->where(function ($q) use ($studentName) {
+                $q->where('student_details.student_name', 'like', "%{$studentName}%")
+                    ->orWhere('student_details.student_nee_name', 'like', "%{$studentName}%");
+            });
         }
 
         if ($searchQuery !== '') {
             $query->where(function ($q) use ($searchQuery) {
                 $q->where('student_details.student_name', 'like', "%{$searchQuery}%")
+                    ->orWhere('student_details.student_nee_name', 'like', "%{$searchQuery}%")
                     ->orWhere('student_details.eligibility_case_no', 'like', "%{$searchQuery}%")
                     ->orWhere('student_details.clg_add', 'like', "%{$searchQuery}%");
             });
         }
-
-        $selectedStatus = trim((string) $request->input('status', ''));
 
         if ($selectedStatus === 'pending') {
             $query->whereNull('conf_stud_data.id');
@@ -149,6 +167,8 @@ class ConfirmationController extends Controller
                 'year' => $selectedYear,
                 'stream' => $selectedStream,
                 'university' => $selectedUniversity,
+                'case_no' => $caseNo,
+                'student_name' => $studentName,
                 'q' => $searchQuery,
                 'status' => $selectedStatus,
             ],
@@ -589,7 +609,10 @@ class ConfirmationController extends Controller
         $selectedYear = trim((string) $request->input('year', ''));
         $selectedStream = trim((string) $request->input('stream', ''));
         $selectedUniversity = trim((string) $request->input('university', ''));
+        $caseNo = trim((string) $request->input('case_no', ''));
+        $studentName = trim((string) $request->input('student_name', ''));
         $searchQuery = trim((string) $request->input('q', ''));
+        $selectedStatus = trim((string) $request->input('status', ''));
 
         [$colleges, $matchCollege] = $this->buildCollegeMatcher();
 
@@ -612,28 +635,48 @@ class ConfirmationController extends Controller
             $query->where('student_details.admission_taken_in', $selectedStream);
         }
         if ($selectedUniversity !== '') {
-            $col = $matchCollege($selectedUniversity);
-            if ($col) {
-                $query->where(function ($q) use ($selectedUniversity, $col) {
-                    $q->where('student_details.clg_add', $selectedUniversity)
-                        ->orWhere('student_details.clg_add', 'like', "%{$selectedUniversity}%");
-                    if (! empty($col->Address)) {
-                        $q->orWhere('student_details.clg_add', 'like', "%{$col->Address}%");
+            $matchedColleges = CollegeDetail::where('Name', 'like', "%{$selectedUniversity}%")->get();
+            $matchedCollegeIds = $matchedColleges->pluck('id')->map(fn ($id) => (string) $id)->toArray();
+            $matchedAddresses = $matchedColleges->pluck('Address')
+                ->filter()
+                ->map(fn ($a) => trim(explode('<br>', $a)[0]))
+                ->filter()
+                ->toArray();
+
+            $query->where(function ($q) use ($selectedUniversity, $matchedCollegeIds, $matchedAddresses) {
+                $q->where('student_details.clg_add', $selectedUniversity)
+                    ->orWhere('student_details.clg_add', 'like', "%{$selectedUniversity}%");
+                if (! empty($matchedCollegeIds)) {
+                    $q->orWhereIn('student_details.clg_add', $matchedCollegeIds);
+                }
+                foreach ($matchedAddresses as $addr) {
+                    if (strlen($addr) >= 6) {
+                        $q->orWhere('student_details.clg_add', 'like', "%{$addr}%");
                     }
-                    if (! empty($col->Name)) {
-                        $q->orWhere('student_details.clg_add', 'like', "%{$col->Name}%");
-                    }
-                });
-            } else {
-                $query->where('student_details.clg_add', 'like', "%{$selectedUniversity}%");
-            }
+                }
+            });
+        }
+        if ($caseNo !== '') {
+            $query->where('student_details.eligibility_case_no', 'like', "%{$caseNo}%");
+        }
+        if ($studentName !== '') {
+            $query->where(function ($q) use ($studentName) {
+                $q->where('student_details.student_name', 'like', "%{$studentName}%")
+                    ->orWhere('student_details.student_nee_name', 'like', "%{$studentName}%");
+            });
         }
         if ($searchQuery !== '') {
             $query->where(function ($q) use ($searchQuery) {
                 $q->where('student_details.student_name', 'like', "%{$searchQuery}%")
+                    ->orWhere('student_details.student_nee_name', 'like', "%{$searchQuery}%")
                     ->orWhere('student_details.eligibility_case_no', 'like', "%{$searchQuery}%")
                     ->orWhere('student_details.clg_add', 'like', "%{$searchQuery}%");
             });
+        }
+        if ($selectedStatus === 'pending') {
+            $query->whereNull('conf_stud_data.id');
+        } elseif ($selectedStatus === 'confirmed') {
+            $query->whereNotNull('conf_stud_data.id');
         }
 
         $records = $query->orderBy('student_details.id', 'desc')->get();

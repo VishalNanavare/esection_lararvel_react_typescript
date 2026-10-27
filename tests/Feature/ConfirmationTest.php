@@ -65,6 +65,31 @@ test('user can filter confirmations by university', function () {
     expect(count($noMatchPage['props']['students']['data']))->toBe(0);
 });
 
+test('user can filter confirmations by case_no and student_name', function () {
+    $response = $this->actingAs($this->user)->get(route('confirmations.index', [
+        'case_no' => 'CASE-2026/0055',
+    ]));
+    $response->assertOk();
+    $page = $response->original->getData()['page'];
+    expect(count($page['props']['students']['data']))->toBe(1);
+    expect($page['props']['students']['data'][0]['eligibility_case_no'])->toBe('CASE-2026/0055');
+
+    $nameResponse = $this->actingAs($this->user)->get(route('confirmations.index', [
+        'student_name' => 'Anil Kapoor',
+    ]));
+    $nameResponse->assertOk();
+    $namePage = $nameResponse->original->getData()['page'];
+    expect(count($namePage['props']['students']['data']))->toBe(1);
+    expect($namePage['props']['students']['data'][0]['student_name'])->toBe('Anil Kapoor');
+
+    $noMatch = $this->actingAs($this->user)->get(route('confirmations.index', [
+        'case_no' => 'NON-EXISTENT-CASE-1234',
+    ]));
+    $noMatch->assertOk();
+    $noMatchPage = $noMatch->original->getData()['page'];
+    expect(count($noMatchPage['props']['students']['data']))->toBe(0);
+});
+
 test('user can store a confirmation record with the eligibility checklist', function () {
     $payload = [
         'student_ids' => [$this->student->id],
