@@ -172,19 +172,44 @@ class SettingsController extends Controller
 
         $uploadDir = public_path('uploads/institute');
         if (! is_dir($uploadDir)) {
-            mkdir($uploadDir, 0755, true);
+            @mkdir($uploadDir, 0777, true);
+        }
+        if (is_dir($uploadDir) && ! is_writable($uploadDir)) {
+            @chmod($uploadDir, 0777);
+        }
+
+        if (! is_writable($uploadDir)) {
+            imagedestroy($image);
+
+            return redirect()->back()->withErrors([
+                $fieldLabel => "Permission denied: The upload directory 'public/uploads/institute' is not writable by the web server. Please run: sudo chown -R www-data:www-data /var/www/esection_laravel/public/uploads && sudo chmod -R 775 /var/www/esection_laravel/public/uploads",
+            ]);
         }
 
         $filename = time().'_'.bin2hex(random_bytes(8)).'.'.$extension;
         $destination = $uploadDir.'/'.$filename;
 
-        if ($extension === 'png') {
-            imagesavealpha($image, true);
-            imagepng($image, $destination);
-        } else {
-            imagejpeg($image, $destination, 90);
+        try {
+            $saved = false;
+            if ($extension === 'png') {
+                imagesavealpha($image, true);
+                $saved = @imagepng($image, $destination);
+            } else {
+                $saved = @imagejpeg($image, $destination, 90);
+            }
+            imagedestroy($image);
+
+            if (! $saved || ! file_exists($destination)) {
+                return redirect()->back()->withErrors([
+                    $fieldLabel => "Failed to write image file to {$destination}. Please check folder permissions: sudo chown -R www-data:www-data /var/www/esection_laravel/public/uploads && sudo chmod -R 775 /var/www/esection_laravel/public/uploads",
+                ]);
+            }
+            @chmod($destination, 0664);
+        } catch (\Throwable $e) {
+            return redirect()->back()->withErrors([
+                $fieldLabel => "Could not save uploaded image: {$e->getMessage()}. Please check permissions: sudo chown -R www-data:www-data /var/www/esection_laravel/public/uploads && sudo chmod -R 775 /var/www/esection_laravel/public/uploads",
+            ]);
         }
-        imagedestroy($image);
 
         $oldPath = Setting::get($settingKey);
         Setting::set($settingKey, 'uploads/institute/'.$filename, 'institute', $userId);
