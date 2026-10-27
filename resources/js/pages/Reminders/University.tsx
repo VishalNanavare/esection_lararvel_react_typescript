@@ -103,9 +103,8 @@ export default function University({
 
     const hasUniversity = Boolean(university.trim() || (filters.clg_add && filters.clg_add.trim()));
 
-    // Only select eligible candidates by default if a target university is selected
+    // Select eligible candidates by default
     const [selectedIds, setSelectedIds] = useState<number[]>(() => {
-        if (!filters.clg_add || !filters.clg_add.trim()) return [];
         return students.data.filter((s) => s.is_eligible !== false).map((s) => s.id);
     });
     const [reminderType, setReminderType] = useState('1st Reminder Notice');
@@ -238,31 +237,10 @@ export default function University({
         }
     }, []);
 
-    // Update selectedIds when student data or university changes
+    // Update selectedIds when student data changes
     useEffect(() => {
-        if (!university.trim() && !(filters.clg_add && filters.clg_add.trim())) {
-            setSelectedIds([]);
-        } else {
-            setSelectedIds(students.data.filter((s) => s.is_eligible !== false).map((s) => s.id));
-        }
-    }, [students.data, university, filters.clg_add]);
-
-    const handleUniversityChange = (selectedUniv: string) => {
-        setUniversity(selectedUniv);
-        router.get(
-            '/reminders/university',
-            {
-                acd_year: year,
-                stream,
-                clg_add: selectedUniv,
-                student_name: studentName,
-            },
-            {
-                preserveState: true,
-                replace: true,
-            }
-        );
-    };
+        setSelectedIds(students.data.filter((s) => s.is_eligible !== false).map((s) => s.id));
+    }, [students.data]);
 
     const handleFilter = (e?: React.FormEvent) => {
         if (e) e.preventDefault();
@@ -297,7 +275,7 @@ export default function University({
     };
 
     const eligibleStudents = students.data.filter((s) => s.is_eligible !== false);
-    const isAllSelected = eligibleStudents.length > 0 && selectedIds.length === eligibleStudents.length;
+    const isAllSelected = eligibleStudents.length > 0 && eligibleStudents.every((s) => selectedIds.includes(s.id));
 
     const handleToggleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.checked) {
@@ -322,23 +300,45 @@ export default function University({
     const handleGenerateReminder = (e: React.FormEvent) => {
         e.preventDefault();
 
-        if (!hasUniversity || !activeUnivName.trim()) {
-            Swal.fire({
-                icon: 'warning',
-                title: 'Target University Required',
-                text: 'Please select a Target University from the filter above before generating a reminder notice. Reminders must be sent to a specific institution.',
-            });
+        if (selectedIds.length === 0) {
+            Swal.fire('No Candidates Selected', 'Please check at least one candidate from the table.', 'warning');
             return;
         }
 
-        if (selectedIds.length === 0) {
-            Swal.fire('No Candidates Selected', 'Please check at least one eligible candidate from the table.', 'warning');
-            return;
+        const selectedStudentsList = students.data.filter((s) => selectedIds.includes(s.id));
+
+        // Determine target university: from filter or inferred from selected candidates
+        let targetUniv = activeUnivName.trim();
+        if (!targetUniv) {
+            const candidateUnivs = Array.from(
+                new Set(
+                    selectedStudentsList
+                        .map((s) => (s.university_name || s.clg_add || '').trim())
+                        .filter(Boolean)
+                )
+            );
+
+            if (candidateUnivs.length === 1) {
+                targetUniv = candidateUnivs[0];
+            } else if (candidateUnivs.length > 1) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Multiple Universities Selected',
+                    text: 'The selected candidates belong to different institutions (' + candidateUnivs.slice(0, 3).join(', ') + (candidateUnivs.length > 3 ? '...' : '') + '). Please select candidates from the same university or filter by Target University first.',
+                });
+                return;
+            } else {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Target University Required',
+                    text: 'Please select a Target University before generating a reminder notice.',
+                });
+                return;
+            }
         }
 
         setIsSubmitting(true);
-        const academicYear = year || students.data[0]?.admission_taken_year || '';
-        const targetUniv = activeUnivName.trim();
+        const academicYear = year || selectedStudentsList[0]?.admission_taken_year || '';
 
         router.post(
             '/reminders/university',
@@ -416,19 +416,13 @@ export default function University({
                                 </p>
                             </div>
                             <div className="d-flex gap-2">
-                                <Link href="/reminders/university/history" className="btn btn-indigo">
-                                    <i className="fa fa-object-group me-1"></i> Combine Pending Batches
-                                </Link>
                                 {canExport && (
-                                    <a href={exportUrl} className="btn btn-outline-success">
+                                    <a href={exportUrl} className="btn btn-outline-success" id="export_excel_btn">
                                         <i className="fa fa-file-excel-o me-1"></i> Export to Excel
                                     </a>
                                 )}
-                                <Link href="/reminders/university/history" className="btn btn-glass">
+                                <Link href="/reminders/university/history" className="btn btn-indigo">
                                     <i className="fa fa-history me-1"></i> Reminder History
-                                </Link>
-                                <Link href="/reminders/student" className="btn btn-glass">
-                                    <i className="fa fa-user me-1"></i> Switch to Candidate Reminders
                                 </Link>
                             </div>
                         </div>
@@ -529,16 +523,16 @@ export default function University({
 
                             <div className="col-md-3">
                                 <label className="form-label text-secondary small fw-semibold" htmlFor="filter_university">
-                                    Target University <span className="text-danger fw-bold">* (Required)</span>
+                                    Target University (AJAX, optional)
                                 </label>
                                 <Select2
                                     id="filter_university"
                                     name="clg_add"
                                     value={university}
-                                    onChange={(val) => handleUniversityChange(val)}
-                                    placeholder="-- Select Target University --"
+                                    onChange={(val) => setUniversity(val)}
+                                    placeholder="-- All Universities --"
                                     options={[
-                                        { value: '', label: '-- Select Target University --' },
+                                        { value: '', label: '-- All Universities --' },
                                         ...universityOptions,
                                     ]}
                                     allowClear={true}
@@ -560,14 +554,7 @@ export default function University({
                                 />
                             </div>
 
-                            <div className="col-12 text-end d-flex align-items-center justify-content-between pt-2">
-                                <div>
-                                    {canExport && (
-                                        <a href={exportUrl} className="btn btn-outline-success">
-                                            <i className="fa fa-file-excel-o me-1"></i> Export to Excel
-                                        </a>
-                                    )}
-                                </div>
+                            <div className="col-12 text-end d-flex align-items-center justify-content-end pt-2">
                                 <div className="d-flex gap-2">
                                     {(year || stream || university || studentName) && (
                                         <button
@@ -586,19 +573,7 @@ export default function University({
                         </form>
 
                         {/* Target University Selection Notice / Badge */}
-                        {!hasUniversity ? (
-                            <div className="alert alert-warning border-0 shadow-sm rounded-3 p-3 mb-4 d-flex align-items-center gap-3">
-                                <div className="rounded-circle p-2 bg-warning bg-opacity-25 text-warning flex-shrink-0">
-                                    <i className="fa fa-university fs-4"></i>
-                                </div>
-                                <div>
-                                    <div className="fw-bold text-dark">Target University Selection Required</div>
-                                    <div className="small text-muted">
-                                        University reminder letters are consolidated and sent directly to a specific university. Please select a <strong>Target University</strong> above to view candidates belonging to that institution and enable reminder notice generation.
-                                    </div>
-                                </div>
-                            </div>
-                        ) : (
+                        {activeUnivName ? (
                             <div className="card border-0 shadow-sm rounded-3 p-3 mb-4 bg-light border-start border-4 border-indigo">
                                 <div className="d-flex align-items-center justify-content-between flex-wrap gap-2">
                                     <div className="d-flex align-items-center gap-3">
@@ -617,42 +592,40 @@ export default function University({
                                     )}
                                 </div>
                             </div>
-                        )}
+                        ) : null}
 
                         {/* Reminder Notice Form & Student Selection Table */}
                         {students.data.length > 0 ? (
                             <form onSubmit={handleGenerateReminder}>
-                                {hasUniversity && (
-                                    <div className="row g-3 mb-4 entry-panel p-3 bg-white rounded-3 border">
-                                        <div className="col-md-6">
-                                            <label className="form-label text-secondary small fw-semibold">
-                                                Reminder Notice Type
-                                            </label>
-                                            <select
-                                                className="form-select"
-                                                value={reminderType}
-                                                onChange={(e) => setReminderType(e.target.value)}
-                                                required
-                                            >
-                                                <option value="1st Reminder Notice">1st Reminder Notice</option>
-                                                <option value="2nd Reminder Notice">2nd Reminder Notice</option>
-                                                <option value="Final Urgent Reminder Notice">Final Urgent Reminder Notice</option>
-                                            </select>
-                                        </div>
-                                        <div className="col-md-6">
-                                            <label className="form-label text-secondary small fw-semibold">
-                                                Head Name (To)
-                                            </label>
-                                            <input
-                                                type="text"
-                                                className="form-control"
-                                                placeholder="The Controller of Examinations"
-                                                value={headName}
-                                                onChange={(e) => setHeadName(e.target.value)}
-                                            />
-                                        </div>
+                                <div className="row g-3 mb-4 entry-panel p-3 bg-white rounded-3 border">
+                                    <div className="col-md-6">
+                                        <label className="form-label text-secondary small fw-semibold">
+                                            Reminder Notice Type
+                                        </label>
+                                        <select
+                                            className="form-select"
+                                            value={reminderType}
+                                            onChange={(e) => setReminderType(e.target.value)}
+                                            required
+                                        >
+                                            <option value="1st Reminder Notice">1st Reminder Notice</option>
+                                            <option value="2nd Reminder Notice">2nd Reminder Notice</option>
+                                            <option value="Final Urgent Reminder Notice">Final Urgent Reminder Notice</option>
+                                        </select>
                                     </div>
-                                )}
+                                    <div className="col-md-6">
+                                        <label className="form-label text-secondary small fw-semibold">
+                                            Head Name (To)
+                                        </label>
+                                        <input
+                                            type="text"
+                                            className="form-control"
+                                            placeholder="The Controller of Examinations"
+                                            value={headName}
+                                            onChange={(e) => setHeadName(e.target.value)}
+                                        />
+                                    </div>
+                                </div>
 
                                 {/* Student Selection Table */}
                                 <div className="table-responsive mb-4">
@@ -663,16 +636,16 @@ export default function University({
                                                     <input
                                                         type="checkbox"
                                                         id="check_all"
-                                                        checked={hasUniversity && isAllSelected}
+                                                        checked={isAllSelected}
                                                         onChange={handleToggleSelectAll}
-                                                        disabled={!hasUniversity || eligibleStudents.length === 0}
+                                                        disabled={eligibleStudents.length === 0}
                                                         aria-label="Select all eligible students"
-                                                        title={!hasUniversity ? 'Please select a Target University to enable selection' : 'Select all eligible candidates'}
+                                                        title="Select all eligible candidates"
                                                     />
                                                 </th>
                                                 <th>CANDIDATE NAME</th>
                                                 <th>ELIGIBILITY CASE NO.</th>
-                                                <th>TARGET UNIVERSITY ADDRESS</th>
+                                                <th>UNIVERSITY / BOARD NAME</th>
                                                 <th>ACADEMIC YEAR</th>
                                                 <th>PROGRAM / STREAM</th>
                                                 <th>PRIOR NOTICES</th>
@@ -688,16 +661,14 @@ export default function University({
                                                         <td>
                                                             <input
                                                                 type="checkbox"
-                                                                checked={hasUniversity && isSelected}
-                                                                disabled={!hasUniversity || !isEligible}
+                                                                checked={isSelected}
+                                                                disabled={!isEligible}
                                                                 onChange={() => handleToggleSelect(stud.id)}
                                                                 aria-label={`Select student ${stud.student_name}`}
                                                                 title={
-                                                                    !hasUniversity
-                                                                        ? 'Please select a Target University from the filter above'
-                                                                        : (!isEligible
-                                                                            ? (stud.is_verified ? 'Candidate already verified' : 'Candidate explicitly excluded')
-                                                                            : 'Select for reminder notice')
+                                                                    !isEligible
+                                                                        ? (stud.is_verified ? 'Candidate already verified' : 'Candidate explicitly excluded')
+                                                                        : 'Select for reminder notice'
                                                                 }
                                                             />
                                                         </td>
@@ -753,45 +724,33 @@ export default function University({
                                     </table>
                                 </div>
 
-                                {hasUniversity ? (
-                                    <div className="d-flex align-items-center justify-content-between flex-wrap gap-2">
-                                        <div className="text-muted small">
-                                            Selected: <strong>{selectedIds.length}</strong> of <strong>{eligibleStudents.length}</strong> eligible candidate(s) for <strong>{activeUnivName}</strong>
-                                        </div>
-                                        <button
-                                            type="submit"
-                                            className="btn btn-emerald py-2 px-4"
-                                            disabled={isSubmitting || selectedIds.length === 0}
-                                        >
-                                            {isSubmitting ? (
-                                                <>
-                                                    <i className="fa fa-spinner fa-spin me-1"></i> Generating...
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <i className="fa fa-file-pdf-o me-1"></i> Generate University Reminder PDF Notice
-                                                </>
-                                            )}
-                                        </button>
+                                <div className="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                                    <div className="text-muted small">
+                                        Selected: <strong>{selectedIds.length}</strong> of <strong>{eligibleStudents.length}</strong> eligible candidate(s)
+                                        {activeUnivName ? <> for <strong>{activeUnivName}</strong></> : ''}
                                     </div>
-                                ) : (
-                                    <div className="card border-0 shadow-sm rounded-3 p-4 bg-light text-center">
-                                        <div className="mb-2">
-                                            <i className="fa fa-university fs-2 text-indigo opacity-75"></i>
-                                        </div>
-                                        <h6 className="fw-bold text-dark mb-1">Target University Required to Generate Notice</h6>
-                                        <p className="text-muted small mb-0" style={{ maxWidth: '650px', margin: '0 auto' }}>
-                                            All candidates included in a reminder notice must belong to the same institution.
-                                            Please select a <strong>Target University</strong> using the filter dropdown above to enable candidate selection and official PDF notice generation.
-                                        </p>
-                                    </div>
-                                )}
+                                    <button
+                                        type="submit"
+                                        className="btn btn-emerald py-2 px-4"
+                                        disabled={isSubmitting || selectedIds.length === 0}
+                                    >
+                                        {isSubmitting ? (
+                                            <>
+                                                <i className="fa fa-spinner fa-spin me-1"></i> Generating...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <i className="fa fa-file-pdf-o me-1"></i> Generate University Reminder PDF Notice
+                                            </>
+                                        )}
+                                    </button>
+                                </div>
                             </form>
                         ) : (
                             <div className="text-center text-muted py-5">
                                 <i className="fa fa-clock-o fs-1 mb-3 text-secondary"></i>
                                 <p className="mb-0">
-                                    {hasUniversity
+                                    {activeUnivName
                                         ? `No candidate records match the current filters for ${activeUnivName}.`
                                         : 'No candidate records match the current filters.'}
                                 </p>

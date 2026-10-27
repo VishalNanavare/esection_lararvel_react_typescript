@@ -965,7 +965,7 @@ class ReminderController extends Controller
 
         return response()->stream(function () use ($students, $noteCounts) {
             $handle = fopen('php://output', 'w');
-            fputcsv($handle, ['Candidate Name', 'Eligibility Case No.', 'Target University Address', 'Academic Year', 'Reminder Status']);
+            fputcsv($handle, ['Candidate Name', 'Eligibility Case No.', 'Target University Address', 'Academic Year', 'Program / Stream', 'Prior Reminder Notices']);
 
             foreach ($students as $s) {
                 $count = $noteCounts[$s->id] ?? 0;
@@ -975,6 +975,7 @@ class ReminderController extends Controller
                     $s->eligibility_case_no,
                     $cleanAddr,
                     $s->admission_taken_year,
+                    $s->admission_taken_in,
                     $count > 0 ? "{$count} prior notice(s)" : 'None yet',
                 ]));
             }

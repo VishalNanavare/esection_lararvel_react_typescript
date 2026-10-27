@@ -112,8 +112,8 @@ export const Index: React.FC<IndexProps> = ({
                     return { value: u, label: u };
                 }
                 return {
-                    value: u.value || u.name,
-                    label: u.name || u.label,
+                    value: String(u.value || u.name || ''),
+                    label: String(u.name || u.label || u.value || ''),
                 };
             }),
         ];

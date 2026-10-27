@@ -145,6 +145,36 @@ test('university reminder history export does not crash and reports distinct can
     expect($csv)->toContain(',2,');
 });
 
+test('university reminder student export returns csv with program stream column and filters by student name', function () {
+    StudentDetail::create([
+        'student_name' => 'Kavita Krishnan',
+        'eligibility_case_no' => 'REM-EXP-001',
+        'admission_taken_in' => 'M.Sc. Computer Science',
+        'admission_taken_year' => '2025-2026',
+        'clg_add' => 'Madras University, Chennai',
+        'array_space' => 'batch_rem_exp_1',
+    ]);
+
+    StudentDetail::create([
+        'student_name' => 'Arun Joseph',
+        'eligibility_case_no' => 'REM-EXP-002',
+        'admission_taken_in' => 'B.A. Economics',
+        'admission_taken_year' => '2025-2026',
+        'clg_add' => 'Kerala University, Thiruvananthapuram',
+        'array_space' => 'batch_rem_exp_2',
+    ]);
+
+    $response = $this->actingAs($this->user)->get('/reminders/university/export?student_name=Kavita');
+    $response->assertOk();
+    $csv = $response->streamedContent();
+
+    expect($csv)->toContain('Candidate Name')
+        ->toContain('Program / Stream')
+        ->toContain('Kavita Krishnan')
+        ->toContain('M.Sc. Computer Science')
+        ->not->toContain('Arun Joseph');
+});
+
 test('staff can store and view candidate direct document reminders', function () {
     $response = $this->actingAs($this->user)->post('/reminders/student', [
         'student_name' => 'Sunil Joshi',
