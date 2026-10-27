@@ -100,6 +100,8 @@ export default function University({
     const [stream, setStream] = useState(filters.stream || '');
     const [university, setUniversity] = useState(filters.clg_add || '');
     const [studentName, setStudentName] = useState(filters.student_name || '');
+    const [verificationStatus, setVerificationStatus] = useState(filters.verification_status || 'pending');
+    const [updatingStatusId, setUpdatingStatusId] = useState<number | null>(null);
 
     const hasUniversity = Boolean(university.trim() || (filters.clg_add && filters.clg_add.trim()));
 
@@ -187,6 +189,10 @@ export default function University({
         setStudentName(filters.student_name || '');
     }, [filters.student_name]);
 
+    useEffect(() => {
+        setVerificationStatus(filters.verification_status || 'pending');
+    }, [filters.verification_status]);
+
     // AJAX fallbacks if not provided in page props
     useEffect(() => {
         if (!academicYears || academicYears.length === 0) {
@@ -242,8 +248,9 @@ export default function University({
         setSelectedIds(students.data.filter((s) => s.is_eligible !== false).map((s) => s.id));
     }, [students.data]);
 
-    const handleFilter = (e?: React.FormEvent) => {
+    const handleFilter = (e?: React.FormEvent, overrideStatus?: string) => {
         if (e) e.preventDefault();
+        const statusToUse = overrideStatus !== undefined ? overrideStatus : verificationStatus;
         router.get(
             '/reminders/university',
             {
@@ -251,6 +258,7 @@ export default function University({
                 stream,
                 clg_add: university,
                 student_name: studentName,
+                verification_status: statusToUse,
             },
             {
                 preserveState: true,
@@ -264,14 +272,69 @@ export default function University({
         setStream('');
         setUniversity('');
         setStudentName('');
+        setVerificationStatus('pending');
         router.get(
             '/reminders/university',
-            {},
+            {
+                verification_status: 'pending',
+            },
             {
                 preserveState: false,
                 replace: true,
             }
         );
+    };
+
+    const handleUpdateStatus = (
+        studentId: number,
+        candidateName: string,
+        newStatus: 'verified' | 'pending' | 'excluded'
+    ) => {
+        const isVerifying = newStatus === 'verified';
+        Swal.fire({
+            title: isVerifying ? 'Mark as Verified?' : `Change Status to ${newStatus}?`,
+            html: `Are you sure you want to update verification status for <strong>${candidateName}</strong> to <strong class="${
+                isVerifying ? 'text-success' : 'text-primary'
+            }">${newStatus.toUpperCase()}</strong>?`,
+            icon: isVerifying ? 'question' : 'info',
+            showCancelButton: true,
+            confirmButtonColor: isVerifying ? '#10b981' : '#4f46e5',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: isVerifying
+                ? '<i class="fa fa-check me-1"></i> Yes, Mark Verified'
+                : `Yes, Set ${newStatus}`,
+            cancelButtonText: 'Cancel',
+        }).then((result) => {
+            if (result.isConfirmed) {
+                setUpdatingStatusId(studentId);
+                router.post(
+                    `/reminders/university/students/${studentId}/status`,
+                    { status: newStatus },
+                    {
+                        preserveScroll: true,
+                        onSuccess: () => {
+                            setUpdatingStatusId(null);
+                            Swal.fire({
+                                toast: true,
+                                position: 'top-end',
+                                icon: 'success',
+                                title: `Candidate marked as ${newStatus}!`,
+                                showConfirmButton: false,
+                                timer: 2500,
+                            });
+                        },
+                        onError: (errs) => {
+                            setUpdatingStatusId(null);
+                            Swal.fire(
+                                'Error',
+                                Object.values(errs).flat().join('\n') || 'Failed to update candidate status.',
+                                'error'
+                            );
+                        },
+                    }
+                );
+            }
+        });
     };
 
     const eligibleStudents = students.data.filter((s) => s.is_eligible !== false);
@@ -397,7 +460,9 @@ export default function University({
         year
     )}&stream=${encodeURIComponent(stream)}&clg_add=${encodeURIComponent(
         university
-    )}&student_name=${encodeURIComponent(studentName)}`;
+    )}&student_name=${encodeURIComponent(studentName)}&verification_status=${encodeURIComponent(
+        verificationStatus
+    )}`;
 
     return (
         <AppLayout>
@@ -427,38 +492,33 @@ export default function University({
                             </div>
                         </div>
 
-                        {/* Summary Metrics Cards */}
+                        {/* Summary Metrics Cards / Interactive Status Filter */}
                         {summary && (
                             <div className="row g-3 mb-4">
                                 <div className="col-md-4 col-12">
                                     <div
-                                        className="card border-0 shadow-sm rounded-3 p-3"
-                                        style={{ background: 'linear-gradient(135deg, rgba(99,102,241,0.08), rgba(99,102,241,0.02))' }}
+                                        className={`card border-0 shadow-sm rounded-3 p-3 transition-all ${
+                                            verificationStatus === 'pending' || verificationStatus === 'eligible'
+                                                ? 'border-start border-4 border-warning bg-warning bg-opacity-10 shadow'
+                                                : 'bg-light'
+                                        }`}
+                                        style={{ cursor: 'pointer' }}
+                                        onClick={() => {
+                                            setVerificationStatus('pending');
+                                            handleFilter(undefined, 'pending');
+                                        }}
+                                        title="Click to view pending candidates (Default)"
                                     >
                                         <div className="d-flex align-items-center justify-content-between">
                                             <div>
-                                                <div className="text-secondary small fw-semibold text-uppercase">Total Students</div>
-                                                <h3 className="fw-bold text-dark mb-0 mt-1">{summary.total}</h3>
-                                            </div>
-                                            <div className="rounded-circle p-3 bg-indigo bg-opacity-10 text-indigo">
-                                                <i className="fa fa-users fs-4"></i>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="col-md-4 col-12">
-                                    <div
-                                        className="card border-0 shadow-sm rounded-3 p-3"
-                                        style={{ background: 'linear-gradient(135deg, rgba(245,158,11,0.08), rgba(245,158,11,0.02))' }}
-                                    >
-                                        <div className="d-flex align-items-center justify-content-between">
-                                            <div>
-                                                <div className="text-secondary small fw-semibold text-uppercase">Eligible for Reminder</div>
+                                                <div className="text-secondary small fw-semibold text-uppercase d-flex align-items-center gap-1">
+                                                    <span>Pending Candidates</span>
+                                                    <span className="badge bg-warning text-dark py-0 px-1" style={{ fontSize: '0.65rem' }}>Default</span>
+                                                </div>
                                                 <h3 className="fw-bold text-amber mb-0 mt-1">{summary.eligible}</h3>
                                             </div>
                                             <div className="rounded-circle p-3 bg-amber bg-opacity-10 text-amber">
-                                                <i className="fa fa-envelope-o fs-4"></i>
+                                                <i className="fa fa-clock-o fs-4"></i>
                                             </div>
                                         </div>
                                     </div>
@@ -466,8 +526,17 @@ export default function University({
 
                                 <div className="col-md-4 col-12">
                                     <div
-                                        className="card border-0 shadow-sm rounded-3 p-3"
-                                        style={{ background: 'linear-gradient(135deg, rgba(16,185,129,0.08), rgba(16,185,129,0.02))' }}
+                                        className={`card border-0 shadow-sm rounded-3 p-3 transition-all ${
+                                            verificationStatus === 'verified'
+                                                ? 'border-start border-4 border-emerald bg-emerald bg-opacity-10 shadow'
+                                                : 'bg-light'
+                                        }`}
+                                        style={{ cursor: 'pointer' }}
+                                        onClick={() => {
+                                            setVerificationStatus('verified');
+                                            handleFilter(undefined, 'verified');
+                                        }}
+                                        title="Click to view verified candidates"
                                     >
                                         <div className="d-flex align-items-center justify-content-between">
                                             <div>
@@ -480,14 +549,40 @@ export default function University({
                                         </div>
                                     </div>
                                 </div>
+
+                                <div className="col-md-4 col-12">
+                                    <div
+                                        className={`card border-0 shadow-sm rounded-3 p-3 transition-all ${
+                                            verificationStatus === 'all'
+                                                ? 'border-start border-4 border-indigo bg-indigo bg-opacity-10 shadow'
+                                                : 'bg-light'
+                                        }`}
+                                        style={{ cursor: 'pointer' }}
+                                        onClick={() => {
+                                            setVerificationStatus('all');
+                                            handleFilter(undefined, 'all');
+                                        }}
+                                        title="Click to view all candidates"
+                                    >
+                                        <div className="d-flex align-items-center justify-content-between">
+                                            <div>
+                                                <div className="text-secondary small fw-semibold text-uppercase">Total Students (All)</div>
+                                                <h3 className="fw-bold text-dark mb-0 mt-1">{summary.total}</h3>
+                                            </div>
+                                            <div className="rounded-circle p-3 bg-indigo bg-opacity-10 text-indigo">
+                                                <i className="fa fa-users fs-4"></i>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         )}
 
                         {/* Search Filter Bar */}
                         <form onSubmit={(e) => handleFilter(e)} className="row g-3 mb-4 filter-panel p-3 bg-light rounded-3 border">
-                            <div className="col-md-3">
+                            <div className="col-md-2">
                                 <label className="form-label text-secondary small fw-semibold" htmlFor="filter_acd_year">
-                                    Academic Year (AJAX, optional)
+                                    Academic Year
                                 </label>
                                 <Select2
                                     id="filter_acd_year"
@@ -503,9 +598,9 @@ export default function University({
                                 />
                             </div>
 
-                            <div className="col-md-3">
+                            <div className="col-md-2">
                                 <label className="form-label text-secondary small fw-semibold" htmlFor="filter_stream">
-                                    Academic Program / Stream (AJAX, optional)
+                                    Program / Stream
                                 </label>
                                 <Select2
                                     id="filter_stream"
@@ -554,9 +649,30 @@ export default function University({
                                 />
                             </div>
 
+                            <div className="col-md-2">
+                                <label className="form-label text-secondary small fw-semibold" htmlFor="filter_verification_status">
+                                    Verification Status
+                                </label>
+                                <select
+                                    id="filter_verification_status"
+                                    name="verification_status"
+                                    className="form-select"
+                                    value={verificationStatus}
+                                    onChange={(e) => {
+                                        setVerificationStatus(e.target.value);
+                                        handleFilter(undefined, e.target.value);
+                                    }}
+                                >
+                                    <option value="pending">Pending (Default)</option>
+                                    <option value="verified">Verified Only</option>
+                                    <option value="excluded">Excluded Only</option>
+                                    <option value="all">All Candidates</option>
+                                </select>
+                            </div>
+
                             <div className="col-12 text-end d-flex align-items-center justify-content-end pt-2">
                                 <div className="d-flex gap-2">
-                                    {(year || stream || university || studentName) && (
+                                    {(year || stream || university || studentName || (verificationStatus && verificationStatus !== 'pending')) && (
                                         <button
                                             type="button"
                                             className="btn btn-glass"
@@ -655,7 +771,7 @@ export default function University({
                                                         title="Select all eligible candidates"
                                                     />
                                                 </th>
-                                                <th>CANDIDATE NAME</th>
+                                                <th>CANDIDATE NAME & STATUS</th>
                                                 <th>ELIGIBILITY CASE NO.</th>
                                                 <th>UNIVERSITY / BOARD NAME</th>
                                                 <th>ACADEMIC YEAR</th>
@@ -684,8 +800,59 @@ export default function University({
                                                                 }
                                                             />
                                                         </td>
-                                                        <td>
-                                                            <div className="fw-bold text-dark">{stud.student_name || '—'}</div>
+                                                        <td style={{ minWidth: '220px' }}>
+                                                            {/* Status badge and Change Status button directly above candidate name */}
+                                                            <div className="d-flex align-items-center justify-content-between gap-2 mb-1 flex-wrap">
+                                                                <div>
+                                                                    {stud.is_verified || stud.computed_status === 'verified' ? (
+                                                                        <span className="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">
+                                                                            <i className="fa fa-check-circle me-1"></i>Verified
+                                                                        </span>
+                                                                    ) : stud.is_excluded || stud.computed_status === 'excluded' ? (
+                                                                        <span className="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1">
+                                                                            <i className="fa fa-ban me-1"></i>Excluded
+                                                                        </span>
+                                                                    ) : (
+                                                                        <span className="badge bg-warning-subtle text-warning border border-warning-subtle px-2 py-1">
+                                                                            <i className="fa fa-clock-o me-1"></i>Pending
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                                <div>
+                                                                    {(!stud.is_verified && stud.computed_status !== 'verified') ? (
+                                                                        <button
+                                                                            type="button"
+                                                                            className="btn btn-sm btn-outline-success py-0 px-2 rounded-pill fw-semibold shadow-xs"
+                                                                            style={{ fontSize: '0.74rem', lineHeight: '1.6' }}
+                                                                            onClick={() => handleUpdateStatus(stud.id, stud.student_name, 'verified')}
+                                                                            disabled={updatingStatusId === stud.id}
+                                                                            title="Change candidate status to Verified"
+                                                                        >
+                                                                            {updatingStatusId === stud.id ? (
+                                                                                <><i className="fa fa-spinner fa-spin me-1"></i>Updating...</>
+                                                                            ) : (
+                                                                                <><i className="fa fa-check me-1"></i>Change to Verified</>
+                                                                            )}
+                                                                        </button>
+                                                                    ) : (
+                                                                        <button
+                                                                            type="button"
+                                                                            className="btn btn-sm btn-outline-secondary py-0 px-2 rounded-pill fw-semibold shadow-xs"
+                                                                            style={{ fontSize: '0.72rem', lineHeight: '1.6' }}
+                                                                            onClick={() => handleUpdateStatus(stud.id, stud.student_name, 'pending')}
+                                                                            disabled={updatingStatusId === stud.id}
+                                                                            title="Change candidate status back to Pending"
+                                                                        >
+                                                                            {updatingStatusId === stud.id ? (
+                                                                                <><i className="fa fa-spinner fa-spin me-1"></i>Updating...</>
+                                                                            ) : (
+                                                                                <><i className="fa fa-undo me-1"></i>Set to Pending</>
+                                                                            )}
+                                                                        </button>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                            <div className="fw-bold text-dark fs-6">{stud.student_name || '—'}</div>
                                                             {stud.student_nee_name && (
                                                                 <div className="small text-muted">
                                                                     Nee: {stud.student_nee_name}

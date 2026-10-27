@@ -44,6 +44,56 @@ test('staff can view university reminder student selection screen', function () 
     );
 });
 
+test('university reminder portal displays pending students by default and allows status updates', function () {
+    $pendingStudent = StudentDetail::create([
+        'student_name' => 'Pending Candidate',
+        'eligibility_case_no' => 'REM-PEND-001',
+        'admission_taken_in' => 'B.Com',
+        'admission_taken_year' => '2025-2026',
+        'clg_add' => 'Mumbai University',
+        'array_space' => 'batch_pend_1',
+    ]);
+
+    $verifiedStudent = StudentDetail::create([
+        'student_name' => 'Verified Candidate',
+        'eligibility_case_no' => 'REM-VER-002',
+        'admission_taken_in' => 'B.Com',
+        'admission_taken_year' => '2025-2026',
+        'clg_add' => 'Mumbai University',
+        'verification_status' => 'verified',
+        'array_space' => 'batch_ver_1',
+    ]);
+
+    // 1. By default, only pending students are displayed
+    $defaultResponse = $this->actingAs($this->user)->get('/reminders/university');
+    $defaultResponse->assertOk();
+    $defaultResponse->assertInertia(fn ($page) => $page
+        ->component('Reminders/University')
+        ->where('filters.verification_status', 'pending')
+        ->has('students.data', 1)
+        ->where('students.data.0.student_name', 'Pending Candidate')
+    );
+
+    // 2. Mark pending candidate as verified via status endpoint
+    $statusResponse = $this->actingAs($this->user)->post("/reminders/university/students/{$pendingStudent->id}/status", [
+        'status' => 'verified',
+    ]);
+    $statusResponse->assertRedirect();
+    $this->assertDatabaseHas('student_details', [
+        'id' => $pendingStudent->id,
+        'verification_status' => 'verified',
+    ]);
+
+    // 3. Filtering verified returns both verified candidates
+    $verifiedResponse = $this->actingAs($this->user)->get('/reminders/university?verification_status=verified');
+    $verifiedResponse->assertOk();
+    $verifiedResponse->assertInertia(fn ($page) => $page
+        ->component('Reminders/University')
+        ->where('filters.verification_status', 'verified')
+        ->has('students.data', 2)
+    );
+});
+
 test('staff can record university reminder notes for selected students', function () {
     $student = StudentDetail::create([
         'student_name' => 'Meera Nair',

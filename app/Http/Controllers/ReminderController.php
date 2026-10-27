@@ -43,7 +43,10 @@ class ReminderController extends Controller
         $selectedColg = trim((string) $request->input('clg_add', ''));
         $selectedStudentName = trim((string) $request->input('student_name', ''));
         $selectedReminderStatus = trim((string) $request->input('reminder_status', ''));
-        $selectedVerificationStatus = trim((string) $request->input('verification_status', 'all'));
+        $selectedVerificationStatus = trim((string) $request->input('verification_status', 'pending'));
+        if ($selectedVerificationStatus === '') {
+            $selectedVerificationStatus = 'pending';
+        }
 
         [$colleges, $matchCollege] = $this->buildCollegeMatcher();
 
@@ -965,6 +968,15 @@ class ReminderController extends Controller
             } else {
                 $query->where('clg_add', 'like', "%{$selectedColg}%");
             }
+        }
+
+        $selectedVerificationStatus = trim((string) $request->input('verification_status', ''));
+        if ($selectedVerificationStatus === 'verified') {
+            $query->verified();
+        } elseif ($selectedVerificationStatus === 'excluded') {
+            $query->excluded();
+        } elseif ($selectedVerificationStatus === 'pending' || $selectedVerificationStatus === 'eligible') {
+            $query->eligibleForReminder();
         }
 
         $students = $query->orderBy('id', 'desc')->get();
