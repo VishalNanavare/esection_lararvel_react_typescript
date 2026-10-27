@@ -867,3 +867,58 @@ test('recording university reminder succeeds when all candidates belong to the s
     expect(UniversityReminderNote::where('batch_id', $batch->id)->count())->toBe(2);
 });
 
+test('staff can filter university reminder portal by student_name', function () {
+    StudentDetail::create([
+        'student_name' => 'Rahul Sharma',
+        'eligibility_case_no' => 'REM-RS-001',
+        'admission_taken_in' => 'B.Com',
+        'admission_taken_year' => '2025-2026',
+        'clg_add' => 'Delhi University',
+        'array_space' => 'batch_rs_1',
+    ]);
+    StudentDetail::create([
+        'student_name' => 'Pooja Patel',
+        'eligibility_case_no' => 'REM-PP-002',
+        'admission_taken_in' => 'B.Com',
+        'admission_taken_year' => '2025-2026',
+        'clg_add' => 'Delhi University',
+        'array_space' => 'batch_pp_1',
+    ]);
+
+    $response = $this->actingAs($this->user)->get('/reminders/university?student_name=Rahul');
+    $response->assertOk();
+    $response->assertInertia(fn ($page) => $page
+        ->component('Reminders/University')
+        ->where('filters.student_name', 'Rahul')
+        ->has('students.data', 1)
+        ->where('students.data.0.student_name', 'Rahul Sharma')
+    );
+});
+
+test('staff can export university reminders filtered by student_name', function () {
+    Setting::set('feature_export_enabled', '1', 'features', $this->user->id);
+
+    StudentDetail::create([
+        'student_name' => 'Amitabh Bachchan',
+        'eligibility_case_no' => 'REM-AB-001',
+        'admission_taken_in' => 'B.A.',
+        'admission_taken_year' => '2025-2026',
+        'clg_add' => 'Allahabad University',
+        'array_space' => 'batch_ab_1',
+    ]);
+    StudentDetail::create([
+        'student_name' => 'Shah Rukh Khan',
+        'eligibility_case_no' => 'REM-SRK-002',
+        'admission_taken_in' => 'B.A.',
+        'admission_taken_year' => '2025-2026',
+        'clg_add' => 'Delhi University',
+        'array_space' => 'batch_srk_1',
+    ]);
+
+    $response = $this->actingAs($this->user)->get('/reminders/university/export?student_name=Amitabh');
+    $response->assertOk();
+    $content = $response->streamedContent();
+    expect($content)->toContain('Amitabh Bachchan');
+    expect($content)->not->toContain('Shah Rukh Khan');
+});
+

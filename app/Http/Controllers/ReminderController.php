@@ -39,6 +39,7 @@ class ReminderController extends Controller
         $selectedYear = trim((string) $request->input('acd_year', ''));
         $selectedStream = trim((string) $request->input('stream', ''));
         $selectedColg = trim((string) $request->input('clg_add', ''));
+        $selectedStudentName = trim((string) $request->input('student_name', ''));
         $selectedReminderStatus = trim((string) $request->input('reminder_status', ''));
         $selectedVerificationStatus = trim((string) $request->input('verification_status', 'all'));
 
@@ -48,6 +49,9 @@ class ReminderController extends Controller
             ->whereNotNull('student_name')
             ->where('student_name', '!=', '');
 
+        if ($selectedStudentName !== '') {
+            $baseQuery->where('student_name', 'like', "%{$selectedStudentName}%");
+        }
         if ($selectedYear !== '') {
             $baseQuery->where('admission_taken_year', $selectedYear);
         }
@@ -173,6 +177,7 @@ class ReminderController extends Controller
                 'acd_year' => $selectedYear,
                 'stream' => $selectedStream,
                 'clg_add' => $selectedColg,
+                'student_name' => $selectedStudentName,
                 'reminder_status' => $selectedReminderStatus,
                 'verification_status' => $selectedVerificationStatus,
             ],
@@ -910,6 +915,7 @@ class ReminderController extends Controller
         $selectedYear = trim((string) $request->input('acd_year', ''));
         $selectedStream = trim((string) $request->input('stream', ''));
         $selectedColg = trim((string) $request->input('clg_add', ''));
+        $selectedStudentName = trim((string) $request->input('student_name', ''));
 
         [$colleges, $matchCollege] = $this->buildCollegeMatcher();
 
@@ -917,6 +923,9 @@ class ReminderController extends Controller
             ->whereNotNull('student_name')
             ->where('student_name', '!=', '');
 
+        if ($selectedStudentName !== '') {
+            $query->where('student_name', 'like', "%{$selectedStudentName}%");
+        }
         if ($selectedYear !== '') {
             $query->where('admission_taken_year', $selectedYear);
         }

@@ -74,7 +74,7 @@ class PdfController extends Controller
         $fees = floatval(preg_replace('/[^0-9.]/', '', (string)($college?->fees ?? '0')));
         $inFavourOf = trim((string)($college?->in_favour_of ?? ''));
 
-        $address = trim(preg_replace('/<br\s*\/?>/i', "\n", $address));
+        $address = $this->formatAddressLines($address);
 
         return [
             'to_name' => $resolvedToName,
@@ -84,6 +84,70 @@ class PdfController extends Controller
             'in_favour_of' => $inFavourOf,
             'college' => $college,
         ];
+    }
+
+    /**
+     * Intelligently format and break address string into clean postal lines.
+     */
+    public function formatAddressLines(?string $addr): string
+    {
+        $addr = trim((string) $addr);
+        if ($addr === '') {
+            return '';
+        }
+
+        $addr = preg_replace('/<br\s*\/?>/i', "\n", $addr);
+
+        // Put phone / mobile / tel numbers onto their own line
+        $addr = preg_replace_callback('/([,.]?\s*)(ph(?:one)?[\.\-:\s]|tel[\.\-:\s]|mobile[\.\-:\s]|mob[\.\-:\s])/i', function ($m) {
+            $prefix = str_contains($m[1], '.') ? '.' : '';
+            return $prefix . "\n" . trim($m[2]) . ' ';
+        }, $addr);
+
+        $rawLines = preg_split('/[\r\n]+/', $addr);
+        $finalLines = [];
+
+        foreach ($rawLines as $line) {
+            $line = trim($line);
+            if ($line === '') {
+                continue;
+            }
+
+            if (preg_match('/^(ph|tel|mob)/i', $line)) {
+                $finalLines[] = $line;
+                continue;
+            }
+
+            // If line is long (> 30 chars) and contains commas, split into sensible lines
+            if (mb_strlen($line) > 30 && str_contains($line, ',')) {
+                $parts = array_map('trim', explode(',', $line));
+                $current = '';
+                for ($i = 0; $i < count($parts); $i++) {
+                    $part = $parts[$i];
+                    if ($part === '') {
+                        continue;
+                    }
+                    $isLast = ($i === count($parts) - 1);
+                    $token = $isLast ? $part : $part . ',';
+
+                    if ($current === '') {
+                        $current = $token;
+                    } elseif (mb_strlen($current) < 20 && mb_strlen($current . ' ' . $token) <= 38 && ! preg_match('/^[A-Z]{2,}\-\d+/', $part)) {
+                        $current .= ' ' . $token;
+                    } else {
+                        $finalLines[] = $current;
+                        $current = $token;
+                    }
+                }
+                if ($current !== '') {
+                    $finalLines[] = $current;
+                }
+            } else {
+                $finalLines[] = $line;
+            }
+        }
+
+        return implode("\n", $finalLines);
     }
     /**
      * Helper to load global institution settings.
@@ -161,7 +225,8 @@ class PdfController extends Controller
         $fees = (float) ($resolved['fees'] ?? 0);
         $count = $students->count();
         $totalFees = $fees * $count;
-        $currentTime = !empty($first->pdf_time) ? $first->pdf_time : (!empty($first->en_time) ? $first->en_time : $arraySpace);
+        $rawTime = !empty($first->pdf_time) ? $first->pdf_time : (!empty($first->en_time) ? $first->en_time : $arraySpace);
+        $currentTime = is_numeric($rawTime) ? (int)$rawTime : (strtotime((string)$rawTime) ?: time());
 
         $firstRow = [
             'clg_add' => $first->clg_add,
@@ -210,7 +275,8 @@ class PdfController extends Controller
         $fees = (float) ($resolved['fees'] ?? 0);
         $count = $students->count();
         $totalFees = $fees * $count;
-        $currentTime = !empty($first->pdf_time) ? $first->pdf_time : (!empty($first->en_time) ? $first->en_time : $arraySpace);
+        $rawTime = !empty($first->pdf_time) ? $first->pdf_time : (!empty($first->en_time) ? $first->en_time : $arraySpace);
+        $currentTime = is_numeric($rawTime) ? (int)$rawTime : (strtotime((string)$rawTime) ?: time());
 
         $firstRow = [
             'clg_add' => $first->clg_add,
@@ -256,7 +322,8 @@ class PdfController extends Controller
 
         $first = $records->first();
         $count = $records->count();
-        $currentTime = !empty($first->en_time) ? $first->en_time : $arraySpace;
+        $rawTime = !empty($first->en_time) ? $first->en_time : $arraySpace;
+        $currentTime = is_numeric($rawTime) ? (int)$rawTime : (strtotime((string)$rawTime) ?: time());
 
         foreach ($records as $r) {
             $student = null;
@@ -422,7 +489,8 @@ class PdfController extends Controller
         ]);
 
         $resolved = $this->resolveUniversityAndAddress($batch->university_name, $batch->head_name);
-        $currentTime = !empty($batch->pdf_time) ? $batch->pdf_time : time();
+        $rawTime = !empty($batch->pdf_time) ? $batch->pdf_time : time();
+        $currentTime = is_numeric($rawTime) ? (int)$rawTime : (strtotime((string)$rawTime) ?: time());
 
         $data = array_merge($this->getInstituteSettings(), $rendered, [
             'batch' => $batch,

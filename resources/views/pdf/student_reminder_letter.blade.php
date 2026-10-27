@@ -192,7 +192,10 @@
                     <br/>
                 @endfor
                 <div style="font-size: 9.5pt; font-weight: bold;">
-                    Off. Superintdent<br/>(Eligib/Sch)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                    @if(!empty($instituteSignatoryName))
+                        {{ $instituteSignatoryName }}<br/>
+                    @endif
+                    {!! !empty($instituteSignatoryDesignation) ? nl2br(e($instituteSignatoryDesignation)) : 'Deputy Registrar / Assistant Registrar' !!}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
                 </div>
             </td>
         </tr>

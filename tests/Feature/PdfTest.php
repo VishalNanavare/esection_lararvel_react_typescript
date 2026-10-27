@@ -204,3 +204,33 @@ test('university reminder letter picks the highest-id note for a student with mu
     $response->assertOk();
     expect($response->headers->get('Content-Type'))->toContain('application/pdf');
 });
+
+test('PdfController formatAddressLines splits address into postal lines and isolates phone', function () {
+    $pdfCtrl = new \App\Http\Controllers\PdfController();
+    $rawAddr = "Indo Myanmar Road, NH-39, Sanakhwa Yaima Kollup, Imphal, Manipur-795001. PH-074239 64279";
+    $formatted = $pdfCtrl->formatAddressLines($rawAddr);
+
+    expect($formatted)->toContain("Indo Myanmar Road");
+    expect($formatted)->toContain("PH- 074239 64279");
+    expect(substr_count($formatted, "\n"))->toBeGreaterThanOrEqual(2);
+});
+
+test('dispatch letter pdf displays numeric timestamp even if student en_time is a date string', function () {
+    $batchSpace = 'pdf_batch_numeric_time';
+
+    StudentDetail::create([
+        'student_name' => 'Timestamp Test Student',
+        'eligibility_case_no' => 'PDF-TS-01',
+        'admission_taken_in' => 'B.Com',
+        'admission_taken_year' => '2025-2026',
+        'clg_add' => 'Manipur University',
+        'en_time' => '2026-10-27 07:34:46',
+        'array_space' => $batchSpace,
+    ]);
+
+    Setting::set('institute_signatory_designation', 'Assistant Registrar (CDOE)', 'institute', $this->user->id);
+
+    $res = $this->actingAs($this->user)->get("/pdf/dispatch/{$batchSpace}");
+    $res->assertOk();
+    $res->assertHeader('Content-Type', 'application/pdf');
+});

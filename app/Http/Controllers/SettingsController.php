@@ -836,7 +836,7 @@ class SettingsController extends Controller
                 'label' => 'Eligibility Verification Dispatch Letter',
                 'tokens' => ['course', 'academic_year'],
                 'default_subject' => 'Verification of Document/s for the academic year {academic_year}.',
-                'default_body' => "University of Mumbai has decided to verify the document/s of the student/s who have taken admission in our <b>Institue of Distance and Open Learning,</b> University of Mumbai, on the basis of earlier qualification.\n\nThe following student/s has /have taken admission in the University of Mumbai as the/their details mentioned below. I am enclosing here with xerox copy/copies of the marksheet/s for your ready reference.",
+                'default_body' => "University of Mumbai has decided to verify the document/s of the student/s who have taken admission in our <b>Center for Distance and Online Education (CDOE),</b> University of Mumbai, on the basis of earlier qualification.\n\nThe following student/s has /have taken admission in the University of Mumbai as the/their details mentioned below. I am enclosing here with xerox copy/copies of the marksheet/s for your ready reference.",
                 'default_closing' => "You are requestd to kindly verify the/their marksheet/s and confirm the validity of the same.\n\nI shall be grateful if you treat this matter as most urgent.\n\nKindly mentioned the reference number and date of this letter in your further communication.\n\nThanking you.",
             ],
             'regularization' => [
@@ -876,7 +876,7 @@ class SettingsController extends Controller
                 'label' => 'Accounts Copy (Dispatch with DD Amount)',
                 'tokens' => ['academic_year'],
                 'default_subject' => 'Verification of Document/s for the academic year {academic_year}.',
-                'default_body' => "University of Mumbai has decided to verify the document/s of the student/s who have taken admission in our <b>Institue of Distance and Open Learning,</b> University of Mumbai, on the basis of earlier qualification.\n\nThe following student/s has/have taken admission in the University of Mumbai as their details mentioned below. I am enclosing here with xerox copy/copies of the marksheet/s for your ready reference.",
+                'default_body' => "University of Mumbai has decided to verify the document/s of the student/s who have taken admission in our <b>Center for Distance and Online Education (CDOE),</b> University of Mumbai, on the basis of earlier qualification.\n\nThe following student/s has/have taken admission in the University of Mumbai as their details mentioned below. I am enclosing here with xerox copy/copies of the marksheet/s for your ready reference.",
                 'default_closing' => "You are requestd to kindly verify the/their marksheet/s and confirm the validity of the same.\n\nI shall be grateful if you treat this matter as most urgent.\n\nKindly mentioned the reference number and date of this letter in your further communication.\n\nThanking you.",
             ],
             'confirmation_eligibility' => [

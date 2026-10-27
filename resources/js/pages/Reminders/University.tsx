@@ -80,6 +80,7 @@ interface Props {
         acd_year: string;
         stream: string;
         clg_add: string;
+        student_name?: string;
         reminder_status?: string;
         verification_status?: string;
     };
@@ -98,8 +99,7 @@ export default function University({
     const [year, setYear] = useState(filters.acd_year || '');
     const [stream, setStream] = useState(filters.stream || '');
     const [university, setUniversity] = useState(filters.clg_add || '');
-    const [reminderStatus, setReminderStatus] = useState(filters.reminder_status || '');
-    const [verificationStatus, setVerificationStatus] = useState(filters.verification_status || 'all');
+    const [studentName, setStudentName] = useState(filters.student_name || '');
 
     const hasUniversity = Boolean(university.trim() || (filters.clg_add && filters.clg_add.trim()));
 
@@ -110,12 +110,6 @@ export default function University({
     });
     const [reminderType, setReminderType] = useState('1st Reminder Notice');
     const [headName, setHeadName] = useState('');
-
-    // Status management modal state
-    const [statusModalStudent, setStatusModalStudent] = useState<Student | null>(null);
-    const [newStatus, setNewStatus] = useState<'pending' | 'verified' | 'excluded'>('pending');
-    const [exclusionReason, setExclusionReason] = useState('');
-    const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
 
     const [years, setYears] = useState<Select2Option[]>(() => {
         if (academicYears && academicYears.length > 0) {
@@ -191,12 +185,8 @@ export default function University({
     }, [filters.clg_add]);
 
     useEffect(() => {
-        setReminderStatus(filters.reminder_status || '');
-    }, [filters.reminder_status]);
-
-    useEffect(() => {
-        setVerificationStatus(filters.verification_status || 'all');
-    }, [filters.verification_status]);
+        setStudentName(filters.student_name || '');
+    }, [filters.student_name]);
 
     // AJAX fallbacks if not provided in page props
     useEffect(() => {
@@ -265,8 +255,7 @@ export default function University({
                 acd_year: year,
                 stream,
                 clg_add: selectedUniv,
-                reminder_status: reminderStatus,
-                verification_status: verificationStatus,
+                student_name: studentName,
             },
             {
                 preserveState: true,
@@ -275,17 +264,15 @@ export default function University({
         );
     };
 
-    const handleFilter = (e?: React.FormEvent, customVerificationStatus?: string) => {
+    const handleFilter = (e?: React.FormEvent) => {
         if (e) e.preventDefault();
-        const vStatus = customVerificationStatus !== undefined ? customVerificationStatus : verificationStatus;
         router.get(
             '/reminders/university',
             {
                 acd_year: year,
                 stream,
                 clg_add: university,
-                reminder_status: reminderStatus,
-                verification_status: vStatus,
+                student_name: studentName,
             },
             {
                 preserveState: true,
@@ -298,8 +285,7 @@ export default function University({
         setYear('');
         setStream('');
         setUniversity('');
-        setReminderStatus('');
-        setVerificationStatus('all');
+        setStudentName('');
         router.get(
             '/reminders/university',
             {},
@@ -324,48 +310,6 @@ export default function University({
     const handleToggleSelect = (id: number) => {
         setSelectedIds((prev) =>
             prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
-        );
-    };
-
-    const openStatusModal = (student: Student) => {
-        setStatusModalStudent(student);
-        setNewStatus(student.verification_status === 'verified' ? 'verified' : (student.verification_status === 'excluded' ? 'excluded' : 'pending'));
-        setExclusionReason(student.exclusion_reason || '');
-    };
-
-    const handleSaveStatus = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!statusModalStudent) return;
-        if (newStatus === 'excluded' && !exclusionReason.trim()) {
-            Swal.fire('Reason Required', 'Please provide a reason for explicitly excluding this candidate.', 'warning');
-            return;
-        }
-
-        setIsUpdatingStatus(true);
-        router.post(
-            `/reminders/university/students/${statusModalStudent.id}/status`,
-            {
-                status: newStatus,
-                reason: exclusionReason.trim() || null,
-            },
-            {
-                preserveScroll: true,
-                onSuccess: () => {
-                    setIsUpdatingStatus(false);
-                    setStatusModalStudent(null);
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Verification Status Updated',
-                        text: `Candidate status updated to ${newStatus}.`,
-                        timer: 2000,
-                        showConfirmButton: false,
-                    });
-                },
-                onError: (errs) => {
-                    setIsUpdatingStatus(false);
-                    Swal.fire('Error', Object.values(errs).flat().join('\n') || 'Failed to update status', 'error');
-                },
-            }
         );
     };
 
@@ -451,7 +395,9 @@ export default function University({
 
     const exportUrl = `/reminders/university/export?acd_year=${encodeURIComponent(
         year
-    )}&stream=${encodeURIComponent(stream)}&clg_add=${encodeURIComponent(university)}`;
+    )}&stream=${encodeURIComponent(stream)}&clg_add=${encodeURIComponent(
+        university
+    )}&student_name=${encodeURIComponent(studentName)}`;
 
     return (
         <AppLayout>
@@ -474,7 +420,7 @@ export default function University({
                                     <i className="fa fa-object-group me-1"></i> Combine Pending Batches
                                 </Link>
                                 {canExport && (
-                                    <a href={exportUrl} className="btn btn-glass">
+                                    <a href={exportUrl} className="btn btn-outline-success">
                                         <i className="fa fa-file-excel-o me-1"></i> Export to Excel
                                     </a>
                                 )}
@@ -490,12 +436,10 @@ export default function University({
                         {/* Summary Metrics Cards */}
                         {summary && (
                             <div className="row g-3 mb-4">
-                                <div className="col-md-3 col-6">
+                                <div className="col-md-4 col-12">
                                     <div
-                                        className={`card border-0 shadow-sm rounded-3 p-3 cursor-pointer ${verificationStatus === 'all' ? 'border-2 border-indigo' : ''}`}
+                                        className="card border-0 shadow-sm rounded-3 p-3"
                                         style={{ background: 'linear-gradient(135deg, rgba(99,102,241,0.08), rgba(99,102,241,0.02))' }}
-                                        onClick={() => { setVerificationStatus('all'); handleFilter(undefined, 'all'); }}
-                                        title="Click to view all candidates"
                                     >
                                         <div className="d-flex align-items-center justify-content-between">
                                             <div>
@@ -509,50 +453,10 @@ export default function University({
                                     </div>
                                 </div>
 
-                                <div className="col-md-3 col-6">
+                                <div className="col-md-4 col-12">
                                     <div
-                                        className={`card border-0 shadow-sm rounded-3 p-3 cursor-pointer ${verificationStatus === 'verified' ? 'border-2 border-emerald' : ''}`}
-                                        style={{ background: 'linear-gradient(135deg, rgba(16,185,129,0.08), rgba(16,185,129,0.02))' }}
-                                        onClick={() => { setVerificationStatus('verified'); handleFilter(undefined, 'verified'); }}
-                                        title="Click to view verified candidates"
-                                    >
-                                        <div className="d-flex align-items-center justify-content-between">
-                                            <div>
-                                                <div className="text-secondary small fw-semibold text-uppercase">Verified / Completed</div>
-                                                <h3 className="fw-bold text-emerald mb-0 mt-1">{summary.verified}</h3>
-                                            </div>
-                                            <div className="rounded-circle p-3 bg-emerald bg-opacity-10 text-emerald">
-                                                <i className="fa fa-check-circle fs-4"></i>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="col-md-3 col-6">
-                                    <div
-                                        className={`card border-0 shadow-sm rounded-3 p-3 cursor-pointer ${verificationStatus === 'pending' ? 'border-2 border-primary' : ''}`}
-                                        style={{ background: 'linear-gradient(135deg, rgba(59,130,246,0.08), rgba(59,130,246,0.02))' }}
-                                        onClick={() => { setVerificationStatus('pending'); handleFilter(undefined, 'pending'); }}
-                                        title="Click to view pending verification"
-                                    >
-                                        <div className="d-flex align-items-center justify-content-between">
-                                            <div>
-                                                <div className="text-secondary small fw-semibold text-uppercase">Pending Verification</div>
-                                                <h3 className="fw-bold text-primary mb-0 mt-1">{summary.pending}</h3>
-                                            </div>
-                                            <div className="rounded-circle p-3 bg-primary bg-opacity-10 text-primary">
-                                                <i className="fa fa-clock-o fs-4"></i>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="col-md-3 col-6">
-                                    <div
-                                        className={`card border-0 shadow-sm rounded-3 p-3 cursor-pointer ${verificationStatus === 'eligible' ? 'border-2 border-amber' : ''}`}
+                                        className="card border-0 shadow-sm rounded-3 p-3"
                                         style={{ background: 'linear-gradient(135deg, rgba(245,158,11,0.08), rgba(245,158,11,0.02))' }}
-                                        onClick={() => { setVerificationStatus('eligible'); handleFilter(undefined, 'eligible'); }}
-                                        title="Click to view eligible for next reminder"
                                     >
                                         <div className="d-flex align-items-center justify-content-between">
                                             <div>
@@ -561,6 +465,23 @@ export default function University({
                                             </div>
                                             <div className="rounded-circle p-3 bg-amber bg-opacity-10 text-amber">
                                                 <i className="fa fa-envelope-o fs-4"></i>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="col-md-4 col-12">
+                                    <div
+                                        className="card border-0 shadow-sm rounded-3 p-3"
+                                        style={{ background: 'linear-gradient(135deg, rgba(16,185,129,0.08), rgba(16,185,129,0.02))' }}
+                                    >
+                                        <div className="d-flex align-items-center justify-content-between">
+                                            <div>
+                                                <div className="text-secondary small fw-semibold text-uppercase">Verified / Completed</div>
+                                                <h3 className="fw-bold text-emerald mb-0 mt-1">{summary.verified}</h3>
+                                            </div>
+                                            <div className="rounded-circle p-3 bg-emerald bg-opacity-10 text-emerald">
+                                                <i className="fa fa-check-circle fs-4"></i>
                                             </div>
                                         </div>
                                     </div>
@@ -625,53 +546,42 @@ export default function University({
                             </div>
 
                             <div className="col-md-3">
-                                <label className="form-label text-secondary small fw-semibold" htmlFor="filter_verification_status">
-                                    Verification Status
+                                <label className="form-label text-secondary small fw-semibold" htmlFor="filter_student_name">
+                                    Student Name (Search)
                                 </label>
-                                <select
-                                    id="filter_verification_status"
-                                    className="form-select"
-                                    value={verificationStatus}
-                                    onChange={(e) => setVerificationStatus(e.target.value)}
-                                >
-                                    <option value="all">-- All Verification States --</option>
-                                    <option value="eligible">Eligible for Next Reminder</option>
-                                    <option value="pending">Pending Verification</option>
-                                    <option value="verified">Verified / Completed</option>
-                                    <option value="excluded">Explicitly Excluded</option>
-                                </select>
+                                <input
+                                    type="text"
+                                    id="filter_student_name"
+                                    name="student_name"
+                                    className="form-control"
+                                    placeholder="Search by student name..."
+                                    value={studentName}
+                                    onChange={(e) => setStudentName(e.target.value)}
+                                />
                             </div>
 
-                            <div className="col-md-3">
-                                <label className="form-label text-secondary small fw-semibold" htmlFor="filter_reminder_status">
-                                    Prior Reminder Notices Sent
-                                </label>
-                                <select
-                                    id="filter_reminder_status"
-                                    className="form-select"
-                                    value={reminderStatus}
-                                    onChange={(e) => setReminderStatus(e.target.value)}
-                                >
-                                    <option value="">-- All Reminder Stages --</option>
-                                    <option value="0">Pending 1st Reminder (0 Sent)</option>
-                                    <option value="1">Pending 2nd Reminder (1 Sent)</option>
-                                    <option value="2+">Pending 3rd+ Reminder (2+ Sent)</option>
-                                </select>
-                            </div>
-
-                            <div className="col-md-9 text-end d-flex align-items-end justify-content-end gap-2">
-                                {(year || stream || university || reminderStatus || verificationStatus !== 'all') && (
-                                    <button
-                                        type="button"
-                                        className="btn btn-glass"
-                                        onClick={handleResetFilters}
-                                    >
-                                        <i className="fa fa-times me-1"></i> Clear Filters
+                            <div className="col-12 text-end d-flex align-items-center justify-content-between pt-2">
+                                <div>
+                                    {canExport && (
+                                        <a href={exportUrl} className="btn btn-outline-success">
+                                            <i className="fa fa-file-excel-o me-1"></i> Export to Excel
+                                        </a>
+                                    )}
+                                </div>
+                                <div className="d-flex gap-2">
+                                    {(year || stream || university || studentName) && (
+                                        <button
+                                            type="button"
+                                            className="btn btn-glass"
+                                            onClick={handleResetFilters}
+                                        >
+                                            <i className="fa fa-times me-1"></i> Clear Filters
+                                        </button>
+                                    )}
+                                    <button type="submit" className="btn btn-indigo px-4">
+                                        <i className="fa fa-search me-1"></i> Filter Candidates
                                     </button>
-                                )}
-                                <button type="submit" className="btn btn-indigo px-4">
-                                    <i className="fa fa-search me-1"></i> Filter Candidates
-                                </button>
+                                </div>
                             </div>
                         </form>
 
@@ -764,9 +674,8 @@ export default function University({
                                                 <th>ELIGIBILITY CASE NO.</th>
                                                 <th>TARGET UNIVERSITY ADDRESS</th>
                                                 <th>ACADEMIC YEAR</th>
-                                                <th>VERIFICATION STATUS</th>
+                                                <th>PROGRAM / STREAM</th>
                                                 <th>PRIOR NOTICES</th>
-                                                <th className="text-end" style={{ width: '130px' }}>ACTIONS</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -827,33 +736,7 @@ export default function University({
                                                             </div>
                                                         </td>
                                                         <td className="fw-bold text-dark">{stud.admission_taken_year || '—'}</td>
-                                                        <td>
-                                                            {stud.is_verified ? (
-                                                                <span className="badge badge-glass-emerald">
-                                                                    <i className="fa fa-check-circle me-1"></i>Verified
-                                                                </span>
-                                                            ) : stud.is_excluded ? (
-                                                                <span
-                                                                    className="badge badge-glass-danger cursor-pointer"
-                                                                    title={stud.exclusion_reason || 'Explicitly excluded from reminders'}
-                                                                >
-                                                                    <i className="fa fa-ban me-1"></i>Excluded
-                                                                </span>
-                                                            ) : stud.reminder_note_count && stud.reminder_note_count > 0 ? (
-                                                                <span className="badge badge-glass-amber">
-                                                                    <i className="fa fa-envelope-o me-1"></i>Reminder Sent
-                                                                </span>
-                                                            ) : (
-                                                                <span className="badge badge-glass-indigo">
-                                                                    <i className="fa fa-clock-o me-1"></i>Pending
-                                                                </span>
-                                                            )}
-                                                            {stud.exclusion_reason && (
-                                                                <div className="small text-danger mt-1 text-truncate" style={{ maxWidth: '140px' }} title={stud.exclusion_reason}>
-                                                                    {stud.exclusion_reason}
-                                                                </div>
-                                                            )}
-                                                        </td>
+                                                        <td>{stud.admission_taken_in || '—'}</td>
                                                         <td>
                                                             {stud.reminder_note_count && stud.reminder_note_count > 0 ? (
                                                                 <span className="badge badge-glass-amber">
@@ -862,16 +745,6 @@ export default function University({
                                                             ) : (
                                                                 <span className="text-muted small">None yet</span>
                                                             )}
-                                                        </td>
-                                                        <td className="text-end">
-                                                            <button
-                                                                type="button"
-                                                                className="btn btn-sm btn-glass text-indigo py-1 px-2"
-                                                                onClick={() => openStatusModal(stud)}
-                                                                title="Update verification status"
-                                                            >
-                                                                <i className="fa fa-pencil me-1"></i> Status
-                                                            </button>
                                                         </td>
                                                     </tr>
                                                 );
@@ -954,134 +827,6 @@ export default function University({
                     </div>
                 </div>
             </div>
-
-            {/* Verification Status Modal */}
-            {statusModalStudent && (
-                <div className="modal fade show d-block" tabIndex={-1} style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
-                    <div className="modal-dialog modal-dialog-centered">
-                        <div className="modal-content glass-card border-0 shadow">
-                            <form onSubmit={handleSaveStatus}>
-                                <div className="modal-header border-bottom">
-                                    <h5 className="modal-title fw-bold text-dark">
-                                        <i className="fa fa-shield me-2 text-indigo"></i>
-                                        Update Verification Status
-                                    </h5>
-                                    <button
-                                        type="button"
-                                        className="btn-close"
-                                        onClick={() => setStatusModalStudent(null)}
-                                        aria-label="Close"
-                                    ></button>
-                                </div>
-                                <div className="modal-body p-4">
-                                    <div className="mb-3 p-3 bg-light rounded-3 border">
-                                        <div className="fw-bold text-dark fs-6">{statusModalStudent.student_name}</div>
-                                        <div className="small text-muted">
-                                            Case No: <strong>{statusModalStudent.eligibility_case_no || '—'}</strong> |
-                                            Course: <strong>{statusModalStudent.admission_taken_in || '—'}</strong>
-                                        </div>
-                                    </div>
-
-                                    <div className="mb-3">
-                                        <label className="form-label text-secondary small fw-semibold">
-                                            Select Status
-                                        </label>
-                                        <div className="d-flex flex-column gap-2">
-                                            <label className="form-check p-3 rounded border cursor-pointer d-flex align-items-center gap-2">
-                                                <input
-                                                    type="radio"
-                                                    name="verification_status_choice"
-                                                    className="form-check-input mt-0"
-                                                    checked={newStatus === 'verified'}
-                                                    onChange={() => setNewStatus('verified')}
-                                                />
-                                                <div>
-                                                    <span className="badge badge-glass-emerald me-1">Verified / Completed</span>
-                                                    <small className="text-muted d-block mt-0.5">
-                                                        Marksheet verification report received and completed. Candidate will be automatically excluded from subsequent reminders.
-                                                    </small>
-                                                </div>
-                                            </label>
-
-                                            <label className="form-check p-3 rounded border cursor-pointer d-flex align-items-center gap-2">
-                                                <input
-                                                    type="radio"
-                                                    name="verification_status_choice"
-                                                    className="form-check-input mt-0"
-                                                    checked={newStatus === 'pending'}
-                                                    onChange={() => setNewStatus('pending')}
-                                                />
-                                                <div>
-                                                    <span className="badge badge-glass-indigo me-1">Pending Verification</span>
-                                                    <small className="text-muted d-block mt-0.5">
-                                                        Verification is pending and candidate remains eligible for reminder notices.
-                                                    </small>
-                                                </div>
-                                            </label>
-
-                                            <label className="form-check p-3 rounded border cursor-pointer d-flex align-items-center gap-2">
-                                                <input
-                                                    type="radio"
-                                                    name="verification_status_choice"
-                                                    className="form-check-input mt-0"
-                                                    checked={newStatus === 'excluded'}
-                                                    onChange={() => setNewStatus('excluded')}
-                                                />
-                                                <div>
-                                                    <span className="badge badge-glass-danger me-1">Explicitly Excluded</span>
-                                                    <small className="text-muted d-block mt-0.5">
-                                                        Manually exclude this candidate from university reminder notices (requires explanation).
-                                                    </small>
-                                                </div>
-                                            </label>
-                                        </div>
-                                    </div>
-
-                                    {newStatus === 'excluded' && (
-                                        <div className="mb-3">
-                                            <label className="form-label text-secondary small fw-semibold">
-                                                Exclusion Reason <span className="text-danger">*</span>
-                                            </label>
-                                            <textarea
-                                                className="form-control"
-                                                rows={2}
-                                                required
-                                                placeholder="e.g. Admission cancelled / Transferred to other university / Verification waived"
-                                                value={exclusionReason}
-                                                onChange={(e) => setExclusionReason(e.target.value)}
-                                            ></textarea>
-                                        </div>
-                                    )}
-                                </div>
-                                <div className="modal-footer border-top">
-                                    <button
-                                        type="button"
-                                        className="btn btn-glass"
-                                        onClick={() => setStatusModalStudent(null)}
-                                    >
-                                        Cancel
-                                    </button>
-                                    <button
-                                        type="submit"
-                                        className="btn btn-indigo"
-                                        disabled={isUpdatingStatus}
-                                    >
-                                        {isUpdatingStatus ? (
-                                            <>
-                                                <i className="fa fa-spinner fa-spin me-1"></i> Saving...
-                                            </>
-                                        ) : (
-                                            <>
-                                                <i className="fa fa-save me-1"></i> Save Status
-                                            </>
-                                        )}
-                                    </button>
-                                </div>
-                            </form>
-                        </div>
-                    </div>
-                </div>
-            )}
         </AppLayout>
     );
 }

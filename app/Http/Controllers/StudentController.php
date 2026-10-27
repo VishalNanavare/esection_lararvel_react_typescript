@@ -133,7 +133,7 @@ class StudentController extends Controller
         DB::beginTransaction();
         try {
             $insertedCount = 0;
-            $nowTime = date('Y-m-d H:i:s');
+            $nowTime = (string) time();
 
             foreach ($validated['students'] as $stud) {
                 StudentDetail::create([

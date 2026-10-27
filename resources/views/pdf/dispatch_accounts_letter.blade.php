@@ -159,7 +159,7 @@
         @endif
     @else
         <div class="para">
-            University of Mumbai has decided to verify the document/s of the student/s who have taken admission in our <b>Institue of Distance and Open Learning,</b> University of Mumbai, on the basis of earlier qualification.
+            University of Mumbai has decided to verify the document/s of the student/s who have taken admission in our <b>Center for Distance and Online Education (CDOE),</b> University of Mumbai, on the basis of earlier qualification.
         </div>
         <div class="para">
             The following student/s has /have taken admission in the University of Mumbai as the/their details mentioned below. I am enclosing here with xerox copy/copies of the marksheet/s for your ready reference.
@@ -172,7 +172,7 @@
                 <th style="width: 25px;"><b><br/>No</b></th>
                 <th style="width: 180px;"><b><br/>Name of Students</b></th>
                 <th style="width: 100px;"><b>Eligibility<br/>Case<br/>No.</b></th>
-                <th style="width: 90px;"><b>Admission<br/>takenin<br/>IDOL</b></th>
+                <th style="width: 90px;"><b>Admission<br/>takenin<br/>CDOE</b></th>
                 <th style="width: 95px;"><b>Verification of<br/>marksheet to be<br/>done by you.</b></th>
             </tr>
         </thead>
@@ -237,7 +237,10 @@
                     <br/>
                 @endfor
                 <div style="font-size: 9.5pt; font-weight: bold;">
-                    Off. Superintdent<br/>(Eligib/Sch)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                    @if(!empty($instituteSignatoryName))
+                        {{ $instituteSignatoryName }}<br/>
+                    @endif
+                    {!! !empty($instituteSignatoryDesignation) ? nl2br(e($instituteSignatoryDesignation)) : 'Deputy Registrar / Assistant Registrar' !!}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
                 </div>
             </td>
         </tr>
@@ -271,7 +274,10 @@
                     <br/>
                 @endfor
                 <div style="font-size: 9.5pt; font-weight: bold;">
-                    Off. Superintdent<br/>(Eligib/Sch)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                    @if(!empty($instituteSignatoryName))
+                        {{ $instituteSignatoryName }}<br/>
+                    @endif
+                    {!! !empty($instituteSignatoryDesignation) ? nl2br(e($instituteSignatoryDesignation)) : 'Deputy Registrar / Assistant Registrar' !!}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
                 </div>
             </td>
         </tr>
