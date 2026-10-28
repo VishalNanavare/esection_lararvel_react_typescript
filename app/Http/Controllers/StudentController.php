@@ -288,7 +288,16 @@ class StudentController extends Controller
             $b->formatted_en_time = $formattedTime;
 
             $col = $matchCollege($b->clg_add);
-            $b->university_name = $col ? trim((string) $col->Name, " ,\t\n\r\0\x0B") : '';
+            $univName = $col ? trim((string) $col->Name, " ,\t\n\r\0\x0B") : '';
+            if ($univName === '' || $univName === '-' || preg_match('/^[\s\-–—\._,]+$/u', $univName)) {
+                $firstLine = trim(preg_split('/\r\n|\r|\n|<br\s*\/?>/i', (string) $b->clg_add)[0] ?? '');
+                if ($firstLine !== '' && $firstLine !== '-' && !preg_match('/^[\s\-–—\._,]+$/u', $firstLine) && strcasecmp($firstLine, 'select university name') !== 0 && strcasecmp($firstLine, 'select admission taken in') !== 0) {
+                    $univName = $firstLine;
+                } else {
+                    $univName = '';
+                }
+            }
+            $b->university_name = $univName;
             $rawFees = ($col && $col->fees !== null && $col->fees !== '') ? trim((string) $col->fees) : '';
             $b->fees = ($rawFees !== '' && $rawFees !== '0') ? $rawFees : '';
             $b->to_name = !empty(trim((string) $b->to_name)) ? trim((string) $b->to_name) : ($col?->head_name ? 'The ' . trim($col->head_name) : 'The Controller of Examinations');
@@ -433,6 +442,16 @@ class StudentController extends Controller
             ->values()
             ->all();
 
+        $univName = $col ? trim((string) $col->Name, " ,\t\n\r\0\x0B") : '';
+        if ($univName === '' || $univName === '-' || preg_match('/^[\s\-–—\._,]+$/u', $univName)) {
+            $fLine = trim(preg_split('/\r\n|\r|\n|<br\s*\/?>/i', (string) $first?->clg_add)[0] ?? '');
+            if ($fLine !== '' && $fLine !== '-' && !preg_match('/^[\s\-–—\._,]+$/u', $fLine) && strcasecmp($fLine, 'select university name') !== 0 && strcasecmp($fLine, 'select admission taken in') !== 0) {
+                $univName = $fLine;
+            } else {
+                $univName = '';
+            }
+        }
+
         return Inertia::render('Students/BatchDetail', [
             'title' => "Batch #{$arraySpace} Details",
             'arraySpace' => $arraySpace,
@@ -442,7 +461,7 @@ class StudentController extends Controller
                 'to_name' => $toName,
                 'admission_taken_in' => $first?->admission_taken_in ?? '',
                 'admission_taken_year' => $first?->admission_taken_year ?? '',
-                'university_name' => $col ? trim((string) $col->Name, " ,\t\n\r\0\x0B") : '',
+                'university_name' => $univName,
                 'in_favour_of' => $first?->in_favour_of ?? '',
             ],
             'years' => $distinctYears,
@@ -820,10 +839,12 @@ class StudentController extends Controller
                 $rawAddr = (string) ($s->clg_add ?: $b->clg_add);
                 $col = $matchCollege($rawAddr);
                 $univName = $col ? trim((string) $col->Name, " ,\t\n\r\0\x0B") : '';
-                if ($univName === '' && $rawAddr !== '') {
-                    $firstLine = trim(explode('<br>', $rawAddr)[0]);
-                    if ($firstLine !== '-' && strcasecmp($firstLine, 'select university name') !== 0) {
+                if (($univName === '' || $univName === '-' || preg_match('/^[\s\-–—\._,]+$/u', $univName)) && $rawAddr !== '') {
+                    $firstLine = trim(preg_split('/\r\n|\r|\n|<br\s*\/?>/i', $rawAddr)[0] ?? '');
+                    if ($firstLine !== '' && $firstLine !== '-' && !preg_match('/^[\s\-–—\._,]+$/u', $firstLine) && strcasecmp($firstLine, 'select university name') !== 0) {
                         $univName = $firstLine;
+                    } else {
+                        $univName = '';
                     }
                 }
                 $fees = ($col && $col->fees !== null && $col->fees !== '') ? (string) $col->fees : '';

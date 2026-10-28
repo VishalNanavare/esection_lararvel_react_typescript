@@ -841,7 +841,7 @@ export const History: React.FC<HistoryProps> = ({ batches, filterOptions, filter
                                                         </td>
 
                                                         <td>
-                                                            {b.university_name ? (
+                                                            {b.university_name && b.university_name !== '-' && b.university_name !== '—' ? (
                                                                 <div className="fw-bold text-dark mb-1">
                                                                     {b.university_name}
                                                                 </div>
@@ -968,7 +968,7 @@ export const History: React.FC<HistoryProps> = ({ batches, filterOptions, filter
                                                                                 <i className="fa fa-users me-1.5"></i>
                                                                                 {students.length} Candidate{students.length === 1 ? '' : 's'} in Batch #{b.array_space}
                                                                             </span>
-                                                                            {b.university_name && (
+                                                                            {b.university_name && b.university_name !== '-' && b.university_name !== '—' && (
                                                                                 <span className="badge bg-white text-dark border px-2.5 py-1.5 rounded-pill">
                                                                                     <i className="fa fa-university me-1 text-indigo"></i>
                                                                                     {b.university_name}
@@ -1210,7 +1210,7 @@ export const History: React.FC<HistoryProps> = ({ batches, filterOptions, filter
                                         Batch <span>{viewingBatch.array_space}</span>
                                     </h5>
                                     <div className="mt-1 d-flex align-items-center flex-wrap gap-2">
-                                        {viewingBatch.university_name && (
+                                        {viewingBatch.university_name && viewingBatch.university_name !== '-' && viewingBatch.university_name !== '—' && (
                                             <span className="fw-semibold text-dark">
                                                 {viewingBatch.university_name}
                                             </span>

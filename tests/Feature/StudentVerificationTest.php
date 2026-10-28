@@ -351,3 +351,46 @@ test('user can delete an entire candidate batch and all students', function () {
 
     expect(StudentDetail::where('array_space', $batchSpace)->count())->toBe(0);
 });
+
+test('batch history matches HSNC university and does not display hyphen when dummy college with hyphen name exists', function () {
+    // Create dummy college with "-" as name
+    CollegeDetail::create([
+        'Name' => '-',
+        'States' => 'Dummy',
+        'Address' => 'dummy address with hyphen',
+        'is_active' => true,
+    ]);
+
+    // Create HSNC University
+    $hsnc = CollegeDetail::create([
+        'Name' => 'HSNC University, Mumbai',
+        'States' => 'Maharashtra',
+        'Address' => "D.M Harish Building, Merryland Apartments, Worli, Mumbai <br>phone- 099300 03151",
+        'fees' => '100',
+        'head_name' => 'The Controller of Examinations',
+        'in_favour_of' => 'Finance Officer',
+        'is_active' => true,
+    ]);
+
+    $batchSpace = 'HSNC-TEST-001';
+    StudentDetail::create([
+        'array_space' => $batchSpace,
+        'to_name' => 'Registrar',
+        'clg_add' => "HSNC University, Mumbai\nD.M Harish Building, Merryland Apartments, Worli, Mumbai <br>phone- 099300 03151",
+        'admission_taken_year' => '2026-2027',
+        'admission_taken_in' => 'F.Y.B.Com',
+        'student_name' => 'HSNC Student',
+        'eligibility_case_no' => 'HSNC-001',
+    ]);
+
+    $response = $this->actingAs($this->user)->get('/students/history?university=' . urlencode('HSNC University, Mumbai'));
+    $response->assertOk();
+
+    $response->assertInertia(function ($page) use ($batchSpace) {
+        $batches = $page->toArray()['props']['batches']['data'];
+        $found = collect($batches)->firstWhere('array_space', $batchSpace);
+        expect($found)->not->toBeNull();
+        expect($found['university_name'])->toBe('HSNC University, Mumbai');
+        expect($found['university_name'])->not->toBe('-');
+    });
+});

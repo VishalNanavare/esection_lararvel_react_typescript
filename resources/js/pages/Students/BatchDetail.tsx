@@ -330,7 +330,11 @@ export const BatchDetail: React.FC<BatchDetailProps> = ({ arraySpace, students, 
                                 </h3>
                                 <div className="text-muted small">
                                     <strong>To Head:</strong> {batchInfo?.to_name || firstStudent?.to_name || 'The Controller of Examinations'} |{' '}
-                                    <strong>University:</strong> {batchInfo?.university_name || firstStudent?.clg_add || 'N/A'} |{' '}
+                                    <strong>University:</strong>{' '}
+                                    {batchInfo?.university_name && batchInfo.university_name !== '-' && batchInfo.university_name !== '—'
+                                        ? batchInfo.university_name
+                                        : firstStudent?.clg_add || 'N/A'}{' '}
+                                    |{' '}
                                     <strong>Program:</strong> {batchInfo?.admission_taken_in || firstStudent?.admission_taken_in || 'N/A'} |{' '}
                                     <strong>Year:</strong> {batchInfo?.admission_taken_year || firstStudent?.admission_taken_year || 'N/A'}
                                 </div>

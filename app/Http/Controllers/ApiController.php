@@ -21,7 +21,11 @@ class ApiController extends Controller
             : max(1, min(2000, (int) $request->input('limit', 25)));
         $activeOnly = $request->input('active_only') !== '0';
 
-        $query = CollegeDetail::query();
+        $query = CollegeDetail::query()
+            ->whereNotNull('Name')
+            ->where('Name', '!=', '')
+            ->where('Name', '!=', '-')
+            ->whereRaw('CHAR_LENGTH(TRIM(Name)) >= 3');
 
         if ($activeOnly) {
             $query->where('is_active', true);
