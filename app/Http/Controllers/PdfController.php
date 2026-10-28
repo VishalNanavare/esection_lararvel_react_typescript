@@ -220,7 +220,9 @@ class PdfController extends Controller
         }
 
         $first = $students->first();
-        $resolved = $this->resolveUniversityAndAddress($first->clg_add, $first->to_name);
+        $studentWithToName = $students->first(fn ($s) => !empty(trim((string) $s->to_name)));
+        $providedToName = $studentWithToName ? trim((string) $studentWithToName->to_name) : trim((string) ($first->to_name ?? ''));
+        $resolved = $this->resolveUniversityAndAddress($first->clg_add, $providedToName);
 
         $fees = (float) ($resolved['fees'] ?? 0);
         $count = $students->count();
@@ -228,12 +230,14 @@ class PdfController extends Controller
         $rawTime = !empty($first->pdf_time) ? $first->pdf_time : (!empty($first->en_time) ? $first->en_time : $arraySpace);
         $currentTime = is_numeric($rawTime) ? (int)$rawTime : (strtotime((string)$rawTime) ?: time());
 
+        $headName = $providedToName !== '' ? $providedToName : ($resolved['to_name'] ?: 'The Controller of Examinations');
+
         $firstRow = [
             'clg_add' => $first->clg_add,
             'address' => $resolved['address'],
             'university_name' => $resolved['university_name'],
-            'to_name' => $resolved['to_name'],
-            'in_favour_of' => $resolved['in_favour_of'],
+            'to_name' => $headName,
+            'in_favour_of' => !empty($first->in_favour_of) ? $first->in_favour_of : $resolved['in_favour_of'],
             'fees' => $fees,
         ];
 
@@ -270,7 +274,9 @@ class PdfController extends Controller
         }
 
         $first = $students->first();
-        $resolved = $this->resolveUniversityAndAddress($first->clg_add, $first->to_name);
+        $studentWithToName = $students->first(fn ($s) => !empty(trim((string) $s->to_name)));
+        $providedToName = $studentWithToName ? trim((string) $studentWithToName->to_name) : trim((string) ($first->to_name ?? ''));
+        $resolved = $this->resolveUniversityAndAddress($first->clg_add, $providedToName);
 
         $fees = (float) ($resolved['fees'] ?? 0);
         $count = $students->count();
@@ -278,12 +284,14 @@ class PdfController extends Controller
         $rawTime = !empty($first->pdf_time) ? $first->pdf_time : (!empty($first->en_time) ? $first->en_time : $arraySpace);
         $currentTime = is_numeric($rawTime) ? (int)$rawTime : (strtotime((string)$rawTime) ?: time());
 
+        $headName = $providedToName !== '' ? $providedToName : ($resolved['to_name'] ?: 'The Controller of Examinations');
+
         $firstRow = [
             'clg_add' => $first->clg_add,
             'address' => $resolved['address'],
             'university_name' => $resolved['university_name'],
-            'to_name' => $resolved['to_name'],
-            'in_favour_of' => $resolved['in_favour_of'],
+            'to_name' => $headName,
+            'in_favour_of' => !empty($first->in_favour_of) ? $first->in_favour_of : $resolved['in_favour_of'],
             'fees' => $fees,
         ];
 
@@ -498,11 +506,16 @@ class PdfController extends Controller
         $rawTime = !empty($batch->pdf_time) ? $batch->pdf_time : time();
         $currentTime = is_numeric($rawTime) ? (int)$rawTime : (strtotime((string)$rawTime) ?: time());
 
+        // Prioritize head_name entered by staff on the batch
+        $headName = !empty(trim((string)$batch->head_name))
+            ? trim((string)$batch->head_name)
+            : ($resolved['to_name'] ?: 'The Controller of Examinations');
+
         $data = array_merge($this->getInstituteSettings(), $rendered, [
             'batch' => $batch,
             'currentTime' => $currentTime,
             'universityName' => $resolved['university_name'] ?: $batch->university_name,
-            'headName' => $resolved['to_name'] ?: $batch->head_name,
+            'headName' => $headName,
             'address' => $resolved['address'],
             'students' => $students,
             'date' => date('d/m/Y'),

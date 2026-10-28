@@ -393,6 +393,63 @@ export default function University({
     const hasYearMismatch = selectedYears.length > 1;
     const hasAnyMismatch = hasUnivMismatch || hasCourseMismatch || hasYearMismatch;
 
+    const handleProceedToCreate = (e?: React.FormEvent) => {
+        if (e) e.preventDefault();
+
+        if (selectedIds.length === 0) {
+            Swal.fire('No Candidates Selected', 'Please check at least one candidate from the table.', 'warning');
+            return;
+        }
+
+        // Validate constraint 1: Same University
+        if (hasUnivMismatch) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Single University Required',
+                text: `Selected candidates belong to ${selectedUnivs.length} different universities (${selectedUnivs.slice(0, 3).join(', ')}${selectedUnivs.length > 3 ? '...' : ''}). A reminder notice must be generated for only one university.`,
+            });
+            return;
+        }
+
+        // Validate constraint 2: Same Course / Program
+        if (hasCourseMismatch) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Same Course / Program Required',
+                text: `Selected candidates have ${selectedCourses.length} different courses (${selectedCourses.slice(0, 3).join(', ')}${selectedCourses.length > 3 ? '...' : ''}). All candidates in a reminder notice must have the same course / program (admission taken in).`,
+            });
+            return;
+        }
+
+        // Validate constraint 3: Same Academic Year
+        if (hasYearMismatch) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Same Academic Year Required',
+                text: `Selected candidates belong to ${selectedYears.length} different academic years (${selectedYears.slice(0, 3).join(', ')}${selectedYears.length > 3 ? '...' : ''}). All candidates in a reminder notice must belong to the same academic year.`,
+            });
+            return;
+        }
+
+        const targetUniv = activeUnivName.trim() || selectedUnivs[0] || '';
+        if (!targetUniv) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Target University Required',
+                text: 'Please select a Target University before proceeding.',
+            });
+            return;
+        }
+
+        const academicYear = selectedYears[0] || year || selectedStudentsList[0]?.admission_taken_year || '';
+
+        router.get('/reminders/university/process', {
+            a: academicYear,
+            b: targetUniv,
+            c: selectedIds.join('_'),
+        });
+    };
+
     const handleGenerateReminder = (e: React.FormEvent) => {
         e.preventDefault();
 
@@ -766,37 +823,7 @@ export default function University({
 
                         {/* Reminder Notice Form & Student Selection Table */}
                         {students.data.length > 0 ? (
-                            <form onSubmit={handleGenerateReminder}>
-                                <div className="row g-3 mb-4 entry-panel p-3 bg-white rounded-3 border">
-                                    <div className="col-md-6">
-                                        <label className="form-label text-secondary small fw-semibold">
-                                            Reminder Notice Type
-                                        </label>
-                                        <select
-                                            className="form-select"
-                                            value={reminderType}
-                                            onChange={(e) => setReminderType(e.target.value)}
-                                            required
-                                        >
-                                            <option value="1st Reminder Notice">1st Reminder Notice</option>
-                                            <option value="2nd Reminder Notice">2nd Reminder Notice</option>
-                                            <option value="Final Urgent Reminder Notice">Final Urgent Reminder Notice</option>
-                                        </select>
-                                    </div>
-                                    <div className="col-md-6">
-                                        <label className="form-label text-secondary small fw-semibold">
-                                            Head Name (To)
-                                        </label>
-                                        <input
-                                            type="text"
-                                            className="form-control"
-                                            placeholder="The Controller of Examinations"
-                                            value={headName}
-                                            onChange={(e) => setHeadName(e.target.value)}
-                                        />
-                                    </div>
-                                </div>
-
+                            <form onSubmit={handleProceedToCreate}>
                                 {/* Student Selection Table */}
                                 <div className="table-responsive mb-4">
                                     <table className="table table-glass table-hover table-sticky-id">
@@ -1002,28 +1029,22 @@ export default function University({
                                         Selected: <strong>{selectedIds.length}</strong> of <strong>{eligibleStudents.length}</strong> eligible candidate(s)
                                         {activeUnivName ? <> for <strong>{activeUnivName}</strong></> : ''}
                                     </div>
-                                    <button
-                                        type="submit"
-                                        className="btn btn-emerald py-2 px-4"
-                                        disabled={isSubmitting || selectedIds.length === 0 || hasAnyMismatch}
-                                        title={
-                                            hasAnyMismatch
-                                                ? 'Cannot generate notice: All candidates must belong to the same university, course, and academic year'
-                                                : selectedIds.length === 0
-                                                ? 'Please select at least one candidate'
-                                                : 'Generate reminder PDF notice for selected candidates'
-                                        }
-                                    >
-                                        {isSubmitting ? (
-                                            <>
-                                                <i className="fa fa-spinner fa-spin me-1"></i> Generating...
-                                            </>
-                                        ) : (
-                                            <>
-                                                <i className="fa fa-file-pdf-o me-1"></i> Generate University Reminder PDF Notice
-                                            </>
-                                        )}
-                                    </button>
+                                    <div>
+                                        <button
+                                            type="submit"
+                                            className="btn btn-primary py-2 px-4 shadow-sm"
+                                            disabled={isSubmitting || selectedIds.length === 0 || hasAnyMismatch}
+                                            title={
+                                                hasAnyMismatch
+                                                    ? 'Cannot proceed: All candidates must belong to the same university, course, and academic year'
+                                                    : selectedIds.length === 0
+                                                    ? 'Please select at least one candidate'
+                                                    : 'Create reminder notice for selected candidates'
+                                            }
+                                        >
+                                            <i className="fa fa-pencil-square-o me-1"></i> Create Reminder
+                                        </button>
+                                    </div>
                                 </div>
                             </form>
                         ) : (

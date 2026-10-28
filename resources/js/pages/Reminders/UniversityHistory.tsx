@@ -132,6 +132,31 @@ export default function UniversityHistory({ batches, filters }: Props) {
         });
     };
 
+    // Delete single batch with SweetAlert2 confirmation
+    const handleDeleteBatch = (batch: BatchSummary) => {
+        Swal.fire({
+            title: `Delete Reminder Batch #${batch.id}?`,
+            html: `Are you sure you want to delete this reminder batch for <strong>${batch.university_name}</strong> (${batch.academic_year})?<br><br><span class="text-danger small">All reminder notes recorded in this batch will be removed.</span>`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#dc3545',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: 'Yes, delete batch',
+        }).then((result) => {
+            if (result.isConfirmed) {
+                router.delete(`/reminders/university/batches/${batch.id}`, {
+                    preserveScroll: true,
+                    onSuccess: () => {
+                        Swal.fire('Deleted!', `Reminder batch #${batch.id} has been deleted.`, 'success');
+                    },
+                    onError: () => {
+                        Swal.fire('Error', 'Failed to delete reminder batch.', 'error');
+                    },
+                });
+            }
+        });
+    };
+
     // Determine eligible batches that match the current selection's university
     const targetUnivForSelection = selectedBatchIds.length > 0
         ? batches.data.find((b) => selectedBatchIds.includes(b.id))?.university_name
@@ -378,7 +403,7 @@ export default function UniversityHistory({ batches, filters }: Props) {
                                         <th>Course / Division</th>
                                         <th>Candidates Included</th>
                                         <th>Created Date</th>
-                                        <th className="text-end" style={{ width: '180px' }}>Actions</th>
+                                        <th className="text-end" style={{ width: '280px' }}>Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -434,22 +459,38 @@ export default function UniversityHistory({ batches, filters }: Props) {
                                                     <td className="small text-muted">
                                                         {b.created_at ? new Date(b.created_at).toLocaleDateString('en-GB') : '-'}
                                                     </td>
-                                                    <td className="text-end">
+                                                    <td className="text-end text-nowrap">
                                                         <Link
                                                             href={`/reminders/university/batches/${b.id}`}
                                                             className="btn btn-sm btn-glass text-indigo me-1"
+                                                            title="View Batch Details"
                                                         >
                                                             <i className="fa fa-eye me-1"></i> View
+                                                        </Link>
+                                                        <Link
+                                                            href={`/reminders/university/batches/${b.id}/edit`}
+                                                            className="btn btn-sm btn-outline-primary me-1"
+                                                            title="Update Reminder Letter (Add next reminder note / edit notes)"
+                                                        >
+                                                            <i className="fa fa-pencil me-1"></i> Update
                                                         </Link>
                                                         <a
                                                             href={`/pdf/reminders/university/${b.id}`}
                                                             target="_blank"
                                                             rel="noopener noreferrer"
-                                                            className="btn btn-sm btn-glass text-secondary"
+                                                            className="btn btn-sm btn-glass text-secondary me-1"
                                                             title="Print Notice"
                                                         >
                                                             <i className="fa fa-print"></i> Print
                                                         </a>
+                                                        <button
+                                                            type="button"
+                                                            className="btn btn-sm btn-outline-danger"
+                                                            onClick={() => handleDeleteBatch(b)}
+                                                            title="Delete Reminder Batch"
+                                                        >
+                                                            <i className="fa fa-trash"></i> Delete
+                                                        </button>
                                                     </td>
                                                 </tr>
                                             );

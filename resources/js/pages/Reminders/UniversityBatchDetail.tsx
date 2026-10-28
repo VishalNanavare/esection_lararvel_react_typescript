@@ -178,6 +178,61 @@ export default function UniversityBatchDetail({
         );
     };
 
+    const handleEditNote = (note: ReminderNote, candidateName: string) => {
+        const initialDate = note.note_date ? note.note_date.split('T')[0] : new Date().toISOString().split('T')[0];
+        Swal.fire({
+            title: 'Update Reminder Note',
+            html: `
+                <div class="text-start">
+                    <p class="small text-muted mb-2">Candidate: <strong>${candidateName}</strong></p>
+                    <label class="form-label small fw-semibold text-secondary">Reminder Message / Note Text</label>
+                    <input id="swal_note_text" class="form-control mb-3" value="${note.note_text.replace(/"/g, '&quot;')}" />
+                    <label class="form-label small fw-semibold text-secondary">Reminder Date</label>
+                    <input id="swal_note_date" type="date" class="form-control" value="${initialDate}" />
+                </div>
+            `,
+            showCancelButton: true,
+            confirmButtonText: '<i class="fa fa-save me-1"></i> Save Changes',
+            cancelButtonText: 'Cancel',
+            confirmButtonColor: '#4f46e5',
+            focusConfirm: false,
+            preConfirm: () => {
+                const text = (document.getElementById('swal_note_text') as HTMLInputElement)?.value;
+                const date = (document.getElementById('swal_note_date') as HTMLInputElement)?.value;
+                if (!text || !text.trim()) {
+                    Swal.showValidationMessage('Note text cannot be empty');
+                    return false;
+                }
+                return { text: text.trim(), date };
+            },
+        }).then((result) => {
+            if (result.isConfirmed && result.value) {
+                router.post(
+                    `/reminders/university/notes/${note.id}`,
+                    {
+                        note_text: result.value.text,
+                        note_date: result.value.date,
+                    },
+                    {
+                        preserveScroll: true,
+                        onSuccess: () => {
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Note Updated!',
+                                text: 'Reminder note updated successfully.',
+                                timer: 1500,
+                                showConfirmButton: false,
+                            });
+                        },
+                        onError: (errs) => {
+                            Swal.fire('Error', Object.values(errs).flat().join('\n') || 'Failed to update note', 'error');
+                        },
+                    }
+                );
+            }
+        });
+    };
+
     return (
         <AppLayout>
             <Head title={`Reminder Batch #${batch.id}`} />
@@ -208,6 +263,13 @@ export default function UniversityBatchDetail({
                             <div className="d-flex flex-wrap gap-2">
                                 <Link href="/reminders/university/history" className="btn btn-glass">
                                     <i className="fa fa-arrow-left me-1"></i> Back to Batches
+                                </Link>
+                                <Link
+                                    href={`/reminders/university/batches/${batch.id}/edit`}
+                                    className="btn btn-outline-danger"
+                                    title="Update reminder notes or enter next reminder notes (as per reme_view.php)"
+                                >
+                                    <i className="fa fa-pencil me-1"></i> Update Reminder Notes
                                 </Link>
                                 <a
                                     href={`/pdf/reminders/university/${batch.id}`}
@@ -416,18 +478,29 @@ export default function UniversityBatchDetail({
                                                 ) : (
                                                     <div className="d-flex flex-column gap-1">
                                                         {s.notes.map((n, i) => (
-                                                            <div key={i} className="small bg-white p-2 rounded border">
-                                                                <span className="badge bg-warning bg-opacity-10 text-warning border border-warning border-opacity-25 me-2">
-                                                                    {n.note_text}
-                                                                </span>
-                                                                <span className="text-muted">
-                                                                    Date: {n.note_date ? new Date(n.note_date).toLocaleDateString('en-GB') : '-'}
-                                                                </span>
-                                                                {n.created_by && (
-                                                                    <span className="text-secondary ms-2">
-                                                                        by {n.created_by}
+                                                            <div key={i} className="small bg-white p-2 rounded border d-flex align-items-center justify-content-between flex-wrap gap-1">
+                                                                <div>
+                                                                    <span className="badge bg-warning bg-opacity-10 text-warning border border-warning border-opacity-25 me-2">
+                                                                        {n.note_text}
                                                                     </span>
-                                                                )}
+                                                                    <span className="text-muted">
+                                                                        Date: {n.note_date ? new Date(n.note_date).toLocaleDateString('en-GB') : '-'}
+                                                                    </span>
+                                                                    {n.created_by && (
+                                                                        <span className="text-secondary ms-2">
+                                                                            by {n.created_by}
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                                <button
+                                                                    type="button"
+                                                                    className="btn btn-xs btn-outline-secondary py-0 px-2 rounded-pill"
+                                                                    style={{ fontSize: '0.72rem' }}
+                                                                    onClick={() => handleEditNote(n, s.student_name)}
+                                                                    title="Edit or correct this reminder note"
+                                                                >
+                                                                    <i className="fa fa-pencil me-1"></i> Edit Note
+                                                                </button>
                                                             </div>
                                                         ))}
                                                     </div>

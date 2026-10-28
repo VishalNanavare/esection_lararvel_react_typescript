@@ -270,3 +270,84 @@ test('user can export batch history with student details across rows', function 
     expect($dataRows[9][9])->toBe('student10@example.com');
     expect($dataRows[9][10])->toBe('Remark for student 10');
 });
+
+test('user can update entire batch metadata', function () {
+    $batchSpace = 'BATCH-UPDATE-TEST';
+
+    StudentDetail::create([
+        'array_space' => $batchSpace,
+        'to_name' => 'The Controller of Examinations',
+        'clg_add' => 'Old University Address',
+        'admission_taken_year' => '2025-2026',
+        'admission_taken_in' => 'F.Y.B.Com',
+        'student_name' => 'Student A',
+        'eligibility_case_no' => 'CASE-001',
+    ]);
+
+    StudentDetail::create([
+        'array_space' => $batchSpace,
+        'to_name' => 'The Controller of Examinations',
+        'clg_add' => 'Old University Address',
+        'admission_taken_year' => '2025-2026',
+        'admission_taken_in' => 'F.Y.B.Com',
+        'student_name' => 'Student B',
+        'eligibility_case_no' => 'CASE-002',
+    ]);
+
+    $response = $this->actingAs($this->user)->putJson("/students/batches/{$batchSpace}", [
+        'clg_add' => 'New University Name<br>New Postal Address, State - 400001',
+        'to_name' => 'The Registrar (Evaluation)',
+        'admission_taken_in' => 'T.Y.B.Com',
+        'admission_taken_year' => '2026-2027',
+        'in_favour_of' => 'Finance & Accounts Officer',
+    ]);
+
+    $response->assertOk();
+    $response->assertJsonFragment([
+        'status' => 'success',
+        'array_space' => $batchSpace,
+    ]);
+
+    $students = StudentDetail::where('array_space', $batchSpace)->get();
+    expect($students)->toHaveCount(2);
+
+    foreach ($students as $s) {
+        expect($s->clg_add)->toBe('New University Name<br>New Postal Address, State - 400001');
+        expect($s->to_name)->toBe('The Registrar (Evaluation)');
+        expect($s->admission_taken_in)->toBe('T.Y.B.Com');
+        expect($s->admission_taken_year)->toBe('2026-2027');
+        expect($s->in_favour_of)->toBe('Finance & Accounts Officer');
+    }
+});
+
+test('user can delete an entire candidate batch and all students', function () {
+    $batchSpace = 'BATCH-DELETE-TEST';
+
+    StudentDetail::create([
+        'array_space' => $batchSpace,
+        'to_name' => 'Registrar',
+        'clg_add' => 'Sample University',
+        'admission_taken_year' => '2026-2027',
+        'admission_taken_in' => 'F.Y.B.Com',
+        'student_name' => 'Delete Me 1',
+        'eligibility_case_no' => 'DEL-001',
+    ]);
+
+    StudentDetail::create([
+        'array_space' => $batchSpace,
+        'to_name' => 'Registrar',
+        'clg_add' => 'Sample University',
+        'admission_taken_year' => '2026-2027',
+        'admission_taken_in' => 'F.Y.B.Com',
+        'student_name' => 'Delete Me 2',
+        'eligibility_case_no' => 'DEL-002',
+    ]);
+
+    $response = $this->actingAs($this->user)->deleteJson("/students/batches/{$batchSpace}");
+    $response->assertOk();
+    $response->assertJsonFragment([
+        'status' => 'success',
+    ]);
+
+    expect(StudentDetail::where('array_space', $batchSpace)->count())->toBe(0);
+});

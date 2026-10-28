@@ -234,3 +234,86 @@ test('dispatch letter pdf displays numeric timestamp even if student en_time is 
     $res->assertOk();
     $res->assertHeader('Content-Type', 'application/pdf');
 });
+
+test('dispatch letter pdf view renders with 23 ref spaces, custom to_name, and centered signatory table', function () {
+    $batchSpace = 'pdf_view_test_custom_head';
+
+    StudentDetail::create([
+        'student_name' => 'Custom Head Student',
+        'eligibility_case_no' => 'CH-01',
+        'admission_taken_in' => 'B.Com',
+        'admission_taken_year' => '2026-2027',
+        'clg_add' => 'Sample National University',
+        'to_name' => 'The Joint Controller of Examinations',
+        'fees' => '300',
+        'array_space' => $batchSpace,
+        'en_time' => '1793177695',
+    ]);
+
+    $pdfCtrl = new \App\Http\Controllers\PdfController();
+    $student = StudentDetail::where('array_space', $batchSpace)->first();
+    $resolved = $pdfCtrl->resolveUniversityAndAddress($student->clg_add, $student->to_name);
+
+    $renderedHtml = view('pdf.dispatch_letter', array_merge($pdfCtrl->getInstituteSettings(), [
+        'arraySpace' => $batchSpace,
+        'currentTime' => 1793177695,
+        'firstRow' => [
+            'clg_add' => $student->clg_add,
+            'address' => $resolved['address'],
+            'university_name' => $resolved['university_name'],
+            'to_name' => $student->to_name,
+            'fees' => 300,
+        ],
+        'students' => collect([$student]),
+        'fees' => 300,
+        'totalFees' => 300,
+        'academic_year' => '2026-2027',
+        'date' => '28/10/2026',
+        'subject' => '',
+        'body' => '',
+    ]))->render();
+
+    // Verify 23 &nbsp; spaces between No. CDOE/Eligib/ and /1793177695
+    $spaces = str_repeat('&nbsp;', 23);
+    expect($renderedHtml)->toContain("No. CDOE/Eligib/{$spaces}/1793177695");
+
+    // Verify custom to_name is prioritized and rendered
+    expect($renderedHtml)->toContain('The Joint Controller of Examinations');
+
+    // Verify centered signatory table with Your faithfully
+    expect($renderedHtml)->toContain('Your faithfully,');
+    expect($renderedHtml)->toContain('text-align: center');
+});
+
+test('university reminder letter view has Reminder Letter in ref table starting on same line as No. CDOE', function () {
+    $pdfCtrl = new \App\Http\Controllers\PdfController();
+
+    $renderedHtml = view('pdf.university_reminder_letter', array_merge($pdfCtrl->getInstituteSettings(), [
+        'currentTime' => 1793177695,
+        'headName' => 'The Registrar',
+        'universityName' => 'Nagpur University',
+        'address' => 'Nagpur, Maharashtra',
+        'subject' => 'Verification of Document/s',
+        'reminderText' => 'First Reminder',
+        'date' => '28/10/2026',
+        'students' => collect([]),
+        'streamCounts' => collect([]),
+        'academic_year' => '2026-2027',
+    ]))->render();
+
+    $spaces = str_repeat('&nbsp;', 23);
+    expect($renderedHtml)->toContain("No. CDOE/Eligib/{$spaces}/1793177695");
+
+    // Check that Reminder Letter appears right above No. CDOE/Eligib in the center column
+    $remPos = strpos($renderedHtml, '<b style="font-size: 13pt;">Reminder Letter</b>');
+    $refPos = strpos($renderedHtml, 'No. CDOE/Eligib/');
+    expect($remPos)->not->toBeFalse();
+    expect($refPos)->not->toBeFalse();
+    expect($remPos)->toBeLessThan($refPos);
+
+    // Verify Reminder Letter is in the ref-table
+    expect($renderedHtml)->toContain('<b style="font-size: 13pt;">Reminder Letter</b>');
+
+    // Verify Your faithfully centered in right table
+    expect($renderedHtml)->toContain('Your faithfully,');
+});

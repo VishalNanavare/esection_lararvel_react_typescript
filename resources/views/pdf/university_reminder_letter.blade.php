@@ -102,23 +102,27 @@
         @endif
     </header>
 
-    <div style="text-align: center; margin-bottom: 4px;">
-        <b style="font-size: 14pt;">Reminder Letter</b>
-    </div>
-
     <table class="ref-table">
         <tr>
-            <td style="width: 55%;"></td>
-            <td style="width: 45%; text-align: left;">
-                No. CDOE/Eligib/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/{{ $currentTime }}<br>
+            <td style="width: 48%;"></td>
+            <td style="width: 52%; text-align: left; white-space: nowrap;">
+                <b style="font-size: 13pt;">Reminder Letter</b><br>
+                No. CDOE/Eligib/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/{{ $currentTime }}<br>
                 Date :
             </td>
         </tr>
     </table>
 
     <div class="address-block">
+        @php
+            $cleanHeadName = trim($headName ?? '');
+            $displayHead = preg_replace('/^\s*To\s*,?\s*/i', '', $cleanHeadName);
+            if ($displayHead === '') {
+                $displayHead = $cleanHeadName ?: 'The Controller of Examinations';
+            }
+        @endphp
         To,<br>
-        <b>{{ $headName }}<br>{{ $universityName }}</b><br>
+        <b>{{ $displayHead }}<br>{{ $universityName }}</b><br>
         {!! nl2br(e($address)) !!}
     </div>
 
@@ -218,17 +222,25 @@
     <table class="sig-table">
         <tr>
             <td style="width: 50%;"></td>
-            <td style="width: 50%; text-align: right; vertical-align: top;">
-                <div style="font-size: 9.5pt;">Your faithfully,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</div>
-                @for ($i = 0; $i < (int)($instituteSignatureSpaceLines ?? 3); $i++)
-                    <br/>
-                @endfor
-                <div style="font-size: 9.5pt; font-weight: bold;">
-                    @if(!empty($instituteSignatoryName))
-                        {{ $instituteSignatoryName }}<br/>
-                    @endif
-                    {!! !empty($instituteSignatoryDesignation) ? nl2br(e($instituteSignatoryDesignation)) : 'Deputy Registrar / Assistant Registrar' !!}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-                </div>
+            <td style="width: 50%; vertical-align: top;">
+                <table align="right" style="border-collapse: collapse; text-align: center; margin-left: auto;">
+                    <tr>
+                        <td style="text-align: center; font-size: 9.5pt;">
+                            Your faithfully,
+                        </td>
+                    </tr>
+                    @for ($i = 0; $i < (int)($instituteSignatureSpaceLines ?? 3); $i++)
+                        <tr><td style="height: 14px;"></td></tr>
+                    @endfor
+                    <tr>
+                        <td style="text-align: center; font-size: 9.5pt; font-weight: bold;">
+                            @if(!empty($instituteSignatoryName))
+                                {{ $instituteSignatoryName }}<br/>
+                            @endif
+                            {!! !empty($instituteSignatoryDesignation) ? nl2br(e($instituteSignatoryDesignation)) : 'Deputy Registrar / Assistant Registrar' !!}
+                        </td>
+                    </tr>
+                </table>
             </td>
         </tr>
     </table>

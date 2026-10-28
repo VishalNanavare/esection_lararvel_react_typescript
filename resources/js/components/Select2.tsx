@@ -18,6 +18,7 @@ export interface Select2Props {
     className?: string;
     disabled?: boolean;
     ariaLabel?: string;
+    allowCustom?: boolean;
 }
 
 export const Select2: React.FC<Select2Props> = ({
@@ -31,6 +32,7 @@ export const Select2: React.FC<Select2Props> = ({
     className = '',
     disabled = false,
     ariaLabel,
+    allowCustom = false,
 }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
@@ -57,17 +59,31 @@ export const Select2: React.FC<Select2Props> = ({
 
     // Filter options based on search term
     const filteredOptions = useMemo(() => {
-        if (!searchTerm.trim()) {
-            return normalizedOptions;
+        let result = normalizedOptions;
+        if (searchTerm.trim()) {
+            const term = searchTerm.toLowerCase();
+            result = normalizedOptions.filter(
+                (opt) =>
+                    opt.label.toLowerCase().includes(term) ||
+                    opt.value.toLowerCase().includes(term) ||
+                    (opt.name && opt.name.toLowerCase().includes(term))
+            );
         }
-        const term = searchTerm.toLowerCase();
-        return normalizedOptions.filter(
-            (opt) =>
-                opt.label.toLowerCase().includes(term) ||
-                opt.value.toLowerCase().includes(term) ||
-                (opt.name && opt.name.toLowerCase().includes(term))
-        );
-    }, [normalizedOptions, searchTerm]);
+
+        if (allowCustom && searchTerm.trim()) {
+            const exactExists = result.some(
+                (opt) => opt.value.toLowerCase() === searchTerm.trim().toLowerCase()
+            );
+            if (!exactExists) {
+                return [
+                    { value: searchTerm.trim(), label: `Add "${searchTerm.trim()}"` },
+                    ...result,
+                ];
+            }
+        }
+
+        return result;
+    }, [normalizedOptions, searchTerm, allowCustom]);
 
     // Reset highlighted index when filtered options change
     useEffect(() => {

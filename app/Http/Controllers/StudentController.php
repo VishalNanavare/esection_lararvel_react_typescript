@@ -226,6 +226,7 @@ class StudentController extends Controller
             ->selectRaw('
                 array_space,
                 MAX(clg_add) as clg_add,
+                MAX(to_name) as to_name,
                 MAX(admission_taken_in) as admission_taken_in,
                 MAX(admission_taken_year) as admission_taken_year,
                 MAX(en_time) as en_time,
@@ -290,6 +291,7 @@ class StudentController extends Controller
             $b->university_name = $col ? trim((string) $col->Name, " ,\t\n\r\0\x0B") : '';
             $rawFees = ($col && $col->fees !== null && $col->fees !== '') ? trim((string) $col->fees) : '';
             $b->fees = ($rawFees !== '' && $rawFees !== '0') ? $rawFees : '';
+            $b->to_name = !empty(trim((string) $b->to_name)) ? trim((string) $b->to_name) : ($col?->head_name ? 'The ' . trim($col->head_name) : 'The Controller of Examinations');
 
             $b->students = $studentsByBatch->get($b->array_space, collect())->values();
 
@@ -413,11 +415,110 @@ class StudentController extends Controller
             ]);
         }
 
+        $first = $students->first();
+        [$colleges, $matchCollege] = $this->buildCollegeMatcher();
+        $col = $first ? $matchCollege($first->clg_add) : null;
+        $studentWithToName = $students->first(fn ($s) => !empty(trim((string) $s->to_name)));
+        $toName = $studentWithToName ? trim((string) $studentWithToName->to_name) : trim((string) ($first?->to_name ?? ''));
+        if ($toName === '') {
+            $toName = $col?->head_name ? 'The ' . trim($col->head_name) : 'The Controller of Examinations';
+        }
+
+        $distinctYears = AcademicYear::orderBy('id', 'desc')->pluck('year_label')->all();
+        $distinctCourses = StreamDetail::whereNotNull('Division')
+            ->where('Division', '!=', '')
+            ->orderBy('Division', 'asc')
+            ->pluck('Division')
+            ->unique()
+            ->values()
+            ->all();
+
         return Inertia::render('Students/BatchDetail', [
             'title' => "Batch #{$arraySpace} Details",
             'arraySpace' => $arraySpace,
             'students' => $students,
+            'batchInfo' => [
+                'clg_add' => $first?->clg_add ?? '',
+                'to_name' => $toName,
+                'admission_taken_in' => $first?->admission_taken_in ?? '',
+                'admission_taken_year' => $first?->admission_taken_year ?? '',
+                'university_name' => $col ? trim((string) $col->Name, " ,\t\n\r\0\x0B") : '',
+                'in_favour_of' => $first?->in_favour_of ?? '',
+            ],
+            'years' => $distinctYears,
+            'courses' => $distinctCourses,
         ]);
+    }
+
+    /**
+     * Update batch metadata (university name/address, to head name, course, academic year).
+     */
+    public function updateBatch(Request $request, string $arraySpace): JsonResponse|RedirectResponse
+    {
+        $validated = $request->validate([
+            'clg_add' => 'required|string',
+            'to_name' => 'nullable|string|max:200',
+            'admission_taken_in' => 'required|string|max:100',
+            'admission_taken_year' => 'required|string|max:100',
+            'in_favour_of' => 'nullable|string|max:200',
+        ]);
+
+        $students = StudentDetail::where('array_space', $arraySpace)->get();
+        if ($students->isEmpty()) {
+            abort(404, "Batch #{$arraySpace} not found.");
+        }
+
+        $updateData = [
+            'clg_add' => $validated['clg_add'],
+            'to_name' => $validated['to_name'] ?? '',
+            'admission_taken_in' => $validated['admission_taken_in'],
+            'admission_taken_year' => $validated['admission_taken_year'],
+        ];
+        if ($request->has('in_favour_of') && $validated['in_favour_of'] !== null) {
+            $updateData['in_favour_of'] = $validated['in_favour_of'];
+        }
+
+        StudentDetail::where('array_space', $arraySpace)->update($updateData);
+
+        ActivityLog::record('students.batch_update', "Updated batch #{$arraySpace} metadata ({$students->count()} candidates).");
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'status' => 'success',
+                'message' => "Batch #{$arraySpace} updated successfully.",
+                'array_space' => $arraySpace,
+            ]);
+        }
+
+        return back()->with('success', "Batch #{$arraySpace} updated successfully.");
+    }
+
+    /**
+     * Delete an entire candidate batch and its student records.
+     */
+    public function destroyBatch(string $arraySpace): JsonResponse|RedirectResponse
+    {
+        abort_unless(Setting::enabled('feature_delete_enabled'), 403, 'Deleting records is currently disabled by an administrator.');
+
+        $students = StudentDetail::where('array_space', $arraySpace)->get();
+        $count = $students->count();
+
+        if ($count === 0) {
+            abort(404, "Batch #{$arraySpace} not found.");
+        }
+
+        StudentDetail::where('array_space', $arraySpace)->delete();
+
+        ActivityLog::record('students.batch_delete', "Deleted batch #{$arraySpace} containing {$count} candidate(s).");
+
+        if (request()->wantsJson()) {
+            return response()->json([
+                'status' => 'success',
+                'message' => "Batch #{$arraySpace} ({$count} candidates) deleted successfully.",
+            ]);
+        }
+
+        return redirect()->route('students.history')->with('success', "Batch #{$arraySpace} deleted successfully.");
     }
 
     /**

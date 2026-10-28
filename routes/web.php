@@ -53,6 +53,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/students/history/export', [StudentController::class, 'exportHistory'])->name('students.history.export')->middleware('access:students.export');
     Route::get('/students/batches/{arraySpace}', [StudentController::class, 'batchDetail'])->name('students.batch.detail')->middleware('access:students.view');
     Route::get('/students/batch/{arraySpace}', [StudentController::class, 'batchDetail'])->middleware('access:students.view');
+    Route::put('/students/batches/{arraySpace}', [StudentController::class, 'updateBatch'])->name('students.batch.update')->middleware('access:students.edit,students.create');
+    Route::delete('/students/batches/{arraySpace}', [StudentController::class, 'destroyBatch'])->name('students.batch.destroy')->middleware('access:students.delete,students.create');
     Route::put('/students/{id}', [StudentController::class, 'update'])->name('students.update')->middleware('access:students.edit');
     Route::delete('/students/{id}', [StudentController::class, 'destroy'])->name('students.destroy')->middleware('access:students.delete');
     Route::get('/students/import', [StudentController::class, 'importForm'])->name('students.import')->middleware('access:students.import');
@@ -102,6 +104,11 @@ Route::middleware('auth')->group(function () {
     */
     Route::redirect('/reminders', '/reminders/university');
     Route::get('/reminders/university', [ReminderController::class, 'universityIndex'])->name('reminders.university')->middleware('access:reminders_university.view');
+    Route::get('/reminders/university/process', [ReminderController::class, 'remeView'])->name('reminders.university.process')->middleware('access:reminders_university.view');
+    Route::get('/reminders/university/create', [ReminderController::class, 'remeView'])->name('reminders.university.create')->middleware('access:reminders_university.create');
+    Route::get('/reminders/university/batches/{batchId}/edit', [ReminderController::class, 'remeView'])->name('reminders.university.batch.edit')->middleware('access:reminders_university.create');
+    Route::post('/reminders/university/process/save', [ReminderController::class, 'saveRemeView'])->name('reminders.university.process.save')->middleware('access:reminders_university.create');
+    Route::post('/reminders/university/notes/{noteId}', [ReminderController::class, 'updateReminderNote'])->name('reminders.university.note.update')->middleware('access:reminders_university.create');
     Route::post('/reminders/university', [ReminderController::class, 'storeUniversityReminder'])->name('reminders.university.store')->middleware('access:reminders_university.create');
     Route::post('/reminders/generateUniversityReminder', [ReminderController::class, 'storeUniversityReminder'])->middleware('access:reminders_university.create');
     Route::get('/reminders/university/export', [ReminderController::class, 'universityExport'])->name('reminders.university.export')->middleware('access:reminders_university.export');
@@ -111,7 +118,16 @@ Route::middleware('auth')->group(function () {
     Route::post('/reminders/university/batches/{batchId}/send-email', [ReminderController::class, 'sendUniversityBatchEmail'])->name('reminders.university.batch.send-email')->middleware('access:reminders_university.create');
     Route::post('/reminders/university/batches/preview-combine', [ReminderController::class, 'previewCombineBatches'])->name('reminders.university.batches.preview-combine')->middleware('access:reminders_university.create');
     Route::post('/reminders/university/batches/combine', [ReminderController::class, 'combineBatches'])->name('reminders.university.batches.combine')->middleware('access:reminders_university.create');
+    Route::delete('/reminders/university/batches/{batchId}', [ReminderController::class, 'destroyUniversityBatch'])->name('reminders.university.batch.destroy')->middleware('access:reminders_university.delete,reminders_university.create');
+    Route::delete('/reminders/university/notes/{noteId}', [ReminderController::class, 'destroyReminderNote'])->name('reminders.university.note.destroy')->middleware('access:reminders_university.delete,reminders_university.create');
     Route::post('/reminders/university/students/{id}/status', [ReminderController::class, 'updateStudentVerificationStatus'])->name('reminders.university.student.status')->middleware('access:reminders_university.create');
+
+    // Legacy reme_view.php and rem_view.php compatibility routes
+    Route::get('/reme_view.php', [ReminderController::class, 'legacyRemeView'])->middleware('access:reminders_university.view');
+    Route::post('/config/new_rem_ins.php', [ReminderController::class, 'legacyNewRemIns'])->middleware('access:reminders_university.create');
+    Route::get('/rem_view.php', function () {
+        return redirect()->route('reminders.university.history');
+    })->middleware('access:reminders_university.view');
     Route::get('/reminders/student', [ReminderController::class, 'studentIndex'])->name('reminders.student')->middleware('access:reminders_student.view');
     Route::post('/reminders/student', [ReminderController::class, 'storeStudentReminder'])->name('reminders.student.store')->middleware('access:reminders_student.create');
     Route::post('/reminders/generateStudentReminder', [ReminderController::class, 'storeStudentReminder'])->middleware('access:reminders_student.create');

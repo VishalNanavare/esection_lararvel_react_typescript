@@ -19,9 +19,11 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Schema;
 use Inertia\Inertia;
 use Inertia\Response;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
@@ -396,6 +398,651 @@ class ReminderController extends Controller
             'suggestedEmail' => $suggestedEmail,
             'mailReady' => $mailReady,
         ]);
+    }
+
+    /**
+     * University Reminder Letter & Notice Form (parity with reme_view.php).
+     * Supports both new reminder creation (query params a, b, c) and updating existing batches (param batch_id or legacy u).
+     */
+    public function remeView(Request $request, ?int $batchId = null): Response|RedirectResponse
+    {
+        $resolvedBatchId = $batchId;
+        if (! $resolvedBatchId && $request->has('batch_id')) {
+            $resolvedBatchId = (int) $request->input('batch_id');
+        }
+        if (! $resolvedBatchId && $request->has('u')) {
+            $resolvedBatchId = $this->decodeBatchIdParam((string) $request->input('u'));
+        }
+
+        [$colleges, $matchCollege] = $this->buildCollegeMatcher();
+
+        // 1. Updating an Existing Batch
+        if ($resolvedBatchId) {
+            $batch = UniversityReminderBatch::where('id', $resolvedBatchId)
+                ->orWhere('legacy_array_space', $resolvedBatchId)
+                ->first();
+
+            // Self-heal from rem_db if batch record is missing
+            if (! $batch && Schema::hasTable('rem_db')) {
+                $remExists = DB::table('rem_db')
+                    ->where('array_space', $resolvedBatchId)
+                    ->orWhere('id', $resolvedBatchId)
+                    ->exists();
+
+                if ($remExists) {
+                    Artisan::call('app:sync-legacy-reminders', ['--force' => true]);
+                    $batch = UniversityReminderBatch::where('id', $resolvedBatchId)
+                        ->orWhere('legacy_array_space', $resolvedBatchId)
+                        ->first();
+                }
+            }
+
+            if (! $batch) {
+                return redirect()->route('reminders.university.history')
+                    ->with('error', "Reminder batch #{$resolvedBatchId} not found.");
+            }
+
+            $batchNotes = UniversityReminderNote::where('batch_id', $batch->id)
+                ->orderBy('id', 'asc')
+                ->get();
+            $studentIds = $batchNotes->pluck('student_id')->unique()->all();
+
+            $students = StudentDetail::with('confirmation')
+                ->whereIn('id', $studentIds)
+                ->get();
+
+            $targetCollege = $matchCollege($batch->university_name);
+            $rawFees = ($targetCollege && $targetCollege->fees !== null && $targetCollege->fees !== '') ? trim((string) $targetCollege->fees) : '';
+            $feesVal = ($rawFees !== '' && $rawFees !== '0') ? $rawFees : '';
+
+            $studentList = [];
+            foreach ($students as $student) {
+                // Fetch full reminder notes history for this student
+                $studentNotes = UniversityReminderNote::where('student_id', $student->id)
+                    ->orderBy('id', 'asc')
+                    ->get();
+
+                $existingNotes = [];
+                foreach ($studentNotes as $idx => $note) {
+                    $existingNotes[] = [
+                        'id' => $note->id,
+                        'slot' => $idx + 1,
+                        'batch_id' => $note->batch_id,
+                        'note_text' => $note->note_text,
+                        'note_date' => $note->note_date ? $note->note_date->format('Y-m-d') : null,
+                    ];
+                }
+
+                $nextSlot = count($existingNotes) + 1;
+                $defaultNextNote = match ($nextSlot) {
+                    1 => '1st Reminder Notice',
+                    2 => '2nd Reminder Notice',
+                    3 => '3rd Reminder Notice',
+                    default => "{$nextSlot}th Reminder Notice",
+                };
+
+                $studentList[] = [
+                    'id' => $student->id,
+                    'student_name' => $student->student_name,
+                    'student_nee_name' => $student->student_nee_name,
+                    'eligibility_case_no' => $student->eligibility_case_no,
+                    'admission_taken_in' => $student->admission_taken_in,
+                    'admission_taken_year' => $student->admission_taken_year,
+                    'is_verified' => $student->isVerified(),
+                    'is_excluded' => $student->isExcluded(),
+                    'existing_notes' => $existingNotes,
+                    'next_slot' => $nextSlot,
+                    'default_next_note' => $defaultNextNote,
+                ];
+            }
+
+            $allColleges = CollegeDetail::orderBy('Name')->pluck('Name')->unique()->values()->all();
+            $allYears = StudentDetail::whereNotNull('admission_taken_year')->where('admission_taken_year', '!=', '')->distinct()->orderBy('admission_taken_year', 'desc')->pluck('admission_taken_year')->values()->all();
+            $allCourses = StudentDetail::whereNotNull('admission_taken_in')->where('admission_taken_in', '!=', '')->distinct()->orderBy('admission_taken_in')->pluck('admission_taken_in')->values()->all();
+
+            return Inertia::render('Reminders/RemeView', [
+                'isUpdate' => true,
+                'batchId' => $batch->id,
+                'legacyArraySpace' => $batch->legacy_array_space,
+                'universityName' => $batch->university_name,
+                'academicYear' => $batch->academic_year,
+                'courseName' => $batch->admission_taken_in ?: 'General',
+                'headName' => $batch->head_name ?: 'The Controller of Examinations',
+                'defaultDate' => date('Y-m-d'),
+                'fees' => $feesVal,
+                'students' => $studentList,
+                'backUrl' => route('reminders.university.history'),
+                'allColleges' => $allColleges,
+                'allYears' => $allYears,
+                'allCourses' => $allCourses,
+            ]);
+        }
+
+        // 2. Creating a New Batch from Query Parameters (a = year, b = college, c = student IDs)
+        $a = trim((string) $request->input('a', $request->input('academic_year', '')));
+        $b = trim((string) $request->input('b', $request->input('clg_id', $request->input('university', ''))));
+        $c = $request->input('c', $request->input('student_ids', ''));
+
+        if (is_array($c)) {
+            $studentIds = array_values(array_filter(array_map('intval', $c)));
+        } else {
+            $studentIds = array_values(array_filter(array_map('intval', explode('_', (string) $c))));
+        }
+
+        if (empty($studentIds)) {
+            return redirect()->route('reminders.university')
+                ->with('error', 'No candidates were selected for reminder letter generation.');
+        }
+
+        $students = StudentDetail::with('confirmation')
+            ->whereIn('id', $studentIds)
+            ->get();
+
+        if ($students->isEmpty()) {
+            return redirect()->route('reminders.university')
+                ->with('error', 'Selected candidates could not be found.');
+        }
+
+        // Sort students in the same order as requested IDs
+        $studentMap = $students->keyBy('id');
+        $sortedStudents = collect($studentIds)->map(fn ($id) => $studentMap->get($id))->filter()->values();
+
+        // Resolve College & University Name
+        $targetCollege = null;
+        if (is_numeric($b)) {
+            $targetCollege = CollegeDetail::find((int) $b);
+        }
+        if (! $targetCollege && $b !== '') {
+            $targetCollege = $matchCollege($b);
+        }
+
+        if ($targetCollege) {
+            $univName = trim((string) $targetCollege->Name, " ,\t\n\r\0\x0B");
+            $headName = $request->input('head_name') ?: ($targetCollege->to_name ?: 'The Controller of Examinations');
+            $rawFees = ($targetCollege->fees !== null && $targetCollege->fees !== '') ? trim((string) $targetCollege->fees) : '';
+            $feesVal = ($rawFees !== '' && $rawFees !== '0') ? $rawFees : '';
+        } else {
+            $firstStudent = $sortedStudents->first();
+            $univName = $b !== '' ? $b : ($firstStudent?->clg_add ? strip_tags(explode('<br>', (string) $firstStudent->clg_add)[0]) : 'Target University');
+            $headName = $request->input('head_name') ?: 'The Controller of Examinations';
+            $feesVal = '';
+        }
+
+        $academicYear = $a !== '' ? $a : ($sortedStudents->first()?->admission_taken_year ?: date('Y').'-'.(date('Y') + 1));
+        $courseName = $sortedStudents->first()?->admission_taken_in ?: 'General';
+
+        $studentList = [];
+        foreach ($sortedStudents as $student) {
+            $studentNotes = UniversityReminderNote::where('student_id', $student->id)
+                ->orderBy('id', 'asc')
+                ->get();
+
+            $existingNotes = [];
+            foreach ($studentNotes as $idx => $note) {
+                $existingNotes[] = [
+                    'id' => $note->id,
+                    'slot' => $idx + 1,
+                    'batch_id' => $note->batch_id,
+                    'note_text' => $note->note_text,
+                    'note_date' => $note->note_date ? $note->note_date->format('Y-m-d') : null,
+                ];
+            }
+
+            // Also check rem_db if student notes not present in modern table
+            if (empty($existingNotes) && Schema::hasTable('rem_db')) {
+                $remRow = DB::table('rem_db')->where('name', (string) $student->id)->first();
+                if ($remRow) {
+                    for ($k = 1; $k <= 4; $k++) {
+                        $txt = trim((string) $remRow->{'eligib'.$k});
+                        if ($txt !== '') {
+                            $existingNotes[] = [
+                                'id' => 0,
+                                'slot' => $k,
+                                'batch_id' => 0,
+                                'note_text' => $txt,
+                                'note_date' => $remRow->{'dated'.$k} ?? null,
+                            ];
+                        }
+                    }
+                }
+            }
+
+            $nextSlot = count($existingNotes) + 1;
+            $defaultNextNote = match ($nextSlot) {
+                1 => '1st Reminder Notice',
+                2 => '2nd Reminder Notice',
+                3 => '3rd Reminder Notice',
+                default => "{$nextSlot}th Reminder Notice",
+            };
+
+            $studentList[] = [
+                'id' => $student->id,
+                'student_name' => $student->student_name,
+                'student_nee_name' => $student->student_nee_name,
+                'eligibility_case_no' => $student->eligibility_case_no,
+                'admission_taken_in' => $student->admission_taken_in,
+                'admission_taken_year' => $student->admission_taken_year,
+                'is_verified' => $student->isVerified(),
+                'is_excluded' => $student->isExcluded(),
+                'existing_notes' => $existingNotes,
+                'next_slot' => $nextSlot,
+                'default_next_note' => $defaultNextNote,
+            ];
+        }
+
+        $allColleges = CollegeDetail::orderBy('Name')->pluck('Name')->unique()->values()->all();
+        $allYears = StudentDetail::whereNotNull('admission_taken_year')->where('admission_taken_year', '!=', '')->distinct()->orderBy('admission_taken_year', 'desc')->pluck('admission_taken_year')->values()->all();
+        $allCourses = StudentDetail::whereNotNull('admission_taken_in')->where('admission_taken_in', '!=', '')->distinct()->orderBy('admission_taken_in')->pluck('admission_taken_in')->values()->all();
+
+        return Inertia::render('Reminders/RemeView', [
+            'isUpdate' => false,
+            'batchId' => null,
+            'legacyArraySpace' => null,
+            'universityName' => $univName,
+            'academicYear' => $academicYear,
+            'courseName' => $courseName,
+            'headName' => $headName,
+            'defaultDate' => date('Y-m-d'),
+            'fees' => $feesVal,
+            'students' => $studentList,
+            'backUrl' => route('reminders.university'),
+            'allColleges' => $allColleges,
+            'allYears' => $allYears,
+            'allCourses' => $allCourses,
+        ]);
+    }
+
+    /**
+     * Save reminder letter & batch from reme_view screen.
+     * Records new reminder notes and applies edits to existing reminder notes.
+     */
+    public function saveRemeView(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'batch_id' => 'nullable|integer',
+            'academic_year' => 'required|string|max:60',
+            'university_name' => 'required|string|max:255',
+            'admission_taken_in' => 'nullable|string|max:100',
+            'head_name' => 'nullable|string|max:150',
+            'dated' => 'required|date',
+            'students' => 'required|array|min:1',
+            'students.*.student_id' => 'required|integer',
+            'students.*.next_reminder_note' => 'nullable|string|max:200',
+            'students.*.edited_notes' => 'nullable|array',
+            'students.*.edited_notes.*.id' => 'nullable|integer',
+            'students.*.edited_notes.*.slot' => 'nullable|integer',
+            'students.*.edited_notes.*.note_text' => 'nullable|string|max:200',
+            'students.*.edited_notes.*.note_date' => 'nullable|date',
+        ]);
+
+        $username = Auth::user()?->username ?? 'staff';
+        $headName = trim((string) ($validated['head_name'] ?? 'The Controller of Examinations')) ?: 'The Controller of Examinations';
+        $noteDate = $validated['dated'];
+
+        // 1. Resolve or Create Batch
+        if (! empty($validated['batch_id'])) {
+            $batch = UniversityReminderBatch::findOrFail($validated['batch_id']);
+            $batch->update([
+                'head_name' => $headName,
+                'academic_year' => $validated['academic_year'],
+                'university_name' => $validated['university_name'],
+                'admission_taken_in' => $validated['admission_taken_in'] ?? $batch->admission_taken_in,
+            ]);
+
+            // Sync updated metadata to rem_db if table exists
+            if (Schema::hasTable('rem_db')) {
+                $asp = $batch->legacy_array_space ?: $batch->id;
+                $remUpdate = [
+                    'head_name' => $headName,
+                    'acd_year' => $validated['academic_year'],
+                    'course_name' => $validated['admission_taken_in'] ?? $batch->admission_taken_in,
+                ];
+                $college = CollegeDetail::where('Name', $validated['university_name'])
+                    ->orWhere('Address', $validated['university_name'])
+                    ->first();
+                if ($college) {
+                    $remUpdate['clg_id'] = (string) $college->id;
+                }
+                DB::table('rem_db')->where('array_space', (string) $asp)->update($remUpdate);
+            }
+        } else {
+            $batch = UniversityReminderBatch::create([
+                'academic_year' => $validated['academic_year'],
+                'university_name' => $validated['university_name'],
+                'admission_taken_in' => $validated['admission_taken_in'] ?? null,
+                'head_name' => $headName,
+                'created_by' => $username,
+            ]);
+        }
+
+        $newNotesRecorded = 0;
+        $notesModified = 0;
+
+        foreach ($validated['students'] as $studData) {
+            $studentId = (int) $studData['student_id'];
+
+            // 2. Process Edited Notes (Fixing Mistakes in Existing Notes)
+            if (! empty($studData['edited_notes']) && is_array($studData['edited_notes'])) {
+                foreach ($studData['edited_notes'] as $edited) {
+                    $noteId = ! empty($edited['id']) ? (int) $edited['id'] : null;
+                    $newText = trim((string) ($edited['note_text'] ?? ''));
+                    $newDate = ! empty($edited['note_date']) ? $edited['note_date'] : null;
+
+                    if ($noteId && $noteId > 0 && $newText !== '') {
+                        $note = UniversityReminderNote::find($noteId);
+                        if ($note) {
+                            $oldText = $note->note_text;
+                            $note->note_text = $newText;
+                            if ($newDate) {
+                                $note->note_date = $newDate;
+                            }
+                            $note->save();
+                            $notesModified++;
+
+                            // Sync modification to rem_db if table exists
+                            if (Schema::hasTable('rem_db')) {
+                                $remRow = DB::table('rem_db')->where('name', (string) $note->student_id)->first();
+                                if ($remRow) {
+                                    $slot = ! empty($edited['slot']) ? (int) $edited['slot'] : null;
+                                    if (! $slot || $slot < 1 || $slot > 4) {
+                                        for ($k = 1; $k <= 4; $k++) {
+                                            if (trim((string) $remRow->{'eligib'.$k}) === trim((string) $oldText)) {
+                                                $slot = $k;
+                                                break;
+                                            }
+                                        }
+                                    }
+                                    if ($slot && $slot >= 1 && $slot <= 4) {
+                                        $upData = ['eligib'.$slot => $newText];
+                                        if ($newDate) {
+                                            $upData['dated'.$slot] = $newDate;
+                                        }
+                                        DB::table('rem_db')->where('id', $remRow->id)->update($upData);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 3. Process New Reminder Note
+            $nextNote = trim((string) ($studData['next_reminder_note'] ?? ''));
+            if ($nextNote !== '') {
+                UniversityReminderNote::create([
+                    'batch_id' => $batch->id,
+                    'student_id' => $studentId,
+                    'note_text' => $nextNote,
+                    'note_date' => $noteDate,
+                    'created_by' => $username,
+                    'created_at' => now(),
+                ]);
+                $newNotesRecorded++;
+
+                // Sync new note to rem_db if table exists
+                if (Schema::hasTable('rem_db')) {
+                    $sid = (string) $studentId;
+                    $remRow = DB::table('rem_db')->where('name', $sid)->first();
+                    $pdfTime = (string) time();
+
+                    if ($remRow) {
+                        $targetSlot = null;
+                        for ($k = 1; $k <= 4; $k++) {
+                            if (empty(trim((string) $remRow->{'eligib'.$k}))) {
+                                $targetSlot = $k;
+                                break;
+                            }
+                        }
+                        if ($targetSlot) {
+                            DB::table('rem_db')->where('id', $remRow->id)->update([
+                                'eligib'.$targetSlot => $nextNote,
+                                'dated'.$targetSlot => $noteDate,
+                                'pdf_time'.$targetSlot => $pdfTime,
+                                'head_name' => $headName,
+                            ]);
+                        }
+                    } else {
+                        $stud = StudentDetail::find($studentId);
+                        $clgId = 0;
+                        if ($stud) {
+                            $col = CollegeDetail::where('Address', $stud->clg_add)->orWhere('Name', $stud->clg_add)->first();
+                            $clgId = $col?->id ?: 0;
+                        }
+                        $asp = $batch->legacy_array_space ?: $batch->id;
+                        DB::table('rem_db')->insert([
+                            'array_space' => $asp,
+                            'head_name' => $headName,
+                            'name' => $sid,
+                            'clg_id' => (string) $clgId,
+                            'course_name' => $validated['admission_taken_in'] ?: ($stud?->admission_taken_in ?: 'General'),
+                            'acd_year' => $validated['academic_year'] ?: ($stud?->admission_taken_year ?: '2020-2021'),
+                            'eligib1' => $nextNote,
+                            'dated1' => $noteDate,
+                            'pdf_time1' => $pdfTime,
+                            'Current_Date_Time' => now()->toDateTimeString(),
+                        ]);
+                    }
+                }
+            }
+        }
+
+        $msgParts = [];
+        if ($newNotesRecorded > 0) {
+            $msgParts[] = "{$newNotesRecorded} new reminder note(s) recorded";
+        }
+        if ($notesModified > 0) {
+            $msgParts[] = "{$notesModified} existing reminder note(s) updated";
+        }
+        if ($newNotesRecorded === 0 && $notesModified === 0) {
+            $msgParts[] = 'Reminder letter details updated';
+        }
+        $msg = implode(' and ', $msgParts).'.';
+
+        return redirect()->route('reminders.university.batch.detail', ['batchId' => $batch->id])->with([
+            'success' => $msg,
+            'pdf_url' => route('pdf.reminder.university', ['batchId' => $batch->id]),
+        ]);
+    }
+
+    /**
+     * Update a single reminder note directly (e.g. from Batch Detail or Quick Edit).
+     */
+    public function updateReminderNote(Request $request, int $noteId): JsonResponse|RedirectResponse
+    {
+        $validated = $request->validate([
+            'note_text' => 'required|string|max:200',
+            'note_date' => 'nullable|date',
+        ]);
+
+        $note = UniversityReminderNote::findOrFail($noteId);
+        $oldText = $note->note_text;
+        $note->note_text = trim($validated['note_text']);
+        if (! empty($validated['note_date'])) {
+            $note->note_date = $validated['note_date'];
+        }
+        $note->save();
+
+        // Sync to rem_db if table exists
+        if (Schema::hasTable('rem_db')) {
+            $remRow = DB::table('rem_db')->where('name', (string) $note->student_id)->first();
+            if ($remRow) {
+                for ($k = 1; $k <= 4; $k++) {
+                    if (trim((string) $remRow->{'eligib'.$k}) === trim((string) $oldText)) {
+                        $upData = ['eligib'.$k => $note->note_text];
+                        if (! empty($validated['note_date'])) {
+                            $upData['dated'.$k] = $validated['note_date'];
+                        }
+                        DB::table('rem_db')->where('id', $remRow->id)->update($upData);
+                        break;
+                    }
+                }
+            }
+        }
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Reminder note updated successfully.',
+                'note' => $note,
+            ]);
+        }
+
+        return redirect()->back()->with('success', 'Reminder note updated successfully.');
+    }
+
+    /**
+     * Delete an entire university reminder batch and all its associated notes.
+     */
+    public function destroyUniversityBatch(Request $request, int $batchId): JsonResponse|RedirectResponse
+    {
+        $batch = UniversityReminderBatch::findOrFail($batchId);
+        $univName = $batch->university_name;
+        $asp = $batch->legacy_array_space ?: $batch->id;
+
+        // 1. Delete associated notes
+        UniversityReminderNote::where('batch_id', $batch->id)->delete();
+
+        // 2. Delete source linkages if consolidated
+        DB::table('university_reminder_batch_sources')
+            ->where('consolidated_batch_id', $batch->id)
+            ->orWhere('source_batch_id', $batch->id)
+            ->delete();
+
+        // 3. Delete from rem_db if table exists
+        if (Schema::hasTable('rem_db')) {
+            DB::table('rem_db')->where('array_space', (string) $asp)->delete();
+        }
+
+        // 4. Delete the batch itself
+        $batch->delete();
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => "Reminder batch #{$batchId} for {$univName} has been deleted.",
+            ]);
+        }
+
+        return redirect()->route('reminders.university.history')
+            ->with('success', "Reminder batch #{$batchId} for {$univName} has been deleted.");
+    }
+
+    /**
+     * Delete an individual reminder note (reverting candidate to previous reminder state).
+     */
+    public function destroyReminderNote(Request $request, int $noteId): JsonResponse|RedirectResponse
+    {
+        $note = UniversityReminderNote::findOrFail($noteId);
+        $studentId = $note->student_id;
+        $oldText = $note->note_text;
+
+        // Clear in rem_db if table exists
+        if (Schema::hasTable('rem_db')) {
+            $remRow = DB::table('rem_db')->where('name', (string) $studentId)->first();
+            if ($remRow) {
+                for ($k = 1; $k <= 4; $k++) {
+                    if (trim((string) $remRow->{'eligib'.$k}) === trim((string) $oldText)) {
+                        DB::table('rem_db')->where('id', $remRow->id)->update([
+                            'eligib'.$k => null,
+                            'dated'.$k => null,
+                            'pdf_time'.$k => null,
+                        ]);
+                        break;
+                    }
+                }
+            }
+        }
+
+        $note->delete();
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Reminder note deleted successfully.',
+            ]);
+        }
+
+        return redirect()->back()->with('success', 'Reminder note deleted successfully.');
+    }
+
+    /**
+     * Legacy reme_view.php route adapter.
+     */
+    public function legacyRemeView(Request $request): Response|RedirectResponse
+    {
+        return $this->remeView($request);
+    }
+
+    /**
+     * Legacy new_rem_ins.php route adapter.
+     */
+    public function legacyNewRemIns(Request $request): RedirectResponse
+    {
+        // Decode legacy parameters
+        $headName = $request->input('head_name');
+        $dated = $request->input('dated', date('Y-m-d'));
+        $rawId = $request->input('id', '');
+        $idArr = array_values(array_filter(array_map('intval', explode('_', (string) $rawId))));
+        $kLoop = (int) $request->input('k_loop', 1);
+
+        $students = [];
+        foreach ($idArr as $i => $sid) {
+            $noteVal = $request->input("reminder{$i}{$kLoop}") ?? $request->input("reminder{$i}1");
+            $students[] = [
+                'student_id' => $sid,
+                'next_reminder_note' => $noteVal ? trim((string) $noteVal) : null,
+            ];
+        }
+
+        $sampleStudent = StudentDetail::find($idArr[0] ?? 0);
+        $academicYear = $sampleStudent?->admission_taken_year ?: date('Y').'-'.(date('Y') + 1);
+        $courseName = $sampleStudent?->admission_taken_in ?: 'General';
+        $univName = $sampleStudent?->clg_add ? strip_tags(explode('<br>', (string) $sampleStudent->clg_add)[0]) : 'Target University';
+
+        $subRequest = Request::create(route('reminders.university.process.save'), 'POST', [
+            'academic_year' => $academicYear,
+            'university_name' => $univName,
+            'admission_taken_in' => $courseName,
+            'head_name' => $headName,
+            'dated' => $dated,
+            'students' => $students,
+        ]);
+
+        return $this->saveRemeView($subRequest);
+    }
+
+    /**
+     * Helper to decode legacy batch ID param (supports double base64, single base64, or raw int).
+     */
+    protected function decodeBatchIdParam(string $u): ?int
+    {
+        $val = trim($u);
+        if ($val === '') {
+            return null;
+        }
+
+        $d1 = base64_decode($val, true);
+        if ($d1 !== false) {
+            $d2 = base64_decode($d1, true);
+            if ($d2 !== false && is_numeric($d2)) {
+                $num = (int) $d2;
+                $batch = UniversityReminderBatch::where('legacy_array_space', $num)->orWhere('id', $num)->first();
+                return $batch ? $batch->id : $num;
+            }
+            if (is_numeric($d1)) {
+                $num = (int) $d1;
+                $batch = UniversityReminderBatch::where('legacy_array_space', $num)->orWhere('id', $num)->first();
+                return $batch ? $batch->id : $num;
+            }
+        }
+
+        if (is_numeric($val)) {
+            $num = (int) $val;
+            $batch = UniversityReminderBatch::where('legacy_array_space', $num)->orWhere('id', $num)->first();
+            return $batch ? $batch->id : $num;
+        }
+
+        return null;
     }
 
     /**

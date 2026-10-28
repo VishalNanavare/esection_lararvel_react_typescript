@@ -80,9 +80,9 @@
 
     <table class="ref-table">
         <tr>
-            <td style="width: 55%;"></td>
-            <td style="width: 45%; text-align: left;">
-                No. CDOE/Eligib/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/{{ $currentTime }}<br>
+            <td style="width: 48%;"></td>
+            <td style="width: 52%; text-align: left; white-space: nowrap;">
+                No. CDOE/Eligib/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/{{ $currentTime }}<br>
                 Date :
             </td>
         </tr>
@@ -153,17 +153,25 @@
     <table class="sig-table">
         <tr>
             <td style="width: 50%;"></td>
-            <td style="width: 50%; text-align: right; vertical-align: top;">
-                <div style="font-size: 9.5pt;">Your faithfully,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</div>
-                @for ($i = 0; $i < (int)($instituteSignatureSpaceLines ?? 3); $i++)
-                    <br/>
-                @endfor
-                <div style="font-size: 9.5pt; font-weight: bold;">
-                    @if(!empty($instituteSignatoryName))
-                        {{ $instituteSignatoryName }}<br/>
-                    @endif
-                    {!! !empty($instituteSignatoryDesignation) ? nl2br(e($instituteSignatoryDesignation)) : 'Deputy Registrar / Assistant Registrar' !!}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-                </div>
+            <td style="width: 50%; vertical-align: top;">
+                <table align="right" style="border-collapse: collapse; text-align: center; margin-left: auto;">
+                    <tr>
+                        <td style="text-align: center; font-size: 9.5pt;">
+                            Your faithfully,
+                        </td>
+                    </tr>
+                    @for ($i = 0; $i < (int)($instituteSignatureSpaceLines ?? 3); $i++)
+                        <tr><td style="height: 14px;"></td></tr>
+                    @endfor
+                    <tr>
+                        <td style="text-align: center; font-size: 9.5pt; font-weight: bold;">
+                            @if(!empty($instituteSignatoryName))
+                                {{ $instituteSignatoryName }}<br/>
+                            @endif
+                            {!! !empty($instituteSignatoryDesignation) ? nl2br(e($instituteSignatoryDesignation)) : 'Deputy Registrar / Assistant Registrar' !!}
+                        </td>
+                    </tr>
+                </table>
             </td>
         </tr>
     </table>

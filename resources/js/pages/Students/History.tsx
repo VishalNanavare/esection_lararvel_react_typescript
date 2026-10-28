@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, router, usePage } from '@inertiajs/react';
+import Swal from 'sweetalert2';
 import { AppLayout } from '../../components/AppLayout';
 import { Select2 } from '../../components/Select2';
 import { SharedProps } from '../../types';
@@ -20,6 +21,7 @@ interface BatchSummary {
     array_space: string;
     clg_add: string;
     university_name?: string;
+    to_name?: string;
     fees?: string;
     admission_taken_in: string;
     admission_taken_year: string;
@@ -27,6 +29,17 @@ interface BatchSummary {
     formatted_en_time?: string;
     student_count: number;
     students?: StudentDetailItem[];
+}
+
+export interface UniversityCollegeItem {
+    id: number;
+    value: string;
+    name: string;
+    fees?: string;
+    label: string;
+    address?: string | null;
+    head_name?: string | null;
+    in_favour_of?: string | null;
 }
 
 const AVATAR_GRADIENTS = [
@@ -104,6 +117,7 @@ interface HistoryProps {
 export const History: React.FC<HistoryProps> = ({ batches, filterOptions, filters }) => {
     const { props } = usePage<SharedProps>();
     const canExport = props.features.export;
+    const canDelete = props.features.delete;
 
     const [year, setYear] = useState(filters.year || '');
     const [university, setUniversity] = useState(filters.university || '');
@@ -117,6 +131,200 @@ export const History: React.FC<HistoryProps> = ({ batches, filterOptions, filter
     const [viewingBatch, setViewingBatch] = useState<BatchSummary | null>(null);
     const [batchStudents, setBatchStudents] = useState<StudentDetailItem[]>([]);
     const [batchLoading, setBatchLoading] = useState(false);
+
+    // Edit Batch Modal state
+    const [collegesList, setCollegesList] = useState<UniversityCollegeItem[]>([]);
+    const [editingBatch, setEditingBatch] = useState<BatchSummary | null>(null);
+    const [editUnivId, setEditUnivId] = useState('');
+    const [editClgAdd, setEditClgAdd] = useState('');
+    const [editToName, setEditToName] = useState('');
+    const [editCourse, setEditCourse] = useState('');
+    const [editYear, setEditYear] = useState('');
+    const [editInFavourOf, setEditInFavourOf] = useState('');
+    const [isSavingBatch, setIsSavingBatch] = useState(false);
+
+    // Load available colleges for Edit Batch modal Select2
+    useEffect(() => {
+        fetch('/api/colleges?active_only=0')
+            .then((res) => res.json())
+            .then((data) => {
+                if (data.results && Array.isArray(data.results)) {
+                    const mapped = data.results.map((c: any) => {
+                        const rawFees = c.fees !== null && c.fees !== '' ? String(c.fees).trim() : '';
+                        const feesVal = rawFees !== '' && rawFees !== '0' ? rawFees : '';
+                        const feesText = feesVal !== '' ? `₹${feesVal}` : '—';
+                        return {
+                            id: c.id,
+                            value: String(c.id),
+                            name: c.name || c.text,
+                            fees: feesVal,
+                            label: `${c.name || c.text} | Fees: ${feesText}`,
+                            address: c.address,
+                            head_name: c.head_name,
+                            in_favour_of: c.in_favour_of,
+                        };
+                    });
+                    setCollegesList(mapped);
+                }
+            })
+            .catch((err) => console.error('Failed to load colleges for edit', err));
+    }, []);
+
+    const modalYears =
+        filterOptions?.years && filterOptions.years.length > 0
+            ? filterOptions.years
+            : ['2026-2027', '2025-2026', '2024-2025', '2023-2024', '2022-2023', '2021-2022', '2020-2021', '2019-2020'];
+
+    const modalCourses =
+        filterOptions?.courses && filterOptions.courses.length > 0
+            ? filterOptions.courses
+            : [
+                  'FYBA',
+                  'SYBA',
+                  'TYBA',
+                  'FYBCOM',
+                  'SYBCOM',
+                  'TYBCOM',
+                  'FYBSC',
+                  'SYBSC',
+                  'TYBSC',
+                  'MA',
+                  'MCOM',
+                  'MSC',
+                  'MCA',
+                  'PGDFM',
+                  'PGDORM',
+              ];
+
+    const handleOpenEditBatch = (b: BatchSummary) => {
+        setEditingBatch(b);
+        setEditClgAdd(b.clg_add);
+        setEditToName(b.to_name || 'The Controller of Examinations');
+        setEditCourse(b.admission_taken_in);
+        setEditYear(b.admission_taken_year);
+        setEditInFavourOf('');
+
+        const matched = collegesList.find(
+            (c) =>
+                (b.university_name && c.name.toLowerCase() === b.university_name.toLowerCase()) ||
+                (c.address && b.clg_add.toLowerCase().includes(c.address.toLowerCase()))
+        );
+        if (matched) {
+            setEditUnivId(String(matched.id));
+            if (matched.in_favour_of) setEditInFavourOf(matched.in_favour_of);
+        } else {
+            setEditUnivId('');
+        }
+    };
+
+    const handleSelectEditUniversity = (val: string) => {
+        setEditUnivId(val);
+        if (!val) return;
+        const found = collegesList.find((c) => String(c.id) === String(val) || String(c.value) === String(val));
+        if (found) {
+            const fullAddr = found.address
+                ? found.address.toLowerCase().includes(found.name.toLowerCase())
+                    ? found.address
+                    : `${found.name}\n${found.address}`
+                : found.name;
+            setEditClgAdd(fullAddr);
+            if (found.head_name) {
+                setEditToName(found.head_name);
+            }
+            if (found.in_favour_of) {
+                setEditInFavourOf(found.in_favour_of);
+            }
+        }
+    };
+
+    const handleSaveBatch = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!editingBatch) return;
+        if (!editClgAdd.trim()) {
+            Swal.fire({ icon: 'warning', title: 'Address Required', text: 'Please enter university address.' });
+            return;
+        }
+        if (!editCourse.trim()) {
+            Swal.fire({ icon: 'warning', title: 'Course Required', text: 'Please select a course.' });
+            return;
+        }
+        if (!editYear.trim()) {
+            Swal.fire({ icon: 'warning', title: 'Year Required', text: 'Please select an academic year.' });
+            return;
+        }
+
+        setIsSavingBatch(true);
+        router.put(
+            `/students/batches/${encodeURIComponent(editingBatch.array_space)}`,
+            {
+                clg_add: editClgAdd.trim(),
+                to_name: editToName.trim(),
+                admission_taken_in: editCourse.trim(),
+                admission_taken_year: editYear.trim(),
+                in_favour_of: editInFavourOf.trim(),
+            },
+            {
+                preserveScroll: true,
+                onSuccess: () => {
+                    setIsSavingBatch(false);
+                    setEditingBatch(null);
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Batch Updated',
+                        text: `Batch #${editingBatch.array_space} updated successfully.`,
+                        timer: 2000,
+                        showConfirmButton: false,
+                    });
+                },
+                onError: (err) => {
+                    setIsSavingBatch(false);
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Update Failed',
+                        text: (Object.values(err)[0] as string) || 'Failed to update batch details.',
+                    });
+                },
+            }
+        );
+    };
+
+    const handleDeleteBatch = (b: BatchSummary) => {
+        Swal.fire({
+            title: 'Delete Entire Batch?',
+            text: `Are you sure you want to delete batch #${b.array_space} with all ${b.student_count} candidates? This action cannot be reversed!`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Yes, Delete Batch',
+            cancelButtonText: 'Cancel',
+            customClass: {
+                confirmButton: 'btn btn-danger',
+                cancelButton: 'btn btn-glass ms-2',
+            },
+            buttonsStyling: false,
+        }).then((result) => {
+            if (result.isConfirmed) {
+                router.delete(`/students/batches/${encodeURIComponent(b.array_space)}`, {
+                    preserveScroll: true,
+                    onSuccess: () => {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Deleted',
+                            text: `Batch #${b.array_space} deleted successfully.`,
+                            timer: 2000,
+                            showConfirmButton: false,
+                        });
+                    },
+                    onError: (err) => {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Delete Failed',
+                            text: (Object.values(err)[0] as string) || 'Failed to delete batch.',
+                        });
+                    },
+                });
+            }
+        });
+    };
 
     // Cascading filter options strictly constrained to batch history
     const combos = filterOptions?.combos || [];
@@ -695,6 +903,16 @@ export const History: React.FC<HistoryProps> = ({ batches, filterOptions, filter
                                                                     <span className="d-none d-xl-inline ms-1">{isExpanded ? 'Hide' : 'Details'}</span>
                                                                 </button>
 
+                                                                <button
+                                                                    type="button"
+                                                                    className="btn btn-glass text-indigo"
+                                                                    onClick={() => handleOpenEditBatch(b)}
+                                                                    title="Edit batch university, head name, course, or year"
+                                                                >
+                                                                    <i className="fa fa-pencil"></i>
+                                                                    <span className="d-none d-xl-inline ms-1">Edit</span>
+                                                                </button>
+
                                                                 <a
                                                                     href={`/pdf/dispatch/${encodeURIComponent(b.array_space)}`}
                                                                     target="_blank"
@@ -716,6 +934,18 @@ export const History: React.FC<HistoryProps> = ({ batches, filterOptions, filter
                                                                     <i className="fa fa-file-text-o"></i>
                                                                     <span className="d-none d-xl-inline ms-1">AC</span>
                                                                 </a>
+
+                                                                {canDelete && (
+                                                                    <button
+                                                                        type="button"
+                                                                        className="btn btn-glass text-danger"
+                                                                        onClick={() => handleDeleteBatch(b)}
+                                                                        title="Delete entire batch"
+                                                                    >
+                                                                        <i className="fa fa-trash"></i>
+                                                                        <span className="d-none d-xl-inline ms-1">Delete</span>
+                                                                    </button>
+                                                                )}
 
                                                                 <Link
                                                                     href={`/students/batches/${encodeURIComponent(b.array_space)}`}
@@ -764,13 +994,33 @@ export const History: React.FC<HistoryProps> = ({ batches, filterOptions, filter
                                                                                 <i className="fa fa-expand me-1"></i>
                                                                                 Modal View
                                                                             </button>
-                                                                            <Link
-                                                                                href={`/students/batches/${encodeURIComponent(b.array_space)}`}
+                                                                            <button
+                                                                                type="button"
                                                                                 className="btn btn-sm btn-glass text-indigo py-1 px-2.5"
-                                                                                title="Open full batch page with edit & delete tools"
+                                                                                onClick={() => handleOpenEditBatch(b)}
+                                                                                title="Edit batch info (university, head name, course, year)"
                                                                             >
                                                                                 <i className="fa fa-pencil me-1"></i>
-                                                                                Edit / Manage
+                                                                                Edit Batch
+                                                                            </button>
+                                                                            {canDelete && (
+                                                                                <button
+                                                                                    type="button"
+                                                                                    className="btn btn-sm btn-glass text-danger py-1 px-2.5"
+                                                                                    onClick={() => handleDeleteBatch(b)}
+                                                                                    title="Delete entire batch"
+                                                                                >
+                                                                                    <i className="fa fa-trash me-1"></i>
+                                                                                    Delete Batch
+                                                                                </button>
+                                                                            )}
+                                                                            <Link
+                                                                                href={`/students/batches/${encodeURIComponent(b.array_space)}`}
+                                                                                className="btn btn-sm btn-glass text-secondary py-1 px-2.5"
+                                                                                title="Open full batch page with edit & delete tools"
+                                                                            >
+                                                                                <i className="fa fa-external-link me-1"></i>
+                                                                                Manage
                                                                             </Link>
                                                                             <a
                                                                                 href={`/pdf/dispatch/${encodeURIComponent(b.array_space)}`}
@@ -1132,6 +1382,149 @@ export const History: React.FC<HistoryProps> = ({ batches, filterOptions, filter
                                     Close
                                 </button>
                             </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {/* Edit Batch Modal */}
+            {editingBatch && (
+                <div
+                    className="modal fade show d-block"
+                    tabIndex={-1}
+                    style={{ backgroundColor: 'rgba(15, 23, 42, 0.55)', backdropFilter: 'blur(3px)', zIndex: 1060 }}
+                >
+                    <div className="modal-dialog modal-lg modal-dialog-centered">
+                        <div className="modal-content glass-card border-secondary border-opacity-25 shadow-lg">
+                            <div className="modal-header border-bottom">
+                                <h5 className="modal-title fw-bold text-dark">
+                                    <i className="fa fa-pencil me-2 text-indigo"></i>
+                                    Edit Batch <span className="text-indigo">#{editingBatch.array_space}</span>
+                                </h5>
+                                <button
+                                    type="button"
+                                    className="btn-close"
+                                    onClick={() => setEditingBatch(null)}
+                                    disabled={isSavingBatch}
+                                ></button>
+                            </div>
+                            <form onSubmit={handleSaveBatch}>
+                                <div className="modal-body">
+                                    <div className="row g-3">
+                                        <div className="col-12">
+                                            <label className="form-label small fw-semibold text-secondary">
+                                                Target University (Select2)
+                                            </label>
+                                            <Select2
+                                                id="edit_modal_university"
+                                                name="edit_university"
+                                                value={editUnivId}
+                                                onChange={handleSelectEditUniversity}
+                                                placeholder="-- Search & Select University --"
+                                                options={[
+                                                    { value: '', label: '-- Keep / Custom Address --' },
+                                                    ...collegesList.map((c) => ({
+                                                        value: String(c.id),
+                                                        label: c.label,
+                                                    })),
+                                                ]}
+                                            />
+                                            <div className="form-text small">
+                                                Selecting a university auto-fills address, head name, and fees.
+                                            </div>
+                                        </div>
+
+                                        <div className="col-12">
+                                            <label className="form-label small fw-semibold text-secondary">
+                                                University Postal Address *
+                                            </label>
+                                            <textarea
+                                                className="form-control"
+                                                rows={3}
+                                                value={editClgAdd}
+                                                onChange={(e) => setEditClgAdd(e.target.value)}
+                                                placeholder="Enter full university name and address lines..."
+                                                required
+                                            />
+                                        </div>
+
+                                        <div className="col-md-12">
+                                            <label className="form-label small fw-semibold text-secondary">
+                                                To Head Name *
+                                            </label>
+                                            <input
+                                                type="text"
+                                                className="form-control"
+                                                value={editToName}
+                                                onChange={(e) => setEditToName(e.target.value)}
+                                                placeholder="e.g. The Controller of Examinations / The Registrar"
+                                                required
+                                            />
+                                            <div className="form-text small">
+                                                This exact head name will appear on the printed DD Dispatch PDF.
+                                            </div>
+                                        </div>
+
+                                        <div className="col-md-6">
+                                            <label className="form-label small fw-semibold text-secondary">
+                                                Academic Program / Course *
+                                            </label>
+                                            <select
+                                                className="form-select"
+                                                value={editCourse}
+                                                onChange={(e) => setEditCourse(e.target.value)}
+                                                required
+                                            >
+                                                <option value="">-- Select Course --</option>
+                                                {modalCourses.map((c) => (
+                                                    <option key={c} value={c}>
+                                                        {c}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+
+                                        <div className="col-md-6">
+                                            <label className="form-label small fw-semibold text-secondary">
+                                                Admission Year *
+                                            </label>
+                                            <select
+                                                className="form-select"
+                                                value={editYear}
+                                                onChange={(e) => setEditYear(e.target.value)}
+                                                required
+                                            >
+                                                <option value="">-- Select Year --</option>
+                                                {modalYears.map((y) => (
+                                                    <option key={y} value={y}>
+                                                        {y}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="modal-footer border-top">
+                                    <button
+                                        type="button"
+                                        className="btn btn-glass"
+                                        onClick={() => setEditingBatch(null)}
+                                        disabled={isSavingBatch}
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button type="submit" className="btn btn-indigo" disabled={isSavingBatch}>
+                                        {isSavingBatch ? (
+                                            <>
+                                                <i className="fa fa-spinner fa-spin me-1"></i> Saving Batch...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <i className="fa fa-check me-1"></i> Update Batch Info
+                                            </>
+                                        )}
+                                    </button>
+                                </div>
+                            </form>
                         </div>
                     </div>
                 </div>
