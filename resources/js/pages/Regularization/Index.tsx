@@ -3,6 +3,7 @@ import { Head, router, Link } from '@inertiajs/react';
 import { AppLayout } from '../../components/AppLayout';
 import { Select2, Select2Option } from '../../components/Select2';
 import Swal from 'sweetalert2';
+import { showLetterPostCreatePrompt, updateRegularizationLetter } from '../../lib/letterPrompt';
 
 interface College {
     id: number;
@@ -170,22 +171,22 @@ export default function Index({
 
         setIsSubmitting(true);
         router.post('/regularization', formData, {
-            onSuccess: (page) => {
+            onSuccess: async (page) => {
                 setIsSubmitting(false);
                 const flash = (page.props as any).flash;
                 const pdfUrl = flash?.pdf_url;
+                const recordId = flash?.record_id;
 
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Regularization Letter Created!',
-                    text: 'The regularization letter has been generated.',
-                    showCancelButton: !!pdfUrl,
-                    confirmButtonText: pdfUrl ? '<i class="fa fa-print me-1"></i> Open PDF' : 'OK',
-                    cancelButtonText: 'Stay Here',
-                }).then((result) => {
-                    if (result.isConfirmed && pdfUrl) {
-                        window.open(pdfUrl, '_blank');
-                    }
+                await showLetterPostCreatePrompt({
+                    letterType: 'Regularization Letter',
+                    batchIdOrReference: recordId ? `#${recordId}` : formData.student_name,
+                    pdfUrl: pdfUrl,
+                    historyUrl: '/regularization/history',
+                    onSaveLetterDetails: async (letterData) => {
+                        if (recordId) {
+                            await updateRegularizationLetter(recordId, letterData);
+                        }
+                    },
                 });
             },
             onError: (errs) => {

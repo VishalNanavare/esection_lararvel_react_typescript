@@ -3,6 +3,7 @@ import { Link, router, usePage } from '@inertiajs/react';
 import Swal from 'sweetalert2';
 import { AppLayout } from '../../components/AppLayout';
 import { SharedProps } from '../../types';
+import { promptLetterDetailsModal, updateConfirmationBatchLetter } from '../../lib/letterPrompt';
 
 interface ConfRecord {
     id: number;
@@ -26,20 +27,51 @@ interface ConfRecord {
     dd_date: string | null;
     en_time: string;
     en_by: string;
+    letter_no?: string | null;
+    letter_date?: string | null;
+    remarks?: string | null;
+}
+
+interface BatchInfo {
+    letter_no?: string;
+    letter_date?: string;
+    remarks?: string;
+    stream?: string;
+    uni_add?: string;
+    en_time?: string;
+    en_by?: string;
+    dd_no?: string;
+    bank_name?: string;
+    dd_date?: string;
+    dd_amount?: string;
 }
 
 interface BatchDetailProps {
     title: string;
     arraySpace: string;
     confirmations: ConfRecord[];
+    batchInfo?: BatchInfo;
 }
 
-export const BatchDetail: React.FC<BatchDetailProps> = ({ arraySpace, confirmations }) => {
+export const BatchDetail: React.FC<BatchDetailProps> = ({ arraySpace, confirmations, batchInfo }) => {
     const { props } = usePage<SharedProps>();
     const { features } = props;
     const canDelete = features.delete;
 
     const firstRecord = confirmations[0];
+
+    const handleOpenLetterDetails = () => {
+        promptLetterDetailsModal({
+            initialLetterNo: batchInfo?.letter_no || firstRecord?.letter_no || '',
+            initialLetterDate: batchInfo?.letter_date || firstRecord?.letter_date || '',
+            initialRemarks: batchInfo?.remarks || firstRecord?.remarks || firstRecord?.remark || '',
+            title: `Letter Details - Confirmation Batch #${arraySpace}`,
+            onSave: async (letterData) => {
+                await updateConfirmationBatchLetter(arraySpace, letterData);
+                router.reload();
+            },
+        });
+    };
 
     const handleDelete = (c: ConfRecord) => {
         Swal.fire({
@@ -89,8 +121,32 @@ export const BatchDetail: React.FC<BatchDetailProps> = ({ arraySpace, confirmati
                                     <strong>Program:</strong> {firstRecord?.stream || 'N/A'} |{' '}
                                     <strong>Operator:</strong> {firstRecord?.en_by || 'Staff'}
                                 </div>
+                                <div className="mt-2 d-flex align-items-center gap-2 flex-wrap">
+                                    <span className="badge bg-light text-primary border px-2.5 py-1.5" title="Letter / Outward Number">
+                                        <i className="fa fa-envelope-o me-1"></i>
+                                        <strong>Letter No:</strong> {batchInfo?.letter_no || firstRecord?.letter_no || 'Not Set'}
+                                    </span>
+                                    <span className="badge bg-light text-muted border px-2.5 py-1.5" title="Letter Date">
+                                        <i className="fa fa-calendar me-1"></i>
+                                        <strong>Date:</strong> {batchInfo?.letter_date || firstRecord?.letter_date || 'Not Set'}
+                                    </span>
+                                    {(batchInfo?.remarks || firstRecord?.remarks || firstRecord?.remark) && (
+                                        <span className="badge bg-light text-secondary border px-2.5 py-1.5" title="Remarks">
+                                            <i className="fa fa-commenting-o me-1"></i>
+                                            <strong>Remarks:</strong> {batchInfo?.remarks || firstRecord?.remarks || firstRecord?.remark}
+                                        </span>
+                                    )}
+                                </div>
                             </div>
                             <div className="d-flex align-items-center gap-2">
+                                <button
+                                    type="button"
+                                    className="btn btn-outline-primary"
+                                    onClick={handleOpenLetterDetails}
+                                    title="Add or edit Letter No., Date and Remarks"
+                                >
+                                    <i className="fa fa-file-text-o me-1"></i> Letter Details
+                                </button>
                                 <Link href="/confirmations/history" className="btn btn-glass">
                                     <i className="fa fa-arrow-left me-1"></i> Back to History
                                 </Link>

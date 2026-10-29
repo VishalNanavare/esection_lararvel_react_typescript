@@ -84,7 +84,7 @@ class RegularizationController extends Controller
     /**
      * Store new regularization letter.
      */
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request): RedirectResponse|\Illuminate\Http\JsonResponse
     {
         $validated = $request->validate([
             'student_name' => 'required|string|max:200',
@@ -92,6 +92,9 @@ class RegularizationController extends Controller
             'eligibility_case_no' => 'nullable|string|max:60',
             'admission_letter_for' => 'nullable|string|max:200',
             'admission_letter_date' => 'nullable|date',
+            'letter_no' => 'nullable|string|max:100',
+            'letter_date' => 'nullable|date',
+            'remarks' => 'nullable|string|max:1000',
             'admission_taken_year' => 'nullable|string|max:60',
             'admission_taken_in' => 'nullable|string|max:100',
             'university_name' => 'nullable|string|max:255',
@@ -102,13 +105,17 @@ class RegularizationController extends Controller
 
         $univ = $validated['university_name'] ?? $validated['clg_add'] ?? null;
         $course = $validated['passing_course'] ?? $validated['admission_passing_course'] ?? null;
+        $lDate = $validated['letter_date'] ?? $validated['admission_letter_date'] ?? null;
 
         $record = Regularization::create([
             'gender' => $validated['gender'] ?? 'Mr.',
             'student_name' => $validated['student_name'],
             'eligibility_case_no' => $validated['eligibility_case_no'] ?? null,
             'admission_letter_for' => $validated['admission_letter_for'] ?? 'The Controller of Examinations',
-            'admission_letter_date' => $validated['admission_letter_date'] ?? null,
+            'admission_letter_date' => $validated['admission_letter_date'] ?? $lDate,
+            'letter_no' => $validated['letter_no'] ?? null,
+            'letter_date' => $lDate,
+            'remarks' => $validated['remarks'] ?? null,
             'admission_taken_year' => $validated['admission_taken_year'] ?? null,
             'admission_taken_in' => $validated['admission_taken_in'] ?? null,
             'university_name' => $univ,
@@ -120,7 +127,7 @@ class RegularizationController extends Controller
             DB::table('reg_data')->insert([
                 'gender' => $validated['gender'] ?? 'Mr',
                 'Name' => $validated['student_name'],
-                'Admission_letter_date' => $validated['admission_letter_date'] ?? null,
+                'Admission_letter_date' => $validated['admission_letter_date'] ?? $lDate,
                 'Adm_taken_yr' => $validated['admission_taken_year'] ?? null,
                 'Adm_taken_in' => $validated['admission_taken_in'] ?? null,
                 'Uni_add' => $univ,
@@ -131,9 +138,21 @@ class RegularizationController extends Controller
             // Silently ignore if legacy table not present
         }
 
+        $pdfUrl = route('pdf.regularization', ['id' => $record->id]);
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Regularization letter generated successfully.',
+                'record_id' => $record->id,
+                'pdf_url' => $pdfUrl,
+            ]);
+        }
+
         return redirect()->route('regularization.history')->with([
             'success' => 'Regularization letter generated successfully.',
-            'pdf_url' => route('pdf.regularization', ['id' => $record->id]),
+            'record_id' => $record->id,
+            'pdf_url' => $pdfUrl,
         ]);
     }
 
@@ -178,23 +197,43 @@ class RegularizationController extends Controller
     /**
      * Update regularization record.
      */
-    public function update(Request $request, int $id): RedirectResponse
+    public function update(Request $request, int $id): RedirectResponse|\Illuminate\Http\JsonResponse
     {
         $record = Regularization::findOrFail($id);
 
         $validated = $request->validate([
-            'student_name' => 'required|string|max:200',
+            'student_name' => 'nullable|string|max:200',
             'gender' => 'nullable|string|max:10',
             'eligibility_case_no' => 'nullable|string|max:60',
             'admission_letter_for' => 'nullable|string|max:200',
             'admission_letter_date' => 'nullable|date',
+            'letter_no' => 'nullable|string|max:100',
+            'letter_date' => 'nullable|date',
+            'remarks' => 'nullable|string|max:1000',
             'admission_taken_year' => 'nullable|string|max:60',
             'admission_taken_in' => 'nullable|string|max:100',
             'university_name' => 'nullable|string|max:255',
             'passing_course' => 'nullable|string|max:100',
         ]);
 
-        $record->update($validated);
+        $updateData = [];
+        foreach (['student_name', 'gender', 'eligibility_case_no', 'admission_letter_for', 'admission_letter_date', 'letter_no', 'letter_date', 'remarks', 'admission_taken_year', 'admission_taken_in', 'university_name', 'passing_course'] as $field) {
+            if ($request->has($field)) {
+                $updateData[$field] = $validated[$field] ?? null;
+            }
+        }
+
+        if (! empty($updateData)) {
+            $record->update($updateData);
+        }
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Regularization record updated successfully.',
+                'record' => $record,
+            ]);
+        }
 
         return redirect()->back()->with('success', 'Regularization record updated successfully.');
     }
@@ -228,7 +267,7 @@ class RegularizationController extends Controller
 
         return response()->stream(function () use ($records) {
             $handle = fopen('php://output', 'w');
-            fputcsv($handle, ['ID', 'Gender', 'Student Name', 'Case No', 'Admitted Course', 'Academic Year', 'University', 'Letter For', 'Letter Date', 'Created By', 'Created At']);
+            fputcsv($handle, ['ID', 'Gender', 'Student Name', 'Case No', 'Letter No', 'Letter Date', 'Remarks', 'Admitted Course', 'Academic Year', 'University', 'Letter For', 'Created By', 'Created At']);
 
             foreach ($records as $r) {
                 fputcsv($handle, $this->sanitizeRow([
@@ -236,11 +275,13 @@ class RegularizationController extends Controller
                     $r->gender,
                     $r->student_name,
                     $r->eligibility_case_no,
+                    $r->letter_no,
+                    $r->letter_date?->format('Y-m-d'),
+                    $r->remarks,
                     $r->admission_taken_in,
                     $r->admission_taken_year,
                     $r->university_name,
                     $r->admission_letter_for,
-                    $r->admission_letter_date?->format('Y-m-d'),
                     $r->created_by,
                     $r->created_at?->format('Y-m-d H:i:s'),
                 ]));

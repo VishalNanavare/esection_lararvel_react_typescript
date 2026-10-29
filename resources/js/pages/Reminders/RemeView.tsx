@@ -3,6 +3,7 @@ import { Head, Link, router } from '@inertiajs/react';
 import { AppLayout } from '../../components/AppLayout';
 import { Select2, Select2Option } from '../../components/Select2';
 import Swal from 'sweetalert2';
+import { showLetterPostCreatePrompt, updateUniversityReminderLetter } from '../../lib/letterPrompt';
 
 interface ExistingNote {
     id: number;
@@ -202,23 +203,22 @@ export default function RemeView({
                 students: studentPayloads,
             },
             {
-                onSuccess: (page) => {
+                onSuccess: async (page) => {
                     setIsSubmitting(false);
                     const flash = (page.props as any).flash;
                     const pdfUrl = flash?.pdf_url;
+                    const savedBatchId = flash?.batch_id || batchId;
 
-                    Swal.fire({
-                        icon: 'success',
-                        title: isUpdate ? 'Reminder Letter Updated!' : 'Reminder Letter Created!',
-                        text: flash?.success || 'Reminder notice generated.',
-                        showCancelButton: !!pdfUrl,
-                        confirmButtonText: pdfUrl ? '<i class="fa fa-print me-1"></i> Open PDF' : 'OK',
-                        cancelButtonText: 'Back to History',
-                        confirmButtonColor: '#0d6efd',
-                    }).then((result) => {
-                        if (result.isConfirmed && pdfUrl) {
-                            window.open(pdfUrl, '_blank');
-                        }
+                    await showLetterPostCreatePrompt({
+                        letterType: 'University Reminder Letter',
+                        batchIdOrReference: savedBatchId ? `#${savedBatchId}` : (university || universityName),
+                        pdfUrl: pdfUrl,
+                        historyUrl: '/reminders/university/history',
+                        onSaveLetterDetails: async (letterData) => {
+                            if (savedBatchId) {
+                                await updateUniversityReminderLetter(savedBatchId, letterData);
+                            }
+                        },
                     });
                 },
                 onError: (errs) => {

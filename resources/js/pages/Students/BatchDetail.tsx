@@ -4,6 +4,7 @@ import Swal from 'sweetalert2';
 import { AppLayout } from '../../components/AppLayout';
 import { Select2 } from '../../components/Select2';
 import { SharedProps, Student } from '../../types';
+import { promptLetterDetailsModal, updateStudentBatchLetter } from '../../lib/letterPrompt';
 
 interface BatchInfo {
     clg_add: string;
@@ -12,6 +13,9 @@ interface BatchInfo {
     admission_taken_year: string;
     university_name?: string;
     in_favour_of?: string;
+    letter_no?: string;
+    letter_date?: string;
+    remarks?: string;
 }
 
 interface BatchDetailProps {
@@ -111,6 +115,19 @@ export const BatchDetail: React.FC<BatchDetailProps> = ({ arraySpace, students, 
               'PGDFM',
               'PGDORM',
           ];
+
+    const handleOpenLetterDetails = () => {
+        promptLetterDetailsModal({
+            initialLetterNo: batchInfo?.letter_no || (firstStudent as any)?.letter_no || '',
+            initialLetterDate: batchInfo?.letter_date || (firstStudent as any)?.letter_date || '',
+            initialRemarks: batchInfo?.remarks || (firstStudent as any)?.remarks || '',
+            title: `Letter Details - Batch #${arraySpace}`,
+            onSave: async (letterData) => {
+                await updateStudentBatchLetter(arraySpace, letterData);
+                router.reload();
+            },
+        });
+    };
 
     const handleOpenBatchEdit = () => {
         const currentAddr = batchInfo?.clg_add || firstStudent?.clg_add || '';
@@ -347,10 +364,34 @@ export const BatchDetail: React.FC<BatchDetailProps> = ({ arraySpace, students, 
                                     <strong>Program:</strong> {batchInfo?.admission_taken_in || firstStudent?.admission_taken_in || 'N/A'} |{' '}
                                     <strong>Year:</strong> {batchInfo?.admission_taken_year || firstStudent?.admission_taken_year || 'N/A'}
                                 </div>
+                                <div className="mt-2 d-flex align-items-center gap-2 flex-wrap">
+                                    <span className="badge bg-light text-primary border px-2.5 py-1.5" title="Letter / Outward Number">
+                                        <i className="fa fa-envelope-o me-1"></i>
+                                        <strong>Letter No:</strong> {batchInfo?.letter_no || (firstStudent as any)?.letter_no || 'Not Set'}
+                                    </span>
+                                    <span className="badge bg-light text-muted border px-2.5 py-1.5" title="Letter Date">
+                                        <i className="fa fa-calendar me-1"></i>
+                                        <strong>Date:</strong> {batchInfo?.letter_date || (firstStudent as any)?.letter_date || 'Not Set'}
+                                    </span>
+                                    {(batchInfo?.remarks || (firstStudent as any)?.remarks) && (
+                                        <span className="badge bg-light text-secondary border px-2.5 py-1.5" title="Remarks">
+                                            <i className="fa fa-commenting-o me-1"></i>
+                                            <strong>Remarks:</strong> {batchInfo?.remarks || (firstStudent as any)?.remarks}
+                                        </span>
+                                    )}
+                                </div>
                             </div>
                             <div className="d-flex align-items-center gap-2 flex-wrap">
                                 {students.length > 0 && (
                                     <>
+                                        <button
+                                            type="button"
+                                            className="btn btn-outline-primary"
+                                            onClick={handleOpenLetterDetails}
+                                            title="Add or edit Letter No., Date and Remarks"
+                                        >
+                                            <i className="fa fa-file-text-o me-1"></i> Letter Details
+                                        </button>
                                         <button
                                             type="button"
                                             className="btn btn-indigo"

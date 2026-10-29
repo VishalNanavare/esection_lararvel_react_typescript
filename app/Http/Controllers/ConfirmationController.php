@@ -184,6 +184,10 @@ class ConfirmationController extends Controller
             'student_ids' => 'required|array|min:1|max:200',
             'student_ids.*' => 'required|integer',
             'checklist' => 'required|array',
+            'letter_no' => 'nullable|string|max:100',
+            'letter_date' => 'nullable|date',
+            'remarks' => 'nullable|string|max:1000',
+            'remark' => 'nullable|string|max:1000',
         ]);
 
         $username = Auth::user()?->username ?? 'staff';
@@ -214,6 +218,7 @@ class ConfirmationController extends Controller
         try {
             $inserted = 0;
             $nowTime = date('Y-m-d H:i:s');
+            $rmk = $validated['remarks'] ?? $validated['remark'] ?? null;
 
             foreach ($pendingIds as $studentId) {
                 $student = $students->get($studentId);
@@ -230,6 +235,10 @@ class ConfirmationController extends Controller
                     'stream' => $student->admission_taken_in ?? '',
                     'uni_add' => $student->clg_add ?? '',
                     'acd_year' => $student->admission_taken_year ?? '',
+                    'letter_no' => $validated['letter_no'] ?? null,
+                    'letter_date' => $validated['letter_date'] ?? null,
+                    'remark' => $rmk ?? '',
+                    'remarks' => $rmk,
                     ...$check,
                     'array_space' => $arraySpace,
                     'en_time' => $nowTime,
@@ -452,6 +461,9 @@ class ConfirmationController extends Controller
                     'bank_name' => $first?->bank_name ?? null,
                     'dd_date' => $first?->dd_date ?? null,
                     'dd_amount' => $first?->dd_amount ?? null,
+                    'letter_no' => $first?->letter_no ?? '',
+                    'letter_date' => $first?->letter_date ? date('Y-m-d', strtotime((string) $first->letter_date)) : '',
+                    'remarks' => $first?->remarks ?? $first?->remark ?? '',
                     'student_count' => count($candidates),
                     'candidates' => $candidates,
                 ];
@@ -572,11 +584,73 @@ class ConfirmationController extends Controller
             ]);
         }
 
+        $first = $confirmations->first();
+
         return Inertia::render('Confirmations/BatchDetail', [
             'title' => "Confirmation Batch #{$arraySpace}",
             'arraySpace' => $arraySpace,
             'confirmations' => $confirmations,
+            'batchInfo' => [
+                'letter_no' => $first?->letter_no ?? '',
+                'letter_date' => $first?->letter_date ? date('Y-m-d', strtotime((string) $first->letter_date)) : '',
+                'remarks' => $first?->remarks ?? $first?->remark ?? '',
+                'stream' => $first?->stream ?? '',
+                'uni_add' => $first?->uni_add ?? '',
+                'en_time' => $first?->en_time ?? '',
+                'en_by' => $first?->en_by ?? '',
+                'dd_no' => $first?->dd_no ?? '',
+                'bank_name' => $first?->bank_name ?? '',
+                'dd_date' => $first?->dd_date ? date('Y-m-d', strtotime((string) $first->dd_date)) : '',
+                'dd_amount' => $first?->dd_amount ?? '',
+            ],
         ]);
+    }
+
+    /**
+     * Update confirmation batch letter details.
+     */
+    public function updateBatch(Request $request, string $arraySpace): JsonResponse|RedirectResponse
+    {
+        $validated = $request->validate([
+            'letter_no' => 'nullable|string|max:100',
+            'letter_date' => 'nullable|date',
+            'remarks' => 'nullable|string|max:1000',
+            'remark' => 'nullable|string|max:1000',
+        ]);
+
+        $records = ConfStudData::where('array_space', $arraySpace)->get();
+        if ($records->isEmpty()) {
+            abort(404, "Confirmation Batch #{$arraySpace} not found.");
+        }
+
+        $updateData = [];
+        if ($request->has('letter_no')) {
+            $updateData['letter_no'] = $validated['letter_no'] ?? null;
+        }
+        if ($request->has('letter_date')) {
+            $updateData['letter_date'] = $validated['letter_date'] ?? null;
+        }
+        $rmk = $validated['remarks'] ?? $validated['remark'] ?? null;
+        if ($request->has('remarks') || $request->has('remark')) {
+            $updateData['remarks'] = $rmk;
+            $updateData['remark'] = $rmk ?? '';
+        }
+
+        if (! empty($updateData)) {
+            ConfStudData::where('array_space', $arraySpace)->update($updateData);
+        }
+
+        ActivityLog::record('confirmation.batch_update', "Updated confirmation batch #{$arraySpace} letter details.");
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'status' => 'success',
+                'message' => "Confirmation batch #{$arraySpace} updated successfully.",
+                'array_space' => $arraySpace,
+            ]);
+        }
+
+        return back()->with('success', "Confirmation batch #{$arraySpace} updated successfully.");
     }
 
     /**

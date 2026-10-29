@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Head, router, Link } from '@inertiajs/react';
 import { AppLayout } from '../../components/AppLayout';
 import Swal from 'sweetalert2';
+import { showLetterPostCreatePrompt, updateStudentReminderLetter } from '../../lib/letterPrompt';
 
 interface Stream {
     Division: string;
@@ -35,22 +36,22 @@ export default function Student() {
 
         setIsSubmitting(true);
         router.post('/reminders/student', formData, {
-            onSuccess: (page) => {
+            onSuccess: async (page) => {
                 setIsSubmitting(false);
                 const flash = (page.props as any).flash;
                 const pdfUrl = flash?.pdf_url;
+                const recordId = flash?.record_id;
 
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Candidate Reminder Issued!',
-                    text: 'The notice has been saved.',
-                    showCancelButton: !!pdfUrl,
-                    confirmButtonText: pdfUrl ? '<i class="fa fa-print me-1"></i> Open PDF Notice' : 'OK',
-                    cancelButtonText: 'View History',
-                }).then((result) => {
-                    if (result.isConfirmed && pdfUrl) {
-                        window.open(pdfUrl, '_blank');
-                    }
+                await showLetterPostCreatePrompt({
+                    letterType: 'Student Reminder Notice',
+                    batchIdOrReference: recordId ? `#${recordId}` : formData.student_name,
+                    pdfUrl: pdfUrl,
+                    historyUrl: '/reminders/student/history',
+                    onSaveLetterDetails: async (letterData) => {
+                        if (recordId) {
+                            await updateStudentReminderLetter(recordId, letterData);
+                        }
+                    },
                 });
             },
             onError: (errs) => {

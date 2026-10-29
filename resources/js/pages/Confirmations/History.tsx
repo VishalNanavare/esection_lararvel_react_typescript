@@ -3,6 +3,7 @@ import { Link, router } from '@inertiajs/react';
 import Swal from 'sweetalert2';
 import { AppLayout } from '../../components/AppLayout';
 import { Select2 } from '../../components/Select2';
+import { promptLetterDetailsModal, updateConfirmationBatchLetter } from '../../lib/letterPrompt';
 
 interface CandidateItem {
     id: number;
@@ -34,6 +35,9 @@ interface ConfBatchSummary {
     dd_date: string | null;
     dd_amount: string | null;
     student_count: number;
+    letter_no?: string | null;
+    letter_date?: string | null;
+    remarks?: string | null;
     candidates: CandidateItem[];
 }
 
@@ -146,6 +150,19 @@ export const History: React.FC<HistoryProps> = ({
     };
 
     const hasActiveFilters = Boolean(batch || stream || university || studentName);
+
+    const handleOpenLetterModal = (b: ConfBatchSummary) => {
+        promptLetterDetailsModal({
+            initialLetterNo: b.letter_no || '',
+            initialLetterDate: b.letter_date || '',
+            initialRemarks: b.remarks || '',
+            title: `Letter Details - Confirmation Batch #${b.array_space}`,
+            onSave: async (letterData) => {
+                await updateConfirmationBatchLetter(b.array_space, letterData);
+                router.reload();
+            },
+        });
+    };
 
     return (
         <AppLayout title="Confirmation Batch History - E-Section Portal">
@@ -276,6 +293,27 @@ export const History: React.FC<HistoryProps> = ({
                                             <span className="badge bg-primary-subtle text-primary border">
                                                 {b.student_count || b.candidates?.length || 0} Candidate(s)
                                             </span>
+                                            {b.letter_no ? (
+                                                <span className="badge bg-light text-primary border" title="Outward / Letter No.">
+                                                    <i className="fa fa-envelope-o me-1"></i>Letter: {b.letter_no}
+                                                    {b.letter_date && <span className="ms-1 text-muted">({b.letter_date})</span>}
+                                                </span>
+                                            ) : (
+                                                <button
+                                                    type="button"
+                                                    className="btn btn-xs btn-link text-decoration-none text-muted p-0"
+                                                    onClick={() => handleOpenLetterModal(b)}
+                                                    title="Click to add Letter No, Date & Remarks"
+                                                    style={{ fontSize: '0.78rem' }}
+                                                >
+                                                    <i className="fa fa-plus-circle me-1 text-primary"></i>Add Letter No
+                                                </button>
+                                            )}
+                                            {b.remarks && (
+                                                <span className="badge bg-light text-secondary border" title={`Remarks: ${b.remarks}`}>
+                                                    <i className="fa fa-commenting-o me-1"></i>{b.remarks}
+                                                </span>
+                                            )}
                                         </div>
                                         <div className="d-flex align-items-center gap-2">
                                             {b.en_time && (
@@ -283,6 +321,14 @@ export const History: React.FC<HistoryProps> = ({
                                                     <i className="fa fa-clock-o me-1"></i> {b.en_time}
                                                 </span>
                                             )}
+                                            <button
+                                                type="button"
+                                                className="btn btn-sm btn-outline-primary"
+                                                onClick={() => handleOpenLetterModal(b)}
+                                                title="Add / Edit Letter No., Date and Remarks"
+                                            >
+                                                <i className="fa fa-file-text-o me-1"></i> Letter Details
+                                            </button>
                                             <a
                                                 href={`/pdf/confirmation/${b.array_space}`}
                                                 target="_blank"

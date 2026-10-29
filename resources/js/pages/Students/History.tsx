@@ -4,6 +4,7 @@ import Swal from 'sweetalert2';
 import { AppLayout } from '../../components/AppLayout';
 import { Select2 } from '../../components/Select2';
 import { SharedProps } from '../../types';
+import { promptLetterDetailsModal, updateStudentBatchLetter } from '../../lib/letterPrompt';
 import flatpickr from 'flatpickr';
 import 'flatpickr/dist/flatpickr.min.css';
 
@@ -27,6 +28,9 @@ interface BatchSummary {
     admission_taken_year: string;
     en_time: string;
     formatted_en_time?: string;
+    letter_no?: string | null;
+    letter_date?: string | null;
+    remarks?: string | null;
     student_count: number;
     students?: StudentDetailItem[];
 }
@@ -323,6 +327,20 @@ export const History: React.FC<HistoryProps> = ({ batches, filterOptions, filter
                     },
                 });
             }
+        });
+    };
+
+    const handleOpenLetterModal = (b: BatchSummary) => {
+        promptLetterDetailsModal({
+            title: `Batch #${b.array_space} Letter Details`,
+            subtitle: 'Record outward dispatch number, date and remarks so you can remember when it was done.',
+            defaultLetterNo: b.letter_no || '',
+            defaultLetterDate: b.letter_date || '',
+            defaultRemarks: b.remarks || '',
+            onSave: async (letterData) => {
+                await updateStudentBatchLetter(b.array_space, letterData);
+                router.reload({ only: ['batches'] });
+            },
         });
     };
 
@@ -836,6 +854,35 @@ export const History: React.FC<HistoryProps> = ({ batches, filterOptions, filter
                                                                         <i className="fa fa-clock-o me-1"></i>
                                                                         {b.formatted_en_time || b.en_time}
                                                                     </span>
+                                                                    {b.letter_no ? (
+                                                                        <div className="mt-1.5">
+                                                                            <span className="badge bg-light text-primary border me-1" title="Outward / Letter No.">
+                                                                                <i className="fa fa-envelope-o me-1"></i>{b.letter_no}
+                                                                            </span>
+                                                                            {b.letter_date && (
+                                                                                <span className="badge bg-light text-muted border" title="Letter Date">
+                                                                                    <i className="fa fa-calendar me-1"></i>{b.letter_date}
+                                                                                </span>
+                                                                            )}
+                                                                            {b.remarks && (
+                                                                                <div className="small text-muted fst-italic mt-0.5 text-truncate" style={{ maxWidth: '220px' }} title={b.remarks}>
+                                                                                    <i className="fa fa-commenting-o me-1"></i>{b.remarks}
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+                                                                    ) : (
+                                                                        <div className="mt-1">
+                                                                            <button
+                                                                                type="button"
+                                                                                className="btn btn-xs btn-link text-decoration-none text-muted p-0"
+                                                                                onClick={() => handleOpenLetterModal(b)}
+                                                                                title="Click to add letter number, date & remarks"
+                                                                                style={{ fontSize: '0.72rem' }}
+                                                                            >
+                                                                                <i className="fa fa-plus-circle me-1 text-primary"></i>Add Letter No
+                                                                            </button>
+                                                                        </div>
+                                                                    )}
                                                                 </div>
                                                             </div>
                                                         </td>
@@ -901,6 +948,16 @@ export const History: React.FC<HistoryProps> = ({ batches, filterOptions, filter
                                                                 >
                                                                     <i className={`fa fa-${isExpanded ? 'chevron-up' : 'eye'}`}></i>
                                                                     <span className="d-none d-xl-inline ms-1">{isExpanded ? 'Hide' : 'Details'}</span>
+                                                                </button>
+
+                                                                <button
+                                                                    type="button"
+                                                                    className="btn btn-glass text-primary"
+                                                                    onClick={() => handleOpenLetterModal(b)}
+                                                                    title="Add / Edit Letter No., Date & Remarks"
+                                                                >
+                                                                    <i className="fa fa-file-text-o"></i>
+                                                                    <span className="d-none d-xl-inline ms-1">Letter</span>
                                                                 </button>
 
                                                                 <button

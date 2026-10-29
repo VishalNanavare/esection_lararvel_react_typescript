@@ -5,6 +5,7 @@ import { AppLayout } from '../../components/AppLayout';
 import { Select2 } from '../../components/Select2';
 import { SharedProps } from '../../types';
 import { getCsrfHeaders, isCsrfMismatch } from '../../lib/csrf';
+import { showLetterPostCreatePrompt, updateStudentBatchLetter } from '../../lib/letterPrompt';
 
 interface AcademicYearOption {
     id: string;
@@ -457,28 +458,20 @@ export const NewForm: React.FC<NewFormProps> = ({
                 if (isCsrfMismatch(res.status, data.message)) {
                     throw new Error('Your session expired. Please refresh the page and try again.');
                 }
-                throw new Error(data.message || 'Failed to save batch');
+                throw new Error(data.message || 'Failed to save batch dispatch.');
             }
 
-            Swal.fire({
-                icon: 'success',
-                title: 'Batch Saved Successfully',
-                html: `<strong>${data.count}</strong> student verification cases saved under Batch Reference <strong>#${data.array_space}</strong>.`,
-                showCancelButton: true,
-                confirmButtonText: '<i class="fa fa-file-pdf-o me-1"></i> View Dispatch Letter PDF',
-                cancelButtonText: 'DD View',
-                customClass: {
-                    confirmButton: 'btn btn-indigo',
-                    cancelButton: 'btn btn-glass ms-2',
+            await showLetterPostCreatePrompt({
+                letterType: 'Student Verification Letter',
+                batchIdOrReference: data.array_space,
+                pdfUrl: `/pdf/dispatch/${data.array_space}`,
+                historyUrl: '/students/history',
+                onSaveLetterDetails: async (letterData) => {
+                    await updateStudentBatchLetter(data.array_space, letterData);
                 },
-                buttonsStyling: false,
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    window.open(`/pdf/dispatch/${data.array_space}`, '_blank');
+                onComplete: () => {
                     router.visit('/students/history');
-                } else {
-                    router.visit('/students/history');
-                }
+                },
             });
         } catch (err: any) {
             Swal.fire({

@@ -12,6 +12,9 @@ class Regularization extends Model
         'eligibility_case_no',
         'admission_letter_for',
         'admission_letter_date',
+        'letter_no',
+        'letter_date',
+        'remarks',
         'admission_taken_year',
         'admission_taken_in',
         'university_name',
@@ -23,6 +26,7 @@ class Regularization extends Model
     {
         return [
             'admission_letter_date' => 'date',
+            'letter_date' => 'date',
         ];
     }
 }

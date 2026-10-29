@@ -3,6 +3,7 @@ import { Head, router, Link, usePage } from '@inertiajs/react';
 import { AppLayout } from '../../components/AppLayout';
 import { SharedProps } from '../../types';
 import Swal from 'sweetalert2';
+import { promptLetterDetailsModal, updateStudentReminderLetter } from '../../lib/letterPrompt';
 
 interface StudentReminderRecord {
     id: number;
@@ -10,6 +11,9 @@ interface StudentReminderRecord {
     eligibility_case_no: string;
     course_name: string | null;
     missing_doc: string;
+    letter_no?: string | null;
+    letter_date?: string | null;
+    remarks?: string | null;
     created_by: string | null;
     created_at: string | null;
 }
@@ -69,6 +73,19 @@ export default function StudentHistory({ records, filters }: Props) {
                     },
                 });
             }
+        });
+    };
+
+    const handleOpenLetterModal = (r: StudentReminderRecord) => {
+        promptLetterDetailsModal({
+            initialLetterNo: r.letter_no || '',
+            initialLetterDate: r.letter_date || '',
+            initialRemarks: r.remarks || '',
+            title: `Letter Details - ${r.student_name} (#${r.id})`,
+            onSave: async (letterData) => {
+                await updateStudentReminderLetter(r.id, letterData);
+                router.reload();
+            },
         });
     };
 
@@ -134,15 +151,16 @@ export default function StudentHistory({ records, filters }: Props) {
                                         <th>Candidate Name</th>
                                         <th>Case No.</th>
                                         <th>Course</th>
+                                        <th>Letter Details</th>
                                         <th>Missing Document(s)</th>
                                         <th>Issued On</th>
-                                        <th className="text-end" style={{ width: '160px' }}>Actions</th>
+                                        <th className="text-end" style={{ width: '180px' }}>Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {records.data.length === 0 ? (
                                         <tr>
-                                            <td colSpan={7} className="text-center text-muted py-5">
+                                            <td colSpan={8} className="text-center text-muted py-5">
                                                 <i className="fa fa-folder-open-o fa-2x mb-2 d-block text-secondary opacity-50"></i>
                                                 No candidate notices found.
                                             </td>
@@ -162,13 +180,50 @@ export default function StudentHistory({ records, filters }: Props) {
                                                         </span>
                                                     </td>
                                                     <td className="small text-secondary">{r.course_name || '-'}</td>
-                                                    <td className="small text-muted" style={{ maxWidth: '300px' }}>
+                                                    <td>
+                                                        {r.letter_no ? (
+                                                            <div>
+                                                                <span className="badge bg-light text-primary border" title="Outward / Letter No.">
+                                                                    <i className="fa fa-envelope-o me-1"></i>{r.letter_no}
+                                                                </span>
+                                                                {r.letter_date && (
+                                                                    <div className="small text-muted mt-0.5">
+                                                                        <i className="fa fa-calendar me-1"></i>{r.letter_date}
+                                                                    </div>
+                                                                )}
+                                                                {r.remarks && (
+                                                                    <div className="small text-secondary fst-italic mt-0.5 text-truncate" style={{ maxWidth: '170px' }} title={r.remarks}>
+                                                                        <i className="fa fa-commenting-o me-1"></i>{r.remarks}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        ) : (
+                                                            <button
+                                                                type="button"
+                                                                className="btn btn-xs btn-link text-decoration-none text-muted p-0"
+                                                                onClick={() => handleOpenLetterModal(r)}
+                                                                title="Click to add Letter No., Date and Remarks"
+                                                                style={{ fontSize: '0.78rem' }}
+                                                            >
+                                                                <i className="fa fa-plus-circle me-1 text-primary"></i>Add Letter No
+                                                            </button>
+                                                        )}
+                                                    </td>
+                                                    <td className="small text-muted" style={{ maxWidth: '280px' }}>
                                                         {r.missing_doc}
                                                     </td>
                                                     <td className="small text-muted">
                                                         {r.created_at ? new Date(r.created_at).toLocaleDateString('en-GB') : '-'}
                                                     </td>
                                                     <td className="text-end">
+                                                        <button
+                                                            type="button"
+                                                            className="btn btn-sm btn-glass text-primary me-1"
+                                                            onClick={() => handleOpenLetterModal(r)}
+                                                            title="Add / Edit Letter No., Date and Remarks"
+                                                        >
+                                                            <i className="fa fa-file-text-o"></i> Letter
+                                                        </button>
                                                         <a
                                                             href={`/pdf/reminders/student/${r.id}`}
                                                             target="_blank"

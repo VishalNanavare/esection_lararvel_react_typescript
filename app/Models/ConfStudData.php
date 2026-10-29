@@ -22,7 +22,10 @@ class ConfStudData extends Model
         's_marks',
         'p_degree',
         'letter_no_date',
+        'letter_no',
+        'letter_date',
         'remark',
+        'remarks',
         'conf_from',
         'conf_from_text',
         'conf_from_select',
@@ -34,6 +37,14 @@ class ConfStudData extends Model
         'dd_amount',
         'en_by',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'letter_date' => 'date',
+            'dd_date' => 'date',
+        ];
+    }
 
     public function student(): BelongsTo
     {

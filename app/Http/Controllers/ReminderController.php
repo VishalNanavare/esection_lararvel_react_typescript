@@ -205,6 +205,9 @@ class ReminderController extends Controller
             'university_name' => 'required|string|max:255',
             'admission_taken_in' => 'nullable|string|max:100',
             'head_name' => 'nullable|string|max:100',
+            'letter_no' => 'nullable|string|max:100',
+            'letter_date' => 'nullable|date',
+            'remarks' => 'nullable|string|max:1000',
         ]);
 
         $username = Auth::user()?->username ?? 'staff';
@@ -281,6 +284,9 @@ class ReminderController extends Controller
             'university_name' => $univName,
             'admission_taken_in' => $batchStream,
             'head_name' => $validated['head_name'] ?? 'The Controller of Examinations',
+            'letter_no' => $validated['letter_no'] ?? null,
+            'letter_date' => $validated['letter_date'] ?? null,
+            'remarks' => $validated['remarks'] ?? null,
             'created_by' => $username,
         ]);
 
@@ -302,11 +308,21 @@ class ReminderController extends Controller
         $successMsg = 'University reminder notes recorded successfully.';
         $flash = [
             'success' => $successMsg,
+            'batch_id' => $batch->id,
             'pdf_url' => route('pdf.reminder.university', ['batchId' => $batch->id]),
         ];
         if ($skippedCount > 0) {
             $flash['warning'] = "{$skippedCount} verified/excluded candidate(s) were automatically skipped.";
             $flash['success'] = $successMsg . " ({$skippedCount} verified/excluded candidate(s) were automatically skipped).";
+        }
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'status' => 'success',
+                'message' => $flash['success'],
+                'batch_id' => $batch->id,
+                'pdf_url' => $flash['pdf_url'],
+            ]);
         }
 
         return redirect()->route('reminders.university.batch.detail', ['batchId' => $batch->id])->with($flash);
@@ -664,6 +680,9 @@ class ReminderController extends Controller
             'university_name' => 'required|string|max:255',
             'admission_taken_in' => 'nullable|string|max:100',
             'head_name' => 'nullable|string|max:150',
+            'letter_no' => 'nullable|string|max:100',
+            'letter_date' => 'nullable|date',
+            'remarks' => 'nullable|string|max:1000',
             'dated' => 'required|date',
             'students' => 'required|array|min:1',
             'students.*.student_id' => 'required|integer',
@@ -678,16 +697,27 @@ class ReminderController extends Controller
         $username = Auth::user()?->username ?? 'staff';
         $headName = trim((string) ($validated['head_name'] ?? 'The Controller of Examinations')) ?: 'The Controller of Examinations';
         $noteDate = $validated['dated'];
+        $lDate = $validated['letter_date'] ?? $noteDate;
 
         // 1. Resolve or Create Batch
         if (! empty($validated['batch_id'])) {
             $batch = UniversityReminderBatch::findOrFail($validated['batch_id']);
-            $batch->update([
+            $batchUpdateData = [
                 'head_name' => $headName,
                 'academic_year' => $validated['academic_year'],
                 'university_name' => $validated['university_name'],
                 'admission_taken_in' => $validated['admission_taken_in'] ?? $batch->admission_taken_in,
-            ]);
+            ];
+            if ($request->has('letter_no')) {
+                $batchUpdateData['letter_no'] = $validated['letter_no'] ?? null;
+            }
+            if ($request->has('letter_date')) {
+                $batchUpdateData['letter_date'] = $lDate;
+            }
+            if ($request->has('remarks')) {
+                $batchUpdateData['remarks'] = $validated['remarks'] ?? null;
+            }
+            $batch->update($batchUpdateData);
 
             // Sync updated metadata to rem_db if table exists
             if (Schema::hasTable('rem_db')) {
@@ -711,6 +741,9 @@ class ReminderController extends Controller
                 'university_name' => $validated['university_name'],
                 'admission_taken_in' => $validated['admission_taken_in'] ?? null,
                 'head_name' => $headName,
+                'letter_no' => $validated['letter_no'] ?? null,
+                'letter_date' => $lDate,
+                'remarks' => $validated['remarks'] ?? null,
                 'created_by' => $username,
             ]);
         }
@@ -836,11 +869,22 @@ class ReminderController extends Controller
         if ($newNotesRecorded === 0 && $notesModified === 0) {
             $msgParts[] = 'Reminder letter details updated';
         }
-        $msg = implode(' and ', $msgParts).'.';
+        $msg = implode(', ', $msgParts);
+        $pdfUrl = route('pdf.reminder.university', ['batchId' => $batch->id]);
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'status' => 'success',
+                'message' => $msg,
+                'batch_id' => $batch->id,
+                'pdf_url' => $pdfUrl,
+            ]);
+        }
 
         return redirect()->route('reminders.university.batch.detail', ['batchId' => $batch->id])->with([
             'success' => $msg,
-            'pdf_url' => route('pdf.reminder.university', ['batchId' => $batch->id]),
+            'batch_id' => $batch->id,
+            'pdf_url' => $pdfUrl,
         ]);
     }
 
@@ -888,6 +932,45 @@ class ReminderController extends Controller
         }
 
         return redirect()->back()->with('success', 'Reminder note updated successfully.');
+    }
+
+    /**
+     * Update university reminder batch letter details (Letter No, Letter Date, Remarks).
+     */
+    public function updateUniversityBatch(Request $request, int $batchId): JsonResponse|RedirectResponse
+    {
+        $validated = $request->validate([
+            'letter_no' => 'nullable|string|max:100',
+            'letter_date' => 'nullable|date',
+            'remarks' => 'nullable|string|max:1000',
+            'head_name' => 'nullable|string|max:150',
+            'academic_year' => 'nullable|string|max:60',
+            'admission_taken_in' => 'nullable|string|max:100',
+        ]);
+
+        $batch = UniversityReminderBatch::findOrFail($batchId);
+        $updateData = [];
+        foreach (['letter_no', 'letter_date', 'remarks', 'head_name', 'academic_year', 'admission_taken_in'] as $field) {
+            if ($request->has($field)) {
+                $updateData[$field] = $validated[$field] ?? null;
+            }
+        }
+
+        if (! empty($updateData)) {
+            $batch->update($updateData);
+        }
+
+        ActivityLog::record('reminders_university.batch_update', "Updated university reminder batch #{$batchId} letter details.");
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'status' => 'success',
+                'message' => "Reminder batch #{$batchId} letter details updated successfully.",
+                'batch' => $batch,
+            ]);
+        }
+
+        return back()->with('success', "Reminder batch #{$batchId} letter details updated successfully.");
     }
 
     /**
@@ -1466,13 +1549,16 @@ class ReminderController extends Controller
     /**
      * Store new Candidate Reminder notice.
      */
-    public function storeStudentReminder(Request $request): RedirectResponse
+    public function storeStudentReminder(Request $request): RedirectResponse|\Illuminate\Http\JsonResponse
     {
         $validated = $request->validate([
             'student_name' => 'required|string|max:200',
             'eligibility_case_no' => 'required|string|max:60',
             'course_name' => 'nullable|string|max:100',
             'missing_doc' => 'required|string|max:255',
+            'letter_no' => 'nullable|string|max:100',
+            'letter_date' => 'nullable|date',
+            'remarks' => 'nullable|string|max:1000',
         ]);
 
         $record = StudentReminder::create([
@@ -1480,14 +1566,69 @@ class ReminderController extends Controller
             'eligibility_case_no' => $validated['eligibility_case_no'],
             'course_name' => $validated['course_name'] ?? null,
             'missing_doc' => $validated['missing_doc'],
+            'letter_no' => $validated['letter_no'] ?? null,
+            'letter_date' => $validated['letter_date'] ?? null,
+            'remarks' => $validated['remarks'] ?? null,
             'created_by' => Auth::user()?->username ?? 'staff',
             'created_at' => now(),
+            'updated_at' => now(),
         ]);
+
+        $pdfUrl = route('pdf.reminder.student', ['id' => $record->id]);
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Candidate reminder notice generated successfully.',
+                'record_id' => $record->id,
+                'pdf_url' => $pdfUrl,
+            ]);
+        }
 
         return redirect()->route('reminders.student.history')->with([
             'success' => 'Candidate reminder notice generated successfully.',
-            'pdf_url' => route('pdf.reminder.student', ['id' => $record->id]),
+            'record_id' => $record->id,
+            'pdf_url' => $pdfUrl,
         ]);
+    }
+
+    /**
+     * Update candidate reminder notice (Letter No, Date, Remarks).
+     */
+    public function updateStudentReminder(Request $request, int $id): JsonResponse|RedirectResponse
+    {
+        $validated = $request->validate([
+            'student_name' => 'nullable|string|max:200',
+            'eligibility_case_no' => 'nullable|string|max:60',
+            'course_name' => 'nullable|string|max:100',
+            'missing_doc' => 'nullable|string|max:255',
+            'letter_no' => 'nullable|string|max:100',
+            'letter_date' => 'nullable|date',
+            'remarks' => 'nullable|string|max:1000',
+        ]);
+
+        $record = StudentReminder::findOrFail($id);
+        $updateData = [];
+        foreach (['student_name', 'eligibility_case_no', 'course_name', 'missing_doc', 'letter_no', 'letter_date', 'remarks'] as $field) {
+            if ($request->has($field)) {
+                $updateData[$field] = $validated[$field] ?? null;
+            }
+        }
+        $updateData['updated_at'] = now();
+
+        $record->update($updateData);
+
+        ActivityLog::record('reminders_student.update', "Updated candidate reminder #{$id} ({$record->student_name}).");
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Candidate reminder notice updated successfully.',
+                'record' => $record,
+            ]);
+        }
+
+        return back()->with('success', 'Candidate reminder notice updated successfully.');
     }
 
     /**
@@ -1540,9 +1681,9 @@ class ReminderController extends Controller
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Candidate Reminders');
 
-        $headers = ['ID', 'Candidate Name', 'Case No', 'Course', 'Missing Documents', 'Created By', 'Created At'];
+        $headers = ['ID', 'Candidate Name', 'Case No', 'Letter No', 'Letter Date', 'Remarks', 'Course', 'Missing Documents', 'Created By', 'Created At'];
         $sheet->fromArray($headers, null, 'A1');
-        $sheet->getStyle('A1:G1')->getFont()->setBold(true);
+        $sheet->getStyle('A1:J1')->getFont()->setBold(true);
 
         $rows = [];
         foreach ($records as $r) {
@@ -1550,6 +1691,9 @@ class ReminderController extends Controller
                 $r->id,
                 $r->student_name,
                 $r->eligibility_case_no,
+                $r->letter_no,
+                $r->letter_date ? $r->letter_date->format('Y-m-d') : '-',
+                $r->remarks,
                 $r->course_name,
                 $r->missing_doc,
                 $r->created_by,
@@ -1561,7 +1705,7 @@ class ReminderController extends Controller
             $sheet->fromArray($rows, null, 'A2');
         }
 
-        foreach (range('A', 'G') as $colId) {
+        foreach (range('A', 'J') as $colId) {
             $sheet->getColumnDimension($colId)->setAutoSize(true);
         }
 

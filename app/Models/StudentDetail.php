@@ -23,6 +23,9 @@ class StudentDetail extends Model
         'admission_taken_in',
         'verification_of_marksheet_done_by_you',
         'in_favour_of',
+        'letter_no',
+        'letter_date',
+        'remarks',
         'en_time',
         'verification_status',
         'exclusion_reason',
@@ -33,6 +36,7 @@ class StudentDetail extends Model
     protected function casts(): array
     {
         return [
+            'letter_date' => 'date',
             'verified_at' => 'datetime',
         ];
     }

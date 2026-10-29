@@ -13,6 +13,9 @@ class UniversityReminderBatch extends Model
         'university_name',
         'admission_taken_in',
         'head_name',
+        'letter_no',
+        'letter_date',
+        'remarks',
         'legacy_array_space',
         'created_by',
         'created_at',
@@ -24,6 +27,7 @@ class UniversityReminderBatch extends Model
     protected function casts(): array
     {
         return [
+            'letter_date' => 'date',
             'is_consolidated' => 'boolean',
             'consolidated_meta' => 'array',
         ];

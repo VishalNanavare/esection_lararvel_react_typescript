@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Head, router, Link } from '@inertiajs/react';
 import { AppLayout } from '../../components/AppLayout';
 import Swal from 'sweetalert2';
+import { promptLetterDetailsModal, updateUniversityReminderLetter } from '../../lib/letterPrompt';
 
 interface BatchSummary {
     id: number;
@@ -12,6 +13,9 @@ interface BatchSummary {
     legacy_array_space?: number | null;
     is_consolidated?: boolean;
     consolidated_meta?: any;
+    letter_no?: string | null;
+    letter_date?: string | null;
+    remarks?: string | null;
     created_at: string | null;
 }
 
@@ -154,6 +158,19 @@ export default function UniversityHistory({ batches, filters }: Props) {
                     },
                 });
             }
+        });
+    };
+
+    const handleOpenLetterModal = (b: BatchSummary) => {
+        promptLetterDetailsModal({
+            initialLetterNo: b.letter_no || '',
+            initialLetterDate: b.letter_date || '',
+            initialRemarks: b.remarks || '',
+            title: `Letter Details - Reminder Batch #${b.id}`,
+            onSave: async (letterData) => {
+                await updateUniversityReminderLetter(b.id, letterData);
+                router.reload();
+            },
         });
     };
 
@@ -444,6 +461,35 @@ export default function UniversityHistory({ batches, filters }: Props) {
                                                                 </span>
                                                             )}
                                                         </div>
+                                                        {b.letter_no ? (
+                                                            <div className="mt-1">
+                                                                <span className="badge bg-light text-primary border me-1" title="Outward / Letter No.">
+                                                                    <i className="fa fa-envelope-o me-1"></i>{b.letter_no}
+                                                                </span>
+                                                                {b.letter_date && (
+                                                                    <span className="badge bg-light text-muted border me-1" title="Letter Date">
+                                                                        <i className="fa fa-calendar me-1"></i>{b.letter_date}
+                                                                    </span>
+                                                                )}
+                                                                {b.remarks && (
+                                                                    <span className="small text-secondary fst-italic text-truncate d-inline-block" style={{ maxWidth: '200px', verticalAlign: 'bottom' }} title={b.remarks}>
+                                                                        <i className="fa fa-commenting-o me-1"></i>{b.remarks}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        ) : (
+                                                            <div className="mt-0.5">
+                                                                <button
+                                                                    type="button"
+                                                                    className="btn btn-xs btn-link text-decoration-none text-muted p-0"
+                                                                    onClick={() => handleOpenLetterModal(b)}
+                                                                    title="Click to add Letter No., Date and Remarks"
+                                                                    style={{ fontSize: '0.75rem' }}
+                                                                >
+                                                                    <i className="fa fa-plus-circle me-1 text-primary"></i>Add Letter No
+                                                                </button>
+                                                            </div>
+                                                        )}
                                                     </td>
                                                     <td>
                                                         <span className="badge badge-glass-indigo">
@@ -460,6 +506,14 @@ export default function UniversityHistory({ batches, filters }: Props) {
                                                         {b.created_at ? new Date(b.created_at).toLocaleDateString('en-GB') : '-'}
                                                     </td>
                                                     <td className="text-end text-nowrap">
+                                                        <button
+                                                            type="button"
+                                                            className="btn btn-sm btn-glass text-primary me-1"
+                                                            onClick={() => handleOpenLetterModal(b)}
+                                                            title="Add / Edit Letter No., Date and Remarks"
+                                                        >
+                                                            <i className="fa fa-file-text-o me-1"></i> Letter
+                                                        </button>
                                                         <Link
                                                             href={`/reminders/university/batches/${b.id}`}
                                                             className="btn btn-sm btn-glass text-indigo me-1"

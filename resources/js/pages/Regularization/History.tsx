@@ -3,6 +3,7 @@ import { Head, router, Link, usePage } from '@inertiajs/react';
 import { AppLayout } from '../../components/AppLayout';
 import { SharedProps } from '../../types';
 import Swal from 'sweetalert2';
+import { promptLetterDetailsModal, updateRegularizationLetter } from '../../lib/letterPrompt';
 
 interface RegularizationRecord {
     id: number;
@@ -14,6 +15,9 @@ interface RegularizationRecord {
     university_name: string | null;
     admission_letter_for: string | null;
     admission_letter_date: string | null;
+    letter_no?: string | null;
+    letter_date?: string | null;
+    remarks?: string | null;
     created_by: string | null;
     created_at: string | null;
 }
@@ -94,6 +98,19 @@ export default function History({ records, filters }: Props) {
                     },
                 });
             }
+        });
+    };
+
+    const handleOpenLetterModal = (r: RegularizationRecord) => {
+        promptLetterDetailsModal({
+            initialLetterNo: r.letter_no || '',
+            initialLetterDate: r.letter_date || '',
+            initialRemarks: r.remarks || '',
+            title: `Letter Details - ${r.student_name} (#${r.id})`,
+            onSave: async (letterData) => {
+                await updateRegularizationLetter(r.id, letterData);
+                router.reload();
+            },
         });
     };
 
@@ -186,15 +203,16 @@ export default function History({ records, filters }: Props) {
                                         <th>Case No.</th>
                                         <th>Course / Year</th>
                                         <th>Target University</th>
-                                        <th>Letter Date</th>
+                                        <th>Letter Details</th>
+                                        <th>Admission Letter Date</th>
                                         <th>Issued By</th>
-                                        <th className="text-end" style={{ width: '160px' }}>Actions</th>
+                                        <th className="text-end" style={{ width: '180px' }}>Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {records.data.length === 0 ? (
                                         <tr>
-                                            <td colSpan={8} className="text-center text-muted py-5">
+                                            <td colSpan={9} className="text-center text-muted py-5">
                                                 <i className="fa fa-file-text-o fa-2x mb-2 d-block text-secondary opacity-50"></i>
                                                 No regularization letters found.
                                             </td>
@@ -218,11 +236,48 @@ export default function History({ records, filters }: Props) {
                                                         <small className="text-muted">{r.admission_taken_year || ''}</small>
                                                     </td>
                                                     <td className="small text-muted">{r.university_name || '-'}</td>
+                                                    <td>
+                                                        {r.letter_no ? (
+                                                            <div>
+                                                                <span className="badge bg-light text-primary border" title="Outward / Letter No.">
+                                                                    <i className="fa fa-envelope-o me-1"></i>{r.letter_no}
+                                                                </span>
+                                                                {r.letter_date && (
+                                                                    <div className="small text-muted mt-0.5">
+                                                                        <i className="fa fa-calendar me-1"></i>{r.letter_date}
+                                                                    </div>
+                                                                )}
+                                                                {r.remarks && (
+                                                                    <div className="small text-secondary fst-italic mt-0.5 text-truncate" style={{ maxWidth: '170px' }} title={r.remarks}>
+                                                                        <i className="fa fa-commenting-o me-1"></i>{r.remarks}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        ) : (
+                                                            <button
+                                                                type="button"
+                                                                className="btn btn-xs btn-link text-decoration-none text-muted p-0"
+                                                                onClick={() => handleOpenLetterModal(r)}
+                                                                title="Click to add Letter No., Date and Remarks"
+                                                                style={{ fontSize: '0.78rem' }}
+                                                            >
+                                                                <i className="fa fa-plus-circle me-1 text-primary"></i>Add Letter No
+                                                            </button>
+                                                        )}
+                                                    </td>
                                                     <td className="small">
                                                         {r.admission_letter_date ? new Date(r.admission_letter_date).toLocaleDateString('en-GB') : '-'}
                                                     </td>
                                                     <td className="small text-secondary">{r.created_by || 'staff'}</td>
                                                     <td className="text-end">
+                                                        <button
+                                                            type="button"
+                                                            className="btn btn-sm btn-glass text-primary me-1"
+                                                            onClick={() => handleOpenLetterModal(r)}
+                                                            title="Add / Edit Letter No., Date and Remarks"
+                                                        >
+                                                            <i className="fa fa-file-text-o"></i> Letter
+                                                        </button>
                                                         <a
                                                             href={`/pdf/regularization/${r.id}`}
                                                             target="_blank"

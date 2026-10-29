@@ -110,6 +110,9 @@ class StudentController extends Controller
             'admission_taken_year' => 'required|string|max:50',
             'admission_taken_in' => 'required|string|max:100',
             'in_favour_of' => 'nullable|string|max:200',
+            'letter_no' => 'nullable|string|max:100',
+            'letter_date' => 'nullable|date',
+            'remarks' => 'nullable|string|max:1000',
             'students' => 'required|array|min:1|max:200',
             'students.*.student_name' => 'required|string|max:200',
             'students.*.student_nee_name' => 'nullable|string|max:200',
@@ -148,6 +151,9 @@ class StudentController extends Controller
                     'admission_taken_in' => $validated['admission_taken_in'],
                     'verification_of_marksheet_done_by_you' => trim($stud['verification_of_marksheet_done_by_you'] ?? ''),
                     'in_favour_of' => $validated['in_favour_of'] ?? '',
+                    'letter_no' => $validated['letter_no'] ?? null,
+                    'letter_date' => $validated['letter_date'] ?? null,
+                    'remarks' => $validated['remarks'] ?? null,
                     'en_time' => $nowTime,
                 ]);
                 $insertedCount++;
@@ -229,6 +235,9 @@ class StudentController extends Controller
                 MAX(to_name) as to_name,
                 MAX(admission_taken_in) as admission_taken_in,
                 MAX(admission_taken_year) as admission_taken_year,
+                MAX(letter_no) as letter_no,
+                MAX(letter_date) as letter_date,
+                MAX(remarks) as remarks,
                 MAX(en_time) as en_time,
                 COUNT(*) as student_count
             ')
@@ -463,6 +472,9 @@ class StudentController extends Controller
                 'admission_taken_year' => $first?->admission_taken_year ?? '',
                 'university_name' => $univName,
                 'in_favour_of' => $first?->in_favour_of ?? '',
+                'letter_no' => $first?->letter_no ?? '',
+                'letter_date' => $first?->letter_date ? date('Y-m-d', strtotime((string) $first->letter_date)) : '',
+                'remarks' => $first?->remarks ?? '',
             ],
             'years' => $distinctYears,
             'courses' => $distinctCourses,
@@ -470,16 +482,19 @@ class StudentController extends Controller
     }
 
     /**
-     * Update batch metadata (university name/address, to head name, course, academic year).
+     * Update batch metadata (university name/address, to head name, course, academic year, letter details).
      */
     public function updateBatch(Request $request, string $arraySpace): JsonResponse|RedirectResponse
     {
         $validated = $request->validate([
-            'clg_add' => 'required|string',
+            'clg_add' => 'nullable|string',
             'to_name' => 'nullable|string|max:200',
-            'admission_taken_in' => 'required|string|max:100',
-            'admission_taken_year' => 'required|string|max:100',
+            'admission_taken_in' => 'nullable|string|max:100',
+            'admission_taken_year' => 'nullable|string|max:100',
             'in_favour_of' => 'nullable|string|max:200',
+            'letter_no' => 'nullable|string|max:100',
+            'letter_date' => 'nullable|date',
+            'remarks' => 'nullable|string|max:1000',
         ]);
 
         $students = StudentDetail::where('array_space', $arraySpace)->get();
@@ -487,17 +502,35 @@ class StudentController extends Controller
             abort(404, "Batch #{$arraySpace} not found.");
         }
 
-        $updateData = [
-            'clg_add' => $validated['clg_add'],
-            'to_name' => $validated['to_name'] ?? '',
-            'admission_taken_in' => $validated['admission_taken_in'],
-            'admission_taken_year' => $validated['admission_taken_year'],
-        ];
-        if ($request->has('in_favour_of') && $validated['in_favour_of'] !== null) {
-            $updateData['in_favour_of'] = $validated['in_favour_of'];
+        $updateData = [];
+        if ($request->has('clg_add') && $validated['clg_add'] !== null) {
+            $updateData['clg_add'] = $validated['clg_add'];
+        }
+        if ($request->has('to_name')) {
+            $updateData['to_name'] = $validated['to_name'] ?? '';
+        }
+        if ($request->has('admission_taken_in') && $validated['admission_taken_in'] !== null) {
+            $updateData['admission_taken_in'] = $validated['admission_taken_in'];
+        }
+        if ($request->has('admission_taken_year') && $validated['admission_taken_year'] !== null) {
+            $updateData['admission_taken_year'] = $validated['admission_taken_year'];
+        }
+        if ($request->has('in_favour_of')) {
+            $updateData['in_favour_of'] = $validated['in_favour_of'] ?? '';
+        }
+        if ($request->has('letter_no')) {
+            $updateData['letter_no'] = $validated['letter_no'] ?? null;
+        }
+        if ($request->has('letter_date')) {
+            $updateData['letter_date'] = $validated['letter_date'] ?? null;
+        }
+        if ($request->has('remarks')) {
+            $updateData['remarks'] = $validated['remarks'] ?? null;
         }
 
-        StudentDetail::where('array_space', $arraySpace)->update($updateData);
+        if (! empty($updateData)) {
+            StudentDetail::where('array_space', $arraySpace)->update($updateData);
+        }
 
         ActivityLog::record('students.batch_update', "Updated batch #{$arraySpace} metadata ({$students->count()} candidates).");
 

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
 import Swal from 'sweetalert2';
 import { AppLayout } from '../../components/AppLayout';
+import { promptLetterDetailsModal, updateUniversityReminderLetter } from '../../lib/letterPrompt';
 
 interface ReminderNote {
     id: number;
@@ -34,6 +35,9 @@ interface BatchSummary {
     admission_taken_in: string | null;
     head_name: string | null;
     is_consolidated?: boolean;
+    letter_no?: string | null;
+    letter_date?: string | null;
+    remarks?: string | null;
     created_by: string | null;
     created_at: string | null;
 }
@@ -95,6 +99,19 @@ export default function UniversityBatchDetail({
         acc[key] = (acc[key] || 0) + 1;
         return acc;
     }, {});
+
+    const handleOpenLetterDetails = () => {
+        promptLetterDetailsModal({
+            initialLetterNo: batch.letter_no || '',
+            initialLetterDate: batch.letter_date || '',
+            initialRemarks: batch.remarks || '',
+            title: `Letter Details - Reminder Batch #${batch.id}`,
+            onSave: async (letterData) => {
+                await updateUniversityReminderLetter(batch.id, letterData);
+                router.reload();
+            },
+        });
+    };
 
     const handleSaveStatus = (e: React.FormEvent) => {
         e.preventDefault();
@@ -259,8 +276,32 @@ export default function UniversityBatchDetail({
                                 <p className="text-muted small mb-0">
                                     <i className="fa fa-university me-1 text-secondary"></i> {batch.university_name}
                                 </p>
+                                <div className="mt-2 d-flex align-items-center gap-2 flex-wrap">
+                                    <span className="badge bg-light text-primary border px-2.5 py-1.5" title="Letter / Outward Number">
+                                        <i className="fa fa-envelope-o me-1"></i>
+                                        <strong>Letter No:</strong> {batch.letter_no || 'Not Set'}
+                                    </span>
+                                    <span className="badge bg-light text-muted border px-2.5 py-1.5" title="Letter Date">
+                                        <i className="fa fa-calendar me-1"></i>
+                                        <strong>Date:</strong> {batch.letter_date || 'Not Set'}
+                                    </span>
+                                    {batch.remarks && (
+                                        <span className="badge bg-light text-secondary border px-2.5 py-1.5" title="Remarks">
+                                            <i className="fa fa-commenting-o me-1"></i>
+                                            <strong>Remarks:</strong> {batch.remarks}
+                                        </span>
+                                    )}
+                                </div>
                             </div>
                             <div className="d-flex flex-wrap gap-2">
+                                <button
+                                    type="button"
+                                    className="btn btn-outline-primary"
+                                    onClick={handleOpenLetterDetails}
+                                    title="Add or edit Letter No., Date and Remarks"
+                                >
+                                    <i className="fa fa-file-text-o me-1"></i> Letter Details
+                                </button>
                                 <Link href="/reminders/university/history" className="btn btn-glass">
                                     <i className="fa fa-arrow-left me-1"></i> Back to Batches
                                 </Link>

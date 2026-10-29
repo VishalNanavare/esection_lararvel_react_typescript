@@ -5,6 +5,7 @@ import { AppLayout } from '../../components/AppLayout';
 import { Select2 } from '../../components/Select2';
 import { SharedProps } from '../../types';
 import { getCsrfHeaders, isCsrfMismatch } from '../../lib/csrf';
+import { showLetterPostCreatePrompt, updateConfirmationBatchLetter } from '../../lib/letterPrompt';
 
 interface CandidateWithConf {
     id: number;
@@ -365,25 +366,19 @@ export const Index: React.FC<IndexProps> = ({
                 throw new Error(data.message || 'Failed to save confirmation.');
             }
 
-            Swal.fire({
-                icon: 'success',
-                title: 'Confirmation Recorded',
-                html: `Eligibility successfully confirmed for <strong>${data.count}</strong> candidate(s).<br/>Batch Reference: <strong>#${data.array_space}</strong>.`,
-                showCancelButton: true,
-                confirmButtonText: '<i class="fa fa-file-pdf-o me-1"></i> View Confirmation PDF',
-                cancelButtonText: 'Done',
-                customClass: {
-                    confirmButton: 'btn btn-primary me-2',
-                    cancelButton: 'btn btn-secondary',
+            await showLetterPostCreatePrompt({
+                letterType: 'Eligibility Confirmation Letter',
+                batchIdOrReference: data.array_space,
+                pdfUrl: `/pdf/confirmation/${data.array_space}`,
+                historyUrl: '/confirmations/history',
+                onSaveLetterDetails: async (letterData) => {
+                    await updateConfirmationBatchLetter(data.array_space, letterData);
                 },
-                buttonsStyling: false,
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    window.open(`/pdf/confirmation/${data.array_space}`, '_blank');
-                }
-                setSelectedStudentIds([]);
-                setViewStep('list');
-                router.reload();
+                onComplete: () => {
+                    setSelectedStudentIds([]);
+                    setViewStep('list');
+                    router.reload();
+                },
             });
         } catch (err: any) {
             Swal.fire({
