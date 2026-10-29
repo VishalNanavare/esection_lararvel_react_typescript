@@ -142,6 +142,16 @@ test('user can view batch history and batch details', function () {
     $detailResponse->assertOk();
 });
 
+test('user can view batch detail page when batch is empty or non-existent', function () {
+    $detailResponse = $this->actingAs($this->user)->get(route('students.batch.detail', ['arraySpace' => '1793090163']));
+    $detailResponse->assertOk();
+    $detailResponse->assertInertia(fn ($page) => $page
+        ->component('Students/BatchDetail')
+        ->where('arraySpace', '1793090163')
+        ->has('students', 0)
+    );
+});
+
 test('user can update a candidate record', function () {
     $student = StudentDetail::create([
         'array_space' => '112233',

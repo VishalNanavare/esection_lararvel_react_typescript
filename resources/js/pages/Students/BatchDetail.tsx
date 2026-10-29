@@ -41,6 +41,15 @@ export const BatchDetail: React.FC<BatchDetailProps> = ({ arraySpace, students, 
 
     const firstStudent = students[0];
 
+    // Single student edit state
+    const [editingStudent, setEditingStudent] = useState<Student | null>(null);
+    const [editName, setEditName] = useState('');
+    const [editNeeName, setEditNeeName] = useState('');
+    const [editCaseNo, setEditCaseNo] = useState('');
+    const [editRemarks, setEditRemarks] = useState('');
+    const [editEmail, setEditEmail] = useState('');
+    const [isSavingEdit, setIsSavingEdit] = useState(false);
+
     // Batch editing state
     const [isEditingBatch, setIsEditingBatch] = useState(false);
     const [collegesList, setCollegesList] = useState<UniversityCollegeItem[]>([]);
@@ -340,40 +349,44 @@ export const BatchDetail: React.FC<BatchDetailProps> = ({ arraySpace, students, 
                                 </div>
                             </div>
                             <div className="d-flex align-items-center gap-2 flex-wrap">
-                                <button
-                                    type="button"
-                                    className="btn btn-indigo"
-                                    onClick={handleOpenBatchEdit}
-                                    title="Edit university name, to head name, course, or year"
-                                >
-                                    <i className="fa fa-pencil me-1"></i> Edit Batch Info
-                                </button>
-                                {canDelete && (
-                                    <button
-                                        type="button"
-                                        className="btn btn-glass text-danger"
-                                        onClick={handleDeleteBatch}
-                                        title="Delete this entire batch"
-                                    >
-                                        <i className="fa fa-trash me-1"></i> Delete Batch
-                                    </button>
+                                {students.length > 0 && (
+                                    <>
+                                        <button
+                                            type="button"
+                                            className="btn btn-indigo"
+                                            onClick={handleOpenBatchEdit}
+                                            title="Edit university name, to head name, course, or year"
+                                        >
+                                            <i className="fa fa-pencil me-1"></i> Edit Batch Info
+                                        </button>
+                                        {canDelete && (
+                                            <button
+                                                type="button"
+                                                className="btn btn-glass text-danger"
+                                                onClick={handleDeleteBatch}
+                                                title="Delete this entire batch"
+                                            >
+                                                <i className="fa fa-trash me-1"></i> Delete Batch
+                                            </button>
+                                        )}
+                                        <a
+                                            href={`/pdf/dispatch/${arraySpace}`}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="btn btn-glass text-emerald"
+                                        >
+                                            <i className="fa fa-print me-1"></i> Dispatch Letter
+                                        </a>
+                                        <a
+                                            href={`/pdf/accounts/${arraySpace}`}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="btn btn-glass text-indigo"
+                                        >
+                                            <i className="fa fa-file-text-o me-1"></i> Accounts Copy
+                                        </a>
+                                    </>
                                 )}
-                                <a
-                                    href={`/pdf/dispatch/${arraySpace}`}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="btn btn-glass text-emerald"
-                                >
-                                    <i className="fa fa-print me-1"></i> Dispatch Letter
-                                </a>
-                                <a
-                                    href={`/pdf/accounts/${arraySpace}`}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="btn btn-glass text-indigo"
-                                >
-                                    <i className="fa fa-file-text-o me-1"></i> Accounts Copy
-                                </a>
                                 <Link href="/students/history" className="btn btn-glass">
                                     <i className="fa fa-arrow-left me-1"></i> Back to History
                                 </Link>
@@ -397,8 +410,17 @@ export const BatchDetail: React.FC<BatchDetailProps> = ({ arraySpace, students, 
                                 <tbody>
                                     {students.length === 0 ? (
                                         <tr>
-                                            <td colSpan={7} className="text-center text-muted py-5">
-                                                All candidates in this batch have been removed.
+                                            <td colSpan={7} className="text-center py-5">
+                                                <div className="py-4">
+                                                    <i className="fa fa-folder-open-o fa-3x text-muted opacity-50 mb-3 d-block"></i>
+                                                    <h5 className="fw-bold text-dark mb-1">No Candidates Found</h5>
+                                                    <p className="text-muted small mb-3">
+                                                        Batch #{arraySpace} does not contain any candidates in the database.
+                                                    </p>
+                                                    <Link href="/students/history" className="btn btn-sm btn-indigo">
+                                                        <i className="fa fa-arrow-left me-1"></i> Return to Student History
+                                                    </Link>
+                                                </div>
                                             </td>
                                         </tr>
                                     ) : (
