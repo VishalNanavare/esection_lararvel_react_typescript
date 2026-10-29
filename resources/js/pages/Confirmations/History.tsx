@@ -533,9 +533,9 @@ export const History: React.FC<HistoryProps> = ({
                                                                 <div>{c.remark || 'OK'}</div>
                                                                 {c.conf_from && (
                                                                     <div className="text-muted mt-1" style={{ fontSize: '11.5px' }}>
-                                                                        <div><b>Conf. From :</b> {c.conf_from}</div>
-                                                                        {c.conf_from_select && <div>{c.conf_from_select}</div>}
-                                                                        {c.etc_data && <div>{c.etc_data}</div>}
+                                                                        <div><b>Conf. From:</b> {c.conf_from === 'other' && c.conf_from_text ? `other (${c.conf_from_text})` : c.conf_from}</div>
+                                                                        {c.conf_from_select && <div><b>Clarification:</b> {c.conf_from_select}</div>}
+                                                                        {c.etc_data && <div><b>Name Change:</b> {c.etc_data}</div>}
                                                                     </div>
                                                                 )}
                                                             </td>

@@ -455,15 +455,17 @@ test('only admin can update individual candidate confirmation details', function
         'case_no' => 'CASE-2026/0055-REV',
         'uni_add' => 'University of Pune',
         'stream' => 'T.Y.B.Com',
-        'mig_tc' => 'No',
+        'mig' => 'No',
+        'tc' => 'Yes',
+        'mig_tc' => 'Yes',
         'p_degree' => 'Yes',
         's_marks' => 'Yes',
         'letter_no_date' => 'UPDATED/2026/12',
         'remark' => 'Verification confirmed directly',
-        'conf_from' => 'University',
-        'conf_from_select' => 'Letter',
-        'conf_from_text' => 'Direct from Controller of Exams',
-        'etc_data' => 'Verified on portal',
+        'conf_from' => 'Ranade Bhavan',
+        'conf_from_select' => 'TC',
+        'conf_from_text' => '',
+        'etc_data' => 'Gazette',
     ];
 
     // Staff cannot update candidate (redirects web or 403 json)
@@ -482,14 +484,13 @@ test('only admin can update individual candidate confirmation details', function
     expect($conf->case_no)->toBe('CASE-2026/0055-REV');
     expect($conf->uni_add)->toBe('University of Pune');
     expect($conf->stream)->toBe('T.Y.B.Com');
-    expect($conf->mig_TC)->toBe('No');
+    expect($conf->mig_TC)->toBe('Yes');
     expect($conf->p_degree)->toBe('Yes');
     expect($conf->letter_no_date)->toBe('UPDATED/2026/12');
     expect($conf->remark)->toBe('Verification confirmed directly');
-    expect($conf->conf_from)->toBe('University');
-    expect($conf->conf_from_select)->toBe('Letter');
-    expect($conf->conf_from_text)->toBe('Direct from Controller of Exams');
-    expect($conf->etc_data)->toBe('Verified on portal');
+    expect($conf->conf_from)->toBe('Ranade Bhavan');
+    expect($conf->conf_from_select)->toBe('TC');
+    expect($conf->etc_data)->toBe('Gazette');
 });
 
 test('only admin can delete confirmation candidate and batch', function () {

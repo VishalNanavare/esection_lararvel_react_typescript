@@ -740,9 +740,11 @@ class ConfirmationController extends Controller
             'uni_add' => 'nullable|string|max:500',
             'stream' => 'nullable|string|max:100',
             'acd_year' => 'nullable|string|max:50',
-            'mig_tc' => 'nullable|string|in:Yes,No',
-            'p_degree' => 'nullable|string|in:Yes,No',
-            's_marks' => 'nullable|string|in:Yes,No',
+            'mig' => 'nullable|string|in:sel,Yes,No',
+            'tc' => 'nullable|string|in:sel,Yes,No',
+            'mig_tc' => 'nullable|string|in:sel,Yes,No',
+            'p_degree' => 'nullable|string|in:sel,Yes,No',
+            's_marks' => 'nullable|string|in:sel,Yes,No',
             'letter_no_date' => 'nullable|string|max:255',
             'remark' => 'nullable|string|max:1000',
             'conf_from' => 'nullable|string|max:100',
@@ -758,6 +760,33 @@ class ConfirmationController extends Controller
             'remarks' => 'nullable|string|max:1000',
         ]);
 
+        $isTcYes = ($request->input('tc') === 'Yes');
+        $isMigYes = ($request->input('mig') === 'Yes');
+        $migTc = ($isTcYes || $isMigYes || ($request->input('mig_tc') === 'Yes')) ? 'Yes' : 'No';
+
+        $confFrom = '';
+        $confFromText = '';
+        $confFromSelect = '';
+        $etcData = '';
+
+        if ($isTcYes || ($migTc === 'Yes' && $request->has('conf_from'))) {
+            $rawConfFrom = trim((string) $request->input('conf_from', ''));
+            if ($rawConfFrom !== 'sel' && ! empty($rawConfFrom)) {
+                $confFrom = $rawConfFrom;
+            }
+            if ($confFrom === 'other') {
+                $confFromText = trim((string) $request->input('conf_from_text', ''));
+            }
+            $rawClarification = trim((string) $request->input('conf_from_select', ''));
+            if ($rawClarification !== 'sel' && ! empty($rawClarification)) {
+                $confFromSelect = $rawClarification;
+            }
+            $rawNameChange = trim((string) $request->input('etc_data', ''));
+            if ($rawNameChange !== 'sel' && ! empty($rawNameChange)) {
+                $etcData = $rawNameChange;
+            }
+        }
+
         $updateData = [
             'name' => $validated['name'],
         ];
@@ -766,15 +795,17 @@ class ConfirmationController extends Controller
         if ($request->has('uni_add')) $updateData['uni_add'] = $validated['uni_add'] ?? '';
         if ($request->has('stream')) $updateData['stream'] = $validated['stream'] ?? '';
         if ($request->has('acd_year')) $updateData['acd_year'] = $validated['acd_year'] ?? '';
-        if ($request->has('mig_tc')) $updateData['mig_TC'] = $validated['mig_tc'] ?? 'No';
-        if ($request->has('p_degree')) $updateData['p_degree'] = $validated['p_degree'] ?? 'No';
-        if ($request->has('s_marks')) $updateData['s_marks'] = $validated['s_marks'] ?? 'No';
+        if ($request->has('mig') || $request->has('tc') || $request->has('mig_tc')) {
+            $updateData['mig_TC'] = $migTc;
+            $updateData['conf_from'] = $confFrom;
+            $updateData['conf_from_text'] = $confFromText;
+            $updateData['conf_from_select'] = $confFromSelect;
+            $updateData['etc_data'] = $etcData;
+        }
+        if ($request->has('p_degree')) $updateData['p_degree'] = ($request->input('p_degree') === 'Yes') ? 'Yes' : 'No';
+        if ($request->has('s_marks')) $updateData['s_marks'] = ($request->input('s_marks') === 'Yes') ? 'Yes' : 'No';
         if ($request->has('letter_no_date')) $updateData['letter_no_date'] = $validated['letter_no_date'];
         if ($request->has('remark')) $updateData['remark'] = $validated['remark'] ?? '';
-        if ($request->has('conf_from')) $updateData['conf_from'] = $validated['conf_from'];
-        if ($request->has('conf_from_select')) $updateData['conf_from_select'] = $validated['conf_from_select'];
-        if ($request->has('conf_from_text')) $updateData['conf_from_text'] = $validated['conf_from_text'];
-        if ($request->has('etc_data')) $updateData['etc_data'] = $validated['etc_data'];
         if ($request->has('dd_no')) $updateData['dd_no'] = $validated['dd_no'];
         if ($request->has('bank_name')) $updateData['bank_name'] = $validated['bank_name'];
         if ($request->has('dd_date')) $updateData['dd_date'] = $validated['dd_date'];
