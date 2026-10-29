@@ -71,8 +71,10 @@ Route::middleware('auth')->group(function () {
     Route::get('/confirmations/history', [ConfirmationController::class, 'history'])->name('confirmations.history')->middleware('access:confirmations.view');
     Route::get('/confirmations/export', [ConfirmationController::class, 'export'])->name('confirmations.export')->middleware('access:confirmations.export');
     Route::get('/confirmations/batches/{arraySpace}', [ConfirmationController::class, 'batchDetail'])->name('confirmations.batch.detail')->middleware('access:confirmations.view');
-    Route::put('/confirmations/batches/{arraySpace}', [ConfirmationController::class, 'updateBatch'])->name('confirmations.batch.update')->middleware('access:confirmations.create');
-    Route::delete('/confirmations/{id}', [ConfirmationController::class, 'destroy'])->name('confirmations.destroy')->middleware('access:confirmations.delete');
+    Route::put('/confirmations/batches/{arraySpace}', [ConfirmationController::class, 'updateBatch'])->name('confirmations.batch.update')->middleware('admin');
+    Route::delete('/confirmations/batches/{arraySpace}', [ConfirmationController::class, 'destroyBatch'])->name('confirmations.batch.destroy')->middleware('admin');
+    Route::put('/confirmations/{id}', [ConfirmationController::class, 'update'])->name('confirmations.update')->middleware('admin');
+    Route::delete('/confirmations/{id}', [ConfirmationController::class, 'destroy'])->name('confirmations.destroy')->middleware('admin');
 
     /*
     |--------------------------------------------------------------------------

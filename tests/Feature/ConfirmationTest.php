@@ -364,3 +364,191 @@ test('confirmation eligibility letter renders No. CDOE/Eligib, Center For Distan
     expect($bladeView)->toContain('Yashwantrao Chavan Maharashtra Open University');
     expect($bladeView)->not->toContain('<br>Phone: - (0253) - 2230734');
 });
+
+test('only admin can update confirmation batch details', function () {
+    $staff = User::create([
+        'username' => 'regular_staff',
+        'full_name' => 'Regular Staff',
+        'password' => Hash::make('secret123'),
+        'role' => 'staff',
+        'is_active' => true,
+    ]);
+
+    ConfStudData::create([
+        'student_id' => $this->student->id,
+        'case_no' => 'CASE-2026/0055',
+        'name' => 'Anil Kapoor',
+        'stream' => 'F.Y.B.Com',
+        'uni_add' => 'University of Delhi',
+        'mig_TC' => 'Yes',
+        'p_degree' => 'Yes',
+        's_marks' => 'Yes',
+        'array_space' => '889900',
+        'dd_no' => '123456',
+        'bank_name' => 'SBI',
+        'dd_date' => '2026-10-20',
+        'dd_amount' => 500,
+        'en_time' => now(),
+        'en_by' => 'confirm_staff',
+    ]);
+
+    $updatePayload = [
+        'uni_add' => 'University of Mumbai',
+        'stream' => 'S.Y.B.Com',
+        'acd_year' => '2026-2027',
+        'dd_no' => '654321',
+        'bank_name' => 'HDFC',
+        'dd_date' => '2026-10-25',
+        'dd_amount' => 750,
+        'letter_no' => 'CDOE/2026/CONF/99',
+        'letter_date' => '2026-10-28',
+        'remarks' => 'Batch updated by admin',
+    ];
+
+    // Staff cannot update batch (redirects web or 403 json)
+    $staffResponse = $this->actingAs($staff)->put("/confirmations/batches/889900", $updatePayload);
+    $staffResponse->assertRedirect(route('dashboard'));
+    $staffResponse->assertSessionHas('error');
+    $this->actingAs($staff)->putJson("/confirmations/batches/889900", $updatePayload)->assertForbidden();
+
+    // Admin can update batch
+    $adminResponse = $this->actingAs($this->user)->put("/confirmations/batches/889900", $updatePayload);
+    $adminResponse->assertRedirect();
+    $adminResponse->assertSessionHas('success');
+
+    $record = ConfStudData::where('array_space', '889900')->first();
+    expect($record->uni_add)->toBe('University of Mumbai');
+    expect($record->stream)->toBe('S.Y.B.Com');
+    expect($record->dd_no)->toBe('654321');
+    expect($record->bank_name)->toBe('HDFC');
+    expect((float) $record->dd_amount)->toBe(750.0);
+    expect($record->letter_no)->toBe('CDOE/2026/CONF/99');
+    expect($record->letter_date?->format('Y-m-d'))->toBe('2026-10-28');
+    expect($record->remarks)->toBe('Batch updated by admin');
+});
+
+test('only admin can update individual candidate confirmation details', function () {
+    $staff = User::create([
+        'username' => 'regular_staff_2',
+        'full_name' => 'Regular Staff 2',
+        'password' => Hash::make('secret123'),
+        'role' => 'staff',
+        'is_active' => true,
+    ]);
+
+    $conf = ConfStudData::create([
+        'student_id' => $this->student->id,
+        'case_no' => 'CASE-2026/0055',
+        'name' => 'Anil Kapoor',
+        'stream' => 'F.Y.B.Com',
+        'uni_add' => 'University of Delhi',
+        'mig_TC' => 'Yes',
+        'p_degree' => 'No',
+        's_marks' => 'Yes',
+        'array_space' => '889901',
+        'en_time' => now(),
+        'en_by' => 'confirm_staff',
+    ]);
+
+    $updatePayload = [
+        'name' => 'Anil S. Kapoor',
+        'case_no' => 'CASE-2026/0055-REV',
+        'uni_add' => 'University of Pune',
+        'stream' => 'T.Y.B.Com',
+        'mig_tc' => 'No',
+        'p_degree' => 'Yes',
+        's_marks' => 'Yes',
+        'letter_no_date' => 'UPDATED/2026/12',
+        'remark' => 'Verification confirmed directly',
+        'conf_from' => 'University',
+        'conf_from_select' => 'Letter',
+        'conf_from_text' => 'Direct from Controller of Exams',
+        'etc_data' => 'Verified on portal',
+    ];
+
+    // Staff cannot update candidate (redirects web or 403 json)
+    $staffResponse = $this->actingAs($staff)->put("/confirmations/{$conf->id}", $updatePayload);
+    $staffResponse->assertRedirect(route('dashboard'));
+    $staffResponse->assertSessionHas('error');
+    $this->actingAs($staff)->putJson("/confirmations/{$conf->id}", $updatePayload)->assertForbidden();
+
+    // Admin can update candidate
+    $adminResponse = $this->actingAs($this->user)->put("/confirmations/{$conf->id}", $updatePayload);
+    $adminResponse->assertRedirect();
+    $adminResponse->assertSessionHas('success');
+
+    $conf->refresh();
+    expect($conf->name)->toBe('Anil S. Kapoor');
+    expect($conf->case_no)->toBe('CASE-2026/0055-REV');
+    expect($conf->uni_add)->toBe('University of Pune');
+    expect($conf->stream)->toBe('T.Y.B.Com');
+    expect($conf->mig_TC)->toBe('No');
+    expect($conf->p_degree)->toBe('Yes');
+    expect($conf->letter_no_date)->toBe('UPDATED/2026/12');
+    expect($conf->remark)->toBe('Verification confirmed directly');
+    expect($conf->conf_from)->toBe('University');
+    expect($conf->conf_from_select)->toBe('Letter');
+    expect($conf->conf_from_text)->toBe('Direct from Controller of Exams');
+    expect($conf->etc_data)->toBe('Verified on portal');
+});
+
+test('only admin can delete confirmation candidate and batch', function () {
+    $staff = User::create([
+        'username' => 'regular_staff_3',
+        'full_name' => 'Regular Staff 3',
+        'password' => Hash::make('secret123'),
+        'role' => 'staff',
+        'is_active' => true,
+    ]);
+
+    $conf1 = ConfStudData::create([
+        'student_id' => $this->student->id,
+        'case_no' => 'CASE-2026/DEL-1',
+        'name' => 'Candidate 1',
+        'stream' => 'F.Y.B.Com',
+        'uni_add' => 'University of Delhi',
+        'mig_TC' => 'Yes',
+        'p_degree' => 'Yes',
+        's_marks' => 'Yes',
+        'array_space' => '889902',
+        'en_time' => now(),
+        'en_by' => 'confirm_staff',
+    ]);
+
+    $conf2 = ConfStudData::create([
+        'student_id' => $this->student->id,
+        'case_no' => 'CASE-2026/DEL-2',
+        'name' => 'Candidate 2',
+        'stream' => 'F.Y.B.Com',
+        'uni_add' => 'University of Delhi',
+        'mig_TC' => 'Yes',
+        'p_degree' => 'Yes',
+        's_marks' => 'Yes',
+        'array_space' => '889902',
+        'en_time' => now(),
+        'en_by' => 'confirm_staff',
+    ]);
+
+    // Staff cannot delete candidate (redirects web or 403 json)
+    $this->actingAs($staff)->delete("/confirmations/{$conf1->id}")->assertRedirect(route('dashboard'));
+    $this->actingAs($staff)->deleteJson("/confirmations/{$conf1->id}")->assertForbidden();
+
+    // Staff cannot delete batch (redirects web or 403 json)
+    $this->actingAs($staff)->delete("/confirmations/batches/889902")->assertRedirect(route('dashboard'));
+    $this->actingAs($staff)->deleteJson("/confirmations/batches/889902")->assertForbidden();
+
+    // Admin can delete individual candidate
+    $adminDeleteCandidate = $this->actingAs($this->user)->delete("/confirmations/{$conf1->id}");
+    $adminDeleteCandidate->assertRedirect();
+    $adminDeleteCandidate->assertSessionHas('success');
+    expect(ConfStudData::find($conf1->id))->toBeNull();
+    expect(ConfStudData::find($conf2->id))->not->toBeNull();
+
+    // Admin can delete batch
+    $adminDeleteBatch = $this->actingAs($this->user)->delete("/confirmations/batches/889902");
+    $adminDeleteBatch->assertRedirect();
+    $adminDeleteBatch->assertSessionHas('success');
+    expect(ConfStudData::find($conf2->id))->toBeNull();
+    expect(ConfStudData::where('array_space', '889902')->count())->toBe(0);
+});
+

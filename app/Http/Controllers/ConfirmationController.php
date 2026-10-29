@@ -430,6 +430,8 @@ class ConfirmationController extends Controller
                         'university_name' => $displayUniversity,
                         'college_address' => $student?->clg_add ?? '',
                         'case_no' => $r->case_no,
+                        'stream' => $r->stream ?? '',
+                        'acd_year' => $r->acd_year ?? '',
                         'mig_tc' => $r->mig_TC,
                         'p_degree' => $r->p_degree,
                         's_marks' => $r->s_marks,
@@ -439,6 +441,13 @@ class ConfirmationController extends Controller
                         'conf_from_select' => $r->conf_from_select,
                         'conf_from_text' => $r->conf_from_text,
                         'etc_data' => $r->etc_data,
+                        'dd_no' => $r->dd_no,
+                        'bank_name' => $r->bank_name,
+                        'dd_date' => $r->dd_date ? date('Y-m-d', strtotime((string) $r->dd_date)) : '',
+                        'dd_amount' => $r->dd_amount,
+                        'letter_no' => $r->letter_no,
+                        'letter_date' => $r->letter_date ? date('Y-m-d', strtotime((string) $r->letter_date)) : '',
+                        'remarks' => $r->remarks ?? $r->remark ?? '',
                     ];
                 })->values()->toArray();
 
@@ -455,11 +464,12 @@ class ConfirmationController extends Controller
                     'array_space' => $space,
                     'stream' => $first?->stream ?? '',
                     'uni_add' => $batchUniv,
+                    'acd_year' => $first?->acd_year ?? '',
                     'en_time' => $first?->en_time ?? '',
                     'en_by' => $first?->en_by ?? 'Staff',
                     'dd_no' => $first?->dd_no ?? null,
                     'bank_name' => $first?->bank_name ?? null,
-                    'dd_date' => $first?->dd_date ?? null,
+                    'dd_date' => $first?->dd_date ? date('Y-m-d', strtotime((string) $first->dd_date)) : null,
                     'dd_amount' => $first?->dd_amount ?? null,
                     'letter_no' => $first?->letter_no ?? '',
                     'letter_date' => $first?->letter_date ? date('Y-m-d', strtotime((string) $first->letter_date)) : '',
@@ -596,6 +606,7 @@ class ConfirmationController extends Controller
                 'remarks' => $first?->remarks ?? $first?->remark ?? '',
                 'stream' => $first?->stream ?? '',
                 'uni_add' => $first?->uni_add ?? '',
+                'acd_year' => $first?->acd_year ?? '',
                 'en_time' => $first?->en_time ?? '',
                 'en_by' => $first?->en_by ?? '',
                 'dd_no' => $first?->dd_no ?? '',
@@ -607,11 +618,21 @@ class ConfirmationController extends Controller
     }
 
     /**
-     * Update confirmation batch letter details.
+     * Update confirmation batch details (university, stream, academic year, DD info, letter details).
+     * Restricted to Administrators only.
      */
     public function updateBatch(Request $request, string $arraySpace): JsonResponse|RedirectResponse
     {
+        abort_unless($request->user()->isAdmin(), 403, 'Only administrators can edit confirmation batches.');
+
         $validated = $request->validate([
+            'uni_add' => 'nullable|string|max:500',
+            'stream' => 'nullable|string|max:100',
+            'acd_year' => 'nullable|string|max:50',
+            'dd_no' => 'nullable|string|max:100',
+            'bank_name' => 'nullable|string|max:255',
+            'dd_date' => 'nullable|date',
+            'dd_amount' => 'nullable|numeric|min:0',
             'letter_no' => 'nullable|string|max:100',
             'letter_date' => 'nullable|date',
             'remarks' => 'nullable|string|max:1000',
@@ -624,6 +645,27 @@ class ConfirmationController extends Controller
         }
 
         $updateData = [];
+        if ($request->has('uni_add')) {
+            $updateData['uni_add'] = $validated['uni_add'] ?? '';
+        }
+        if ($request->has('stream')) {
+            $updateData['stream'] = $validated['stream'] ?? '';
+        }
+        if ($request->has('acd_year')) {
+            $updateData['acd_year'] = $validated['acd_year'] ?? '';
+        }
+        if ($request->has('dd_no')) {
+            $updateData['dd_no'] = $validated['dd_no'] ?? null;
+        }
+        if ($request->has('bank_name')) {
+            $updateData['bank_name'] = $validated['bank_name'] ?? null;
+        }
+        if ($request->has('dd_date')) {
+            $updateData['dd_date'] = $validated['dd_date'] ?? null;
+        }
+        if ($request->has('dd_amount')) {
+            $updateData['dd_amount'] = $validated['dd_amount'] ?? null;
+        }
         if ($request->has('letter_no')) {
             $updateData['letter_no'] = $validated['letter_no'] ?? null;
         }
@@ -640,7 +682,7 @@ class ConfirmationController extends Controller
             ConfStudData::where('array_space', $arraySpace)->update($updateData);
         }
 
-        ActivityLog::record('confirmation.batch_update', "Updated confirmation batch #{$arraySpace} letter details.");
+        ActivityLog::record('confirmation.batch_update', "Updated confirmation batch #{$arraySpace} details.");
 
         if ($request->wantsJson()) {
             return response()->json([
@@ -654,20 +696,131 @@ class ConfirmationController extends Controller
     }
 
     /**
+     * Delete an entire confirmation batch and all its candidate records.
+     * Restricted to Administrators only.
+     */
+    public function destroyBatch(Request $request, string $arraySpace): JsonResponse|RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403, 'Only administrators can delete confirmation batches.');
+        abort_unless(Setting::enabled('feature_delete_enabled'), 403, 'Deleting records is currently disabled by an administrator.');
+
+        $records = ConfStudData::where('array_space', $arraySpace)->get();
+        if ($records->isEmpty()) {
+            abort(404, "Confirmation Batch #{$arraySpace} not found.");
+        }
+
+        $count = $records->count();
+        ConfStudData::where('array_space', $arraySpace)->delete();
+
+        ActivityLog::record('confirmation.batch_delete', "Deleted confirmation batch #{$arraySpace} ({$count} candidate records).");
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'status' => 'success',
+                'message' => "Confirmation batch #{$arraySpace} and its {$count} candidate record(s) deleted successfully.",
+            ]);
+        }
+
+        return redirect()->route('confirmations.history')->with('success', "Confirmation batch #{$arraySpace} deleted successfully.");
+    }
+
+    /**
+     * Update an individual confirmation candidate record.
+     * Restricted to Administrators only.
+     */
+    public function update(Request $request, int $id): JsonResponse|RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403, 'Only administrators can edit confirmation records.');
+
+        $record = ConfStudData::findOrFail($id);
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'case_no' => 'nullable|string|max:100',
+            'uni_add' => 'nullable|string|max:500',
+            'stream' => 'nullable|string|max:100',
+            'acd_year' => 'nullable|string|max:50',
+            'mig_tc' => 'nullable|string|in:Yes,No',
+            'p_degree' => 'nullable|string|in:Yes,No',
+            's_marks' => 'nullable|string|in:Yes,No',
+            'letter_no_date' => 'nullable|string|max:255',
+            'remark' => 'nullable|string|max:1000',
+            'conf_from' => 'nullable|string|max:100',
+            'conf_from_select' => 'nullable|string|max:255',
+            'conf_from_text' => 'nullable|string|max:255',
+            'etc_data' => 'nullable|string|max:500',
+            'dd_no' => 'nullable|string|max:100',
+            'bank_name' => 'nullable|string|max:255',
+            'dd_date' => 'nullable|date',
+            'dd_amount' => 'nullable|numeric|min:0',
+            'letter_no' => 'nullable|string|max:100',
+            'letter_date' => 'nullable|date',
+            'remarks' => 'nullable|string|max:1000',
+        ]);
+
+        $updateData = [
+            'name' => $validated['name'],
+        ];
+
+        if ($request->has('case_no')) $updateData['case_no'] = $validated['case_no'] ?? '';
+        if ($request->has('uni_add')) $updateData['uni_add'] = $validated['uni_add'] ?? '';
+        if ($request->has('stream')) $updateData['stream'] = $validated['stream'] ?? '';
+        if ($request->has('acd_year')) $updateData['acd_year'] = $validated['acd_year'] ?? '';
+        if ($request->has('mig_tc')) $updateData['mig_TC'] = $validated['mig_tc'] ?? 'No';
+        if ($request->has('p_degree')) $updateData['p_degree'] = $validated['p_degree'] ?? 'No';
+        if ($request->has('s_marks')) $updateData['s_marks'] = $validated['s_marks'] ?? 'No';
+        if ($request->has('letter_no_date')) $updateData['letter_no_date'] = $validated['letter_no_date'];
+        if ($request->has('remark')) $updateData['remark'] = $validated['remark'] ?? '';
+        if ($request->has('conf_from')) $updateData['conf_from'] = $validated['conf_from'];
+        if ($request->has('conf_from_select')) $updateData['conf_from_select'] = $validated['conf_from_select'];
+        if ($request->has('conf_from_text')) $updateData['conf_from_text'] = $validated['conf_from_text'];
+        if ($request->has('etc_data')) $updateData['etc_data'] = $validated['etc_data'];
+        if ($request->has('dd_no')) $updateData['dd_no'] = $validated['dd_no'];
+        if ($request->has('bank_name')) $updateData['bank_name'] = $validated['bank_name'];
+        if ($request->has('dd_date')) $updateData['dd_date'] = $validated['dd_date'];
+        if ($request->has('dd_amount')) $updateData['dd_amount'] = $validated['dd_amount'];
+        if ($request->has('letter_no')) $updateData['letter_no'] = $validated['letter_no'];
+        if ($request->has('letter_date')) $updateData['letter_date'] = $validated['letter_date'];
+        if ($request->has('remarks')) {
+            $updateData['remarks'] = $validated['remarks'];
+            if (!$request->has('remark') || empty($updateData['remark'])) {
+                $updateData['remark'] = $validated['remarks'] ?? '';
+            }
+        }
+
+        $record->update($updateData);
+
+        ActivityLog::record('confirmation.update', "Updated confirmation record #{$id} ({$record->name}, Case #{$record->case_no}).");
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Confirmation record updated successfully.',
+                'record' => $record->fresh(),
+            ]);
+        }
+
+        return back()->with('success', 'Confirmation record updated successfully.');
+    }
+
+    /**
      * Delete a confirmation record.
+     * Restricted to Administrators only.
      */
     public function destroy(int $id): JsonResponse|RedirectResponse
     {
+        abort_unless(request()->user()->isAdmin(), 403, 'Only administrators can delete confirmation records.');
         abort_unless(Setting::enabled('feature_delete_enabled'), 403, 'Deleting records is currently disabled by an administrator.');
 
         $record = ConfStudData::findOrFail($id);
         $caseNo = $record->case_no;
+        $batch = $record->array_space;
         $record->delete();
 
-        ActivityLog::record('confirmation.delete', "Deleted confirmation record for Case #{$caseNo}.");
+        ActivityLog::record('confirmation.delete', "Deleted confirmation record for Case #{$caseNo} from batch #{$batch}.");
 
         if (request()->wantsJson()) {
-            return response()->json(['status' => 'success', 'message' => 'Confirmation deleted.']);
+            return response()->json(['status' => 'success', 'message' => 'Confirmation record deleted successfully.']);
         }
 
         return back()->with('success', 'Confirmation record deleted successfully.');

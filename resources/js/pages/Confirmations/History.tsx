@@ -1,9 +1,16 @@
 import React, { useState, useMemo } from 'react';
-import { Link, router } from '@inertiajs/react';
+import { Link, router, usePage } from '@inertiajs/react';
 import Swal from 'sweetalert2';
 import { AppLayout } from '../../components/AppLayout';
 import { Select2 } from '../../components/Select2';
+import { SharedProps } from '../../types';
 import { promptLetterDetailsModal, updateConfirmationBatchLetter } from '../../lib/letterPrompt';
+import {
+    EditConfirmationBatchModal,
+    EditConfirmationCandidateModal,
+    BatchEditData,
+    CandidateEditData,
+} from '../../components/ConfirmationEditModals';
 
 interface CandidateItem {
     id: number;
@@ -13,6 +20,8 @@ interface CandidateItem {
     university_name: string;
     college_address?: string | null;
     case_no: string | null;
+    stream?: string | null;
+    acd_year?: string | null;
     mig_tc: string | null;
     p_degree: string | null;
     s_marks: string | null;
@@ -22,12 +31,20 @@ interface CandidateItem {
     conf_from_select: string | null;
     conf_from_text: string | null;
     etc_data: string | null;
+    dd_no?: string | null;
+    bank_name?: string | null;
+    dd_date?: string | null;
+    dd_amount?: string | null;
+    letter_no?: string | null;
+    letter_date?: string | null;
+    remarks?: string | null;
 }
 
 interface ConfBatchSummary {
     array_space: string;
     uni_add: string;
     stream: string;
+    acd_year?: string;
     en_time: string;
     en_by: string;
     dd_no: string | null;
@@ -78,10 +95,18 @@ export const History: React.FC<HistoryProps> = ({
     universities = [],
     filters,
 }) => {
+    const { props } = usePage<SharedProps>();
+    const isAdmin = props.auth?.user?.role === 'admin';
+    const canDelete = isAdmin && (props.features?.delete ?? true);
+
     const [batch, setBatch] = useState(filters.batch || '');
     const [stream, setStream] = useState(filters.stream || '');
     const [university, setUniversity] = useState(filters.university || '');
     const [studentName, setStudentName] = useState(filters.student_name || '');
+
+    // Edit Modals State
+    const [editingBatch, setEditingBatch] = useState<BatchEditData | null>(null);
+    const [editingCandidate, setEditingCandidate] = useState<CandidateEditData | null>(null);
 
     const streamOptions = useMemo(() => {
         return [
@@ -119,9 +144,85 @@ export const History: React.FC<HistoryProps> = ({
         router.get('/confirmations/history', {}, { preserveState: false });
     };
 
+    const handleOpenEditBatch = (b: ConfBatchSummary) => {
+        setEditingBatch({
+            array_space: b.array_space,
+            uni_add: b.uni_add,
+            stream: b.stream,
+            acd_year: b.acd_year || '',
+            dd_no: b.dd_no,
+            bank_name: b.bank_name,
+            dd_date: b.dd_date,
+            dd_amount: b.dd_amount,
+            letter_no: b.letter_no,
+            letter_date: b.letter_date,
+            remarks: b.remarks,
+        });
+    };
+
+    const handleOpenEditCandidate = (c: CandidateItem, b: ConfBatchSummary) => {
+        setEditingCandidate({
+            id: c.id,
+            name: c.student_name,
+            student_name: c.student_name,
+            case_no: c.case_no,
+            uni_add: c.university_name || b.uni_add,
+            university_name: c.university_name || b.uni_add,
+            stream: c.stream || b.stream,
+            acd_year: c.acd_year || b.acd_year,
+            mig_tc: c.mig_tc,
+            p_degree: c.p_degree,
+            s_marks: c.s_marks,
+            letter_no_date: c.letter_no_date,
+            remark: c.remark,
+            conf_from: c.conf_from,
+            conf_from_select: c.conf_from_select,
+            conf_from_text: c.conf_from_text,
+            etc_data: c.etc_data,
+            dd_no: c.dd_no || b.dd_no,
+            bank_name: c.bank_name || b.bank_name,
+            dd_date: c.dd_date || b.dd_date,
+            dd_amount: c.dd_amount || b.dd_amount,
+            letter_no: c.letter_no || b.letter_no,
+            letter_date: c.letter_date || b.letter_date,
+            remarks: c.remarks || b.remarks,
+        });
+    };
+
+    const handleDeleteBatch = (arraySpace: string, count: number) => {
+        Swal.fire({
+            title: `Delete Confirmation Batch #${arraySpace}?`,
+            html: `Are you sure you want to delete this entire batch and all <strong>${count}</strong> confirmation record(s)?<br/><span class="text-danger small">This action is restricted to administrators and cannot be undone.</span>`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: 'Yes, Delete Batch',
+            cancelButtonText: 'Cancel',
+        }).then((result) => {
+            if (result.isConfirmed) {
+                router.delete(`/confirmations/batches/${encodeURIComponent(arraySpace)}`, {
+                    preserveScroll: true,
+                    onSuccess: () => {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Deleted!',
+                            text: `Confirmation Batch #${arraySpace} has been deleted.`,
+                            timer: 2000,
+                            showConfirmButton: false,
+                        });
+                    },
+                    onError: (err) => {
+                        Swal.fire('Error', Object.values(err).flat().join('\n') || 'Failed to delete batch.', 'error');
+                    },
+                });
+            }
+        });
+    };
+
     const handleDeleteCandidate = (id: number, caseOrName: string) => {
         Swal.fire({
-            title: 'Delete Confirmation?',
+            title: 'Delete Confirmation Record?',
             text: `Are you sure you want to delete confirmation for ${caseOrName || 'this candidate'}?`,
             icon: 'warning',
             showCancelButton: true,
@@ -315,7 +416,7 @@ export const History: React.FC<HistoryProps> = ({
                                                 </span>
                                             )}
                                         </div>
-                                        <div className="d-flex align-items-center gap-2">
+                                        <div className="d-flex align-items-center gap-2 flex-wrap">
                                             {b.en_time && (
                                                 <span className="text-muted small">
                                                     <i className="fa fa-clock-o me-1"></i> {b.en_time}
@@ -329,6 +430,26 @@ export const History: React.FC<HistoryProps> = ({
                                             >
                                                 <i className="fa fa-file-text-o me-1"></i> Letter Details
                                             </button>
+                                            {isAdmin && (
+                                                <button
+                                                    type="button"
+                                                    className="btn btn-sm btn-outline-warning text-dark fw-semibold"
+                                                    onClick={() => handleOpenEditBatch(b)}
+                                                    title="Edit Batch Details (Admin Only)"
+                                                >
+                                                    <i className="fa fa-pencil me-1 text-warning"></i> Edit Batch
+                                                </button>
+                                            )}
+                                            {canDelete && (
+                                                <button
+                                                    type="button"
+                                                    className="btn btn-sm btn-outline-danger"
+                                                    onClick={() => handleDeleteBatch(b.array_space, b.student_count || b.candidates?.length || 0)}
+                                                    title="Delete Entire Confirmation Batch (Admin Only)"
+                                                >
+                                                    <i className="fa fa-trash-o me-1"></i> Delete Batch
+                                                </button>
+                                            )}
                                             <a
                                                 href={`/pdf/confirmation/${b.array_space}`}
                                                 target="_blank"
@@ -430,15 +551,28 @@ export const History: React.FC<HistoryProps> = ({
                                                                     >
                                                                         View
                                                                     </a>
-                                                                    <button
-                                                                        type="button"
-                                                                        className="btn btn-sm btn-dark py-0.5 px-2"
-                                                                        style={{ fontSize: '12px' }}
-                                                                        onClick={() => handleDeleteCandidate(c.id, c.case_no || c.student_name)}
-                                                                        title="Delete candidate confirmation"
-                                                                    >
-                                                                        delete
-                                                                    </button>
+                                                                    {isAdmin && (
+                                                                        <button
+                                                                            type="button"
+                                                                            className="btn btn-sm btn-warning text-dark py-0.5 px-2"
+                                                                            style={{ fontSize: '12px' }}
+                                                                            onClick={() => handleOpenEditCandidate(c, b)}
+                                                                            title="Edit Candidate Confirmation (Admin Only)"
+                                                                        >
+                                                                            <i className="fa fa-pencil me-1"></i>Edit
+                                                                        </button>
+                                                                    )}
+                                                                    {canDelete && (
+                                                                        <button
+                                                                            type="button"
+                                                                            className="btn btn-sm btn-danger py-0.5 px-2"
+                                                                            style={{ fontSize: '12px' }}
+                                                                            onClick={() => handleDeleteCandidate(c.id, c.case_no || c.student_name)}
+                                                                            title="Delete candidate confirmation (Admin Only)"
+                                                                        >
+                                                                            <i className="fa fa-trash me-1"></i>delete
+                                                                        </button>
+                                                                    )}
                                                                 </div>
                                                             </td>
                                                         </tr>
@@ -478,6 +612,22 @@ export const History: React.FC<HistoryProps> = ({
                     </div>
                 </div>
             </div>
+
+            {/* Admin-Only Edit Confirmation Batch Modal */}
+            <EditConfirmationBatchModal
+                show={!!editingBatch}
+                batch={editingBatch}
+                onClose={() => setEditingBatch(null)}
+                onSuccess={() => router.reload()}
+            />
+
+            {/* Admin-Only Edit Confirmation Candidate Modal */}
+            <EditConfirmationCandidateModal
+                show={!!editingCandidate}
+                candidate={editingCandidate}
+                onClose={() => setEditingCandidate(null)}
+                onSuccess={() => router.reload()}
+            />
         </AppLayout>
     );
 };

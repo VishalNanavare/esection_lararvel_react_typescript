@@ -1,9 +1,15 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link, router, usePage } from '@inertiajs/react';
 import Swal from 'sweetalert2';
 import { AppLayout } from '../../components/AppLayout';
 import { SharedProps } from '../../types';
 import { promptLetterDetailsModal, updateConfirmationBatchLetter } from '../../lib/letterPrompt';
+import {
+    EditConfirmationBatchModal,
+    EditConfirmationCandidateModal,
+    BatchEditData,
+    CandidateEditData,
+} from '../../components/ConfirmationEditModals';
 
 interface ConfRecord {
     id: number;
@@ -38,6 +44,7 @@ interface BatchInfo {
     remarks?: string;
     stream?: string;
     uni_add?: string;
+    acd_year?: string;
     en_time?: string;
     en_by?: string;
     dd_no?: string;
@@ -56,7 +63,11 @@ interface BatchDetailProps {
 export const BatchDetail: React.FC<BatchDetailProps> = ({ arraySpace, confirmations, batchInfo }) => {
     const { props } = usePage<SharedProps>();
     const { features } = props;
-    const canDelete = features.delete;
+    const isAdmin = props.auth?.user?.role === 'admin';
+    const canDelete = isAdmin && (features?.delete ?? true);
+
+    const [editingBatch, setEditingBatch] = useState<BatchEditData | null>(null);
+    const [editingCandidate, setEditingCandidate] = useState<CandidateEditData | null>(null);
 
     const firstRecord = confirmations[0];
 
@@ -70,6 +81,80 @@ export const BatchDetail: React.FC<BatchDetailProps> = ({ arraySpace, confirmati
                 await updateConfirmationBatchLetter(arraySpace, letterData);
                 router.reload();
             },
+        });
+    };
+
+    const handleOpenEditBatch = () => {
+        setEditingBatch({
+            array_space: arraySpace,
+            uni_add: batchInfo?.uni_add || firstRecord?.uni_add || '',
+            stream: batchInfo?.stream || firstRecord?.stream || '',
+            acd_year: batchInfo?.acd_year || '',
+            dd_no: batchInfo?.dd_no || firstRecord?.dd_no || null,
+            bank_name: batchInfo?.bank_name || firstRecord?.bank_name || null,
+            dd_date: batchInfo?.dd_date || firstRecord?.dd_date || null,
+            dd_amount: batchInfo?.dd_amount || firstRecord?.dd_amount || null,
+            letter_no: batchInfo?.letter_no || firstRecord?.letter_no || null,
+            letter_date: batchInfo?.letter_date || firstRecord?.letter_date || null,
+            remarks: batchInfo?.remarks || firstRecord?.remarks || firstRecord?.remark || null,
+        });
+    };
+
+    const handleOpenEditCandidate = (c: ConfRecord) => {
+        setEditingCandidate({
+            id: c.id,
+            name: c.name,
+            student_name: c.name,
+            case_no: c.case_no,
+            uni_add: c.uni_add,
+            university_name: c.uni_add,
+            stream: c.stream,
+            mig_tc: c.mig_TC,
+            p_degree: c.p_degree,
+            s_marks: c.s_marks,
+            letter_no_date: c.letter_no_date,
+            remark: c.remark,
+            conf_from: c.conf_from,
+            conf_from_select: c.conf_from_select,
+            conf_from_text: c.conf_from_text,
+            etc_data: c.etc_data,
+            dd_no: c.dd_no,
+            bank_name: c.bank_name,
+            dd_date: c.dd_date,
+            dd_amount: c.dd_amount,
+            letter_no: c.letter_no,
+            letter_date: c.letter_date,
+            remarks: c.remarks,
+        });
+    };
+
+    const handleDeleteBatch = () => {
+        Swal.fire({
+            title: `Delete Confirmation Batch #${arraySpace}?`,
+            html: `Are you sure you want to delete this entire batch and all <strong>${confirmations.length}</strong> confirmation record(s)?<br/><span class="text-danger small">This action is restricted to administrators and cannot be undone.</span>`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: 'Yes, Delete Batch',
+            cancelButtonText: 'Cancel',
+        }).then((result) => {
+            if (result.isConfirmed) {
+                router.delete(`/confirmations/batches/${encodeURIComponent(arraySpace)}`, {
+                    onSuccess: () => {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Deleted!',
+                            text: `Confirmation Batch #${arraySpace} has been deleted.`,
+                            timer: 2000,
+                            showConfirmButton: false,
+                        });
+                    },
+                    onError: (err) => {
+                        Swal.fire('Error', Object.values(err).flat().join('\n') || 'Failed to delete batch.', 'error');
+                    },
+                });
+            }
         });
     };
 
@@ -98,6 +183,9 @@ export const BatchDetail: React.FC<BatchDetailProps> = ({ arraySpace, confirmati
                             timer: 2000,
                             showConfirmButton: false,
                         });
+                    },
+                    onError: (err) => {
+                        Swal.fire('Error', Object.values(err).flat().join('\n') || 'Failed to delete record.', 'error');
                     },
                 });
             }
@@ -147,6 +235,16 @@ export const BatchDetail: React.FC<BatchDetailProps> = ({ arraySpace, confirmati
                                 >
                                     <i className="fa fa-file-text-o me-1"></i> Letter Details
                                 </button>
+                                {isAdmin && (
+                                    <button
+                                        type="button"
+                                        className="btn btn-outline-warning text-dark fw-semibold"
+                                        onClick={handleOpenEditBatch}
+                                        title="Edit Batch & DD Details (Admin Only)"
+                                    >
+                                        <i className="fa fa-pencil me-1 text-warning"></i> Edit Batch
+                                    </button>
+                                )}
                                 <Link href="/confirmations/history" className="btn btn-glass">
                                     <i className="fa fa-arrow-left me-1"></i> Back to History
                                 </Link>
@@ -158,6 +256,16 @@ export const BatchDetail: React.FC<BatchDetailProps> = ({ arraySpace, confirmati
                                 >
                                     <i className="fa fa-print me-1"></i> Print Confirmation Letter
                                 </a>
+                                {canDelete && (
+                                    <button
+                                        type="button"
+                                        className="btn btn-outline-danger"
+                                        onClick={handleDeleteBatch}
+                                        title="Delete Entire Confirmation Batch (Admin Only)"
+                                    >
+                                        <i className="fa fa-trash-o me-1"></i> Delete Batch
+                                    </button>
+                                )}
                             </div>
                         </div>
 
@@ -243,16 +351,28 @@ export const BatchDetail: React.FC<BatchDetailProps> = ({ arraySpace, confirmati
                                                     {!c.conf_from && !c.conf_from_select && !c.etc_data && <span className="text-muted">—</span>}
                                                 </td>
                                                 <td className="text-end">
-                                                    {canDelete && (
-                                                        <button
-                                                            type="button"
-                                                            className="btn btn-sm btn-glass text-danger"
-                                                            onClick={() => handleDelete(c)}
-                                                            title="Delete Confirmation"
-                                                        >
-                                                            <i className="fa fa-trash"></i>
-                                                        </button>
-                                                    )}
+                                                    <div className="d-flex justify-content-end gap-1">
+                                                        {isAdmin && (
+                                                            <button
+                                                                type="button"
+                                                                className="btn btn-sm btn-outline-warning text-dark py-1 px-2"
+                                                                onClick={() => handleOpenEditCandidate(c)}
+                                                                title="Edit Candidate Details (Admin Only)"
+                                                            >
+                                                                <i className="fa fa-pencil me-1"></i> Edit
+                                                            </button>
+                                                        )}
+                                                        {canDelete && (
+                                                            <button
+                                                                type="button"
+                                                                className="btn btn-sm btn-outline-danger py-1 px-2"
+                                                                onClick={() => handleDelete(c)}
+                                                                title="Delete Confirmation Record (Admin Only)"
+                                                            >
+                                                                <i className="fa fa-trash"></i>
+                                                            </button>
+                                                        )}
+                                                    </div>
                                                 </td>
                                             </tr>
                                         ))
@@ -263,6 +383,28 @@ export const BatchDetail: React.FC<BatchDetailProps> = ({ arraySpace, confirmati
                     </div>
                 </div>
             </div>
+
+            {editingBatch && (
+                <EditConfirmationBatchModal
+                    batch={editingBatch}
+                    onClose={() => setEditingBatch(null)}
+                    onSuccess={() => {
+                        setEditingBatch(null);
+                        router.reload();
+                    }}
+                />
+            )}
+
+            {editingCandidate && (
+                <EditConfirmationCandidateModal
+                    candidate={editingCandidate}
+                    onClose={() => setEditingCandidate(null)}
+                    onSuccess={() => {
+                        setEditingCandidate(null);
+                        router.reload();
+                    }}
+                />
+            )}
         </AppLayout>
     );
 };
