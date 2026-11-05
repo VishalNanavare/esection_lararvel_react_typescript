@@ -33,10 +33,12 @@ class PdfController extends Controller
         }
 
         if (! $college && $raw !== '') {
-            $college = CollegeDetail::where('Name', $raw)->orWhere('Address', $raw)->first();
+            [, $matcher] = $this->buildCollegeMatcher();
+            $college = $matcher($raw);
             if (! $college) {
-                [, $matcher] = $this->buildCollegeMatcher();
-                $college = $matcher($raw);
+                $college = CollegeDetail::where(function ($q) use ($raw) {
+                    $q->where('Name', $raw)->orWhere('Address', $raw);
+                })->orderByRaw("CASE WHEN is_active = 1 AND (sel_data != '0' OR sel_data IS NULL) THEN 0 ELSE 1 END")->first();
             }
         }
 

@@ -28,7 +28,10 @@ class ApiController extends Controller
             ->whereRaw('CHAR_LENGTH(TRIM(Name)) >= 3');
 
         if ($activeOnly) {
-            $query->where('is_active', true);
+            $query->where('is_active', true)
+                ->where(function ($b) {
+                    $b->where('sel_data', '!=', '0')->orWhereNull('sel_data');
+                });
         }
 
         if ($q !== '') {

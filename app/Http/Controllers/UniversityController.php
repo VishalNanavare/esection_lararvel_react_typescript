@@ -77,6 +77,7 @@ class UniversityController extends Controller
             'Address' => $validated['address'] ?? '',
             'email_id' => $validated['email_id'] ?? '',
             'mobile_no' => $validated['mobile_no'] ?? '',
+            'sel_data' => '1',
             'is_active' => true,
         ]);
 
@@ -122,6 +123,7 @@ class UniversityController extends Controller
     {
         $college = CollegeDetail::findOrFail($id);
         $college->is_active = ! $college->is_active;
+        $college->sel_data = $college->is_active ? '1' : '0';
         $college->save();
 
         $statusStr = $college->is_active ? 'activated' : 'deactivated';

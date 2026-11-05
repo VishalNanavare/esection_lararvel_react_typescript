@@ -508,14 +508,7 @@ class ConfirmationController extends Controller
         ], $allStreams);
 
         // Prepare Select2 universities options
-        $univQuery = CollegeDetail::query();
-        try {
-            if (\Illuminate\Support\Facades\Schema::hasColumn('college_details', 'is_active')) {
-                $univQuery->where(function ($q) {
-                    $q->where('is_active', true)->orWhereNull('is_active');
-                });
-            }
-        } catch (\Throwable) {}
+        $univQuery = CollegeDetail::active();
 
         $isMysql = in_array(\Illuminate\Support\Facades\DB::connection()->getDriverName(), ['mysql', 'mariadb']);
 

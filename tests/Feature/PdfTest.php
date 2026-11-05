@@ -360,3 +360,38 @@ test('dispatch letter formats long affiliated university names across lines clea
     // Verify university name renders with <br /> before affiliation
     expect($renderedHtml)->toContain('PRESTIGE INSTITUTE OF MANAGEMENT AND RESEARCH, INDORE<br />' . "\n" . '(affiliated with the Devi Ahilya University)');
 });
+
+test('resolveUniversityAndAddress matches active college and correct fees for duplicate university names', function () {
+    \App\Models\CollegeDetail::create([
+        'Name' => 'Shivaji University',
+        'States' => 'Maharashtra',
+        'Address' => 'Vidya Nagar, Kolhapur, Maharashtra 416004<br>phone- 0231-2609068<br> Phone: 0231 260 9000',
+        'fees' => '1030',
+        'sel_data' => '1',
+        'is_active' => true,
+    ]);
+
+    \App\Models\CollegeDetail::create([
+        'Name' => 'Shivaji University',
+        'States' => 'Maharashtra',
+        'Address' => 'Vidya Nagar, Kolhapur, Maharashtra 416004.<br>phone-+91 - 0231 - 2690655',
+        'fees' => '250',
+        'sel_data' => '0',
+        'is_active' => false,
+    ]);
+
+    $pdfCtrl = new \App\Http\Controllers\PdfController();
+
+    $rawAddress = "Shivaji University\nVidya Nagar, Kolhapur, Maharashtra 416004<br>phone- 0231-2609068<br> Phone: 0231 260 9000";
+    $resolved = $pdfCtrl->resolveUniversityAndAddress($rawAddress);
+
+    expect($resolved['college'])->not->toBeNull();
+    expect((float) $resolved['fees'])->toBe(1030.0);
+    expect($resolved['university_name'])->toBe('Shivaji University');
+
+    // Also test matching by name alone prefers active college (1030) over inactive (250)
+    $resolvedByName = $pdfCtrl->resolveUniversityAndAddress('Shivaji University');
+    expect($resolvedByName['college'])->not->toBeNull();
+    expect((float) $resolvedByName['fees'])->toBe(1030.0);
+});
+

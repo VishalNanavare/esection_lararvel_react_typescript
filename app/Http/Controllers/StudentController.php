@@ -54,8 +54,7 @@ class StudentController extends Controller
                 'stream' => $s->Name,
             ]);
 
-        $universities = CollegeDetail::where('is_active', true)
-            ->orWhereNull('is_active')
+        $universities = CollegeDetail::active()
             ->orderBy('Name', 'asc')
             ->get()
             ->map(function ($col) {

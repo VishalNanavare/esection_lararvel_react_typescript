@@ -93,7 +93,7 @@ export const NewForm: React.FC<NewFormProps> = ({
         if (universities && universities.length > 0) {
             setLocalUniversities(universities);
         } else {
-            fetch('/api/colleges?active_only=0')
+            fetch('/api/colleges?active_only=1&all=1')
                 .then((res) => res.json())
                 .then((data) => {
                     if (data.results && Array.isArray(data.results)) {
