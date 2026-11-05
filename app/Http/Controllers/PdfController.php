@@ -75,6 +75,7 @@ class PdfController extends Controller
         $inFavourOf = trim((string)($college?->in_favour_of ?? ''));
 
         $address = $this->formatAddressLines($address);
+        $universityName = $this->formatUniversityName($universityName);
 
         return [
             'to_name' => $resolvedToName,
@@ -84,6 +85,41 @@ class PdfController extends Controller
             'in_favour_of' => $inFavourOf,
             'college' => $college,
         ];
+    }
+
+    /**
+     * Intelligently format and break long or affiliated university/college names into clean lines.
+     */
+    public function formatUniversityName(?string $name): string
+    {
+        $name = trim((string) $name);
+        if ($name === '') {
+            return '';
+        }
+
+        // Normalize HTML breaks to newlines
+        $name = preg_replace('/<br\s*\/?>/i', "\n", $name);
+
+        // Break before parenthetical affiliation: e.g. " (affiliated with ...)", " (Affiliated to ...)"
+        $name = preg_replace('/[,\s]*\(\s*(affil[a-z]*\b[^\)]*)\)/i', "\n($1)", $name);
+
+        // Break before comma-separated affiliation: e.g. ", affiliated to...", ", affiliated under..."
+        $name = preg_replace('/,\s*(affil[a-z]*\b[^\n\r]*)/i', ",\n$1", $name);
+
+        // Break before standalone word "affiliated" if not already at line start
+        $name = preg_replace('/(?<![\n\r\(])\s+(affil[a-z]*\b[^\n\r]*)/i', "\n$1", $name);
+
+        // Clean up empty lines and normalize whitespace on each line
+        $rawLines = preg_split('/[\r\n]+/', $name);
+        $lines = [];
+        foreach ($rawLines as $l) {
+            $l = trim($l);
+            if ($l !== '') {
+                $lines[] = $l;
+            }
+        }
+
+        return implode("\n", $lines);
     }
 
     /**
@@ -105,6 +141,7 @@ class PdfController extends Controller
         }, $addr);
 
         $rawLines = preg_split('/[\r\n]+/', $addr);
+        $hasManualLineBreaks = count(array_filter(array_map('trim', $rawLines))) > 1;
         $finalLines = [];
 
         foreach ($rawLines as $line) {
@@ -118,8 +155,9 @@ class PdfController extends Controller
                 continue;
             }
 
-            // If line is long (> 30 chars) and contains commas, split into sensible lines
-            if (mb_strlen($line) > 30 && str_contains($line, ',')) {
+            // If user supplied manual line breaks in textarea, respect them unless line is excessively long (> 55 chars)
+            $threshold = $hasManualLineBreaks ? 55 : 30;
+            if (mb_strlen($line) > $threshold && str_contains($line, ',')) {
                 $parts = array_map('trim', explode(',', $line));
                 $current = '';
                 for ($i = 0; $i < count($parts); $i++) {
@@ -514,7 +552,7 @@ class PdfController extends Controller
         $data = array_merge($this->getInstituteSettings(), $rendered, [
             'batch' => $batch,
             'currentTime' => $currentTime,
-            'universityName' => $resolved['university_name'] ?: $batch->university_name,
+            'universityName' => $resolved['university_name'] ?: $this->formatUniversityName($batch->university_name),
             'headName' => $headName,
             'address' => $resolved['address'],
             'students' => $students,

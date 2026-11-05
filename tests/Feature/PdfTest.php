@@ -317,3 +317,46 @@ test('university reminder letter view has Reminder Letter in ref table starting 
     // Verify Your faithfully centered in right table
     expect($renderedHtml)->toContain('Your faithfully,');
 });
+
+test('dispatch letter formats long affiliated university names across lines cleanly', function () {
+    $pdfCtrl = new \App\Http\Controllers\PdfController();
+
+    $rawUni = 'PRESTIGE INSTITUTE OF MANAGEMENT AND RESEARCH, INDORE (affiliated with the Devi Ahilya University)';
+    $formattedUni = $pdfCtrl->formatUniversityName($rawUni);
+
+    expect($formattedUni)->toBe("PRESTIGE INSTITUTE OF MANAGEMENT AND RESEARCH, INDORE\n(affiliated with the Devi Ahilya University)");
+
+    $batchSpace = '1793862921';
+    $renderedHtml = view('pdf.dispatch_letter', array_merge($pdfCtrl->getInstituteSettings(), [
+        'arraySpace' => $batchSpace,
+        'currentTime' => 1793862921,
+        'firstRow' => [
+            'clg_add' => '479',
+            'address' => "Scheme No:74 C, Vijay Nagar,\nIndore, 452 010 (M.P) India\nPH- 7869999297",
+            'university_name' => $formattedUni,
+            'to_name' => 'The Controller of Examinations',
+            'fees' => 0,
+        ],
+        'students' => collect([
+            (object) [
+                'id' => 1,
+                'student_name' => 'CHAKIT TRIVEDI',
+                'eligibility_case_no' => 'MA-I (Pub Rela)-CDOE20262134',
+                'admission_taken_in' => 'MA Part I',
+                'verification_of_marksheet_done_by_you' => 'TYBA',
+            ],
+        ]),
+        'fees' => 0,
+        'totalFees' => 0,
+        'academic_year' => '2026-2027',
+        'date' => '05/11/2026',
+        'subject' => '',
+        'body' => '',
+    ]))->render();
+
+    // Verify address block has max-width
+    expect($renderedHtml)->toContain('max-width: 60%');
+
+    // Verify university name renders with <br /> before affiliation
+    expect($renderedHtml)->toContain('PRESTIGE INSTITUTE OF MANAGEMENT AND RESEARCH, INDORE<br />' . "\n" . '(affiliated with the Devi Ahilya University)');
+});

@@ -44,6 +44,7 @@
             font-size: 8.5pt;
             line-height: 1.3;
             margin-bottom: 6px;
+            max-width: 60%;
         }
         .subject-block {
             text-align: center;
@@ -128,7 +129,7 @@
         To,<br>
         <b>{{ $displayHead }}</b><br>
         @if(!empty($firstRow['university_name']))
-            <b>{{ $firstRow['university_name'] }}</b><br>
+            <b>{!! nl2br(e($firstRow['university_name'])) !!}</b><br>
         @endif
         {!! nl2br(e($firstRow['address'])) !!}
     </div>

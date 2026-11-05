@@ -358,9 +358,9 @@ export default function Index({ colleges, states, filters }: Props) {
                                                 <tr key={col.id}>
                                                     <td className="fw-semibold text-muted">{srNo}</td>
                                                     <td>
-                                                        <span className="fw-bold text-dark fs-6 d-block">{col.Name}</span>
+                                                        <span className="fw-bold text-dark fs-6 d-block" style={{ whiteSpace: 'pre-line' }}>{col.Name}</span>
                                                         {col.Address && (
-                                                            <small className="text-muted text-truncate d-inline-block" style={{ maxWidth: '350px' }}>
+                                                            <small className="text-muted d-block" style={{ whiteSpace: 'pre-line' }}>
                                                                 <i className="fa fa-map-marker me-1 text-secondary"></i> {col.Address}
                                                             </small>
                                                         )}
@@ -470,20 +470,21 @@ export default function Index({ colleges, states, filters }: Props) {
                             <form onSubmit={handleSaveNew}>
                                 <div className="modal-body p-4">
                                     <div className="row g-3">
-                                        <div className="col-md-8">
+                                        <div className="col-12">
                                             <label className="form-label small fw-semibold text-secondary">
                                                 University Full Name <span className="text-danger">*</span>
                                             </label>
-                                            <input
-                                                type="text"
+                                            <textarea
                                                 className="form-control"
-                                                placeholder="e.g. Shivaji University"
+                                                rows={2}
+                                                placeholder="e.g. PRESTIGE INSTITUTE OF MANAGEMENT AND RESEARCH, INDORE&#10;(affiliated with the Devi Ahilya University)"
                                                 value={formData.name}
                                                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                                                 required
                                             />
+                                            <small className="text-muted d-block mt-1">Press Enter to place affiliation, college, or department name on the next line for letters.</small>
                                         </div>
-                                        <div className="col-md-4">
+                                        <div className="col-md-6">
                                             <label className="form-label small fw-semibold text-secondary">
                                                 State <span className="text-danger">*</span>
                                             </label>
@@ -519,7 +520,7 @@ export default function Index({ colleges, states, filters }: Props) {
                                                 onChange={(e) => setFormData({ ...formData, fees: e.target.value })}
                                             />
                                         </div>
-                                        <div className="col-12">
+                                        <div className="col-md-6">
                                             <label className="form-label small fw-semibold text-secondary">Payment Favoring Title (In Favour Of)</label>
                                             <input
                                                 type="text"
@@ -534,10 +535,11 @@ export default function Index({ colleges, states, filters }: Props) {
                                             <textarea
                                                 className="form-control"
                                                 rows={3}
-                                                placeholder="Vidyanagar, Kolhapur - 416004, Maharashtra"
+                                                placeholder="Scheme No:74 C, Vijay Nagar,&#10;Indore, 452 010 (M.P) India ,&#10;PH-7869999297"
                                                 value={formData.address}
                                                 onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                                             />
+                                            <small className="text-muted d-block mt-1">Lines entered here print on the next line exactly as entered.</small>
                                         </div>
                                         <div className="col-md-6">
                                             <label className="form-label small fw-semibold text-secondary">Email (Optional)</label>
@@ -602,19 +604,21 @@ export default function Index({ colleges, states, filters }: Props) {
                             <form onSubmit={handleUpdate}>
                                 <div className="modal-body p-4">
                                     <div className="row g-3">
-                                        <div className="col-md-8">
+                                        <div className="col-12">
                                             <label className="form-label small fw-semibold text-secondary">
                                                 University Full Name <span className="text-danger">*</span>
                                             </label>
-                                            <input
-                                                type="text"
+                                            <textarea
                                                 className="form-control"
+                                                rows={2}
+                                                placeholder="e.g. PRESTIGE INSTITUTE OF MANAGEMENT AND RESEARCH, INDORE&#10;(affiliated with the Devi Ahilya University)"
                                                 value={formData.name}
                                                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                                                 required
                                             />
+                                            <small className="text-muted d-block mt-1">Press Enter to place affiliation, college, or department name on the next line for letters.</small>
                                         </div>
-                                        <div className="col-md-4">
+                                        <div className="col-md-6">
                                             <label className="form-label small fw-semibold text-secondary">
                                                 State <span className="text-danger">*</span>
                                             </label>
@@ -648,7 +652,7 @@ export default function Index({ colleges, states, filters }: Props) {
                                                 onChange={(e) => setFormData({ ...formData, fees: e.target.value })}
                                             />
                                         </div>
-                                        <div className="col-12">
+                                        <div className="col-md-6">
                                             <label className="form-label small fw-semibold text-secondary">Payment Favoring Title (In Favour Of)</label>
                                             <input
                                                 type="text"
@@ -662,9 +666,11 @@ export default function Index({ colleges, states, filters }: Props) {
                                             <textarea
                                                 className="form-control"
                                                 rows={3}
+                                                placeholder="Scheme No:74 C, Vijay Nagar,&#10;Indore, 452 010 (M.P) India ,&#10;PH-7869999297"
                                                 value={formData.address}
                                                 onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                                             />
+                                            <small className="text-muted d-block mt-1">Lines entered here print on the next line exactly as entered.</small>
                                         </div>
                                         <div className="col-md-6">
                                             <label className="form-label small fw-semibold text-secondary">Email (Optional)</label>

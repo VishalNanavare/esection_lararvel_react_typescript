@@ -8,6 +8,9 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\PdfController;
 use App\Http\Controllers\RegularizationController;
 use App\Http\Controllers\ReminderController;
+use App\Http\Controllers\ScholarshipController;
+use App\Http\Controllers\ScholarshipFeeMasterController;
+use App\Http\Controllers\ScholarshipImportController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\StudentController;
 use App\Http\Controllers\UniversityController;
@@ -202,6 +205,28 @@ Route::middleware('auth')->group(function () {
         Route::post('/settings/mail/test', [SettingsController::class, 'testMail'])->name('settings.mail.test');
         Route::post('/settings/mail/templates/{slug}', [SettingsController::class, 'updateEmailTemplate'])->name('settings.mail.template.update');
         Route::get('/settings/activity-log', [SettingsController::class, 'activityLog'])->name('settings.activity-log');
+    });
+
+    /*
+    |--------------------------------------------------------------------------
+    | Scholarship Management System
+    |--------------------------------------------------------------------------
+    */
+    Route::prefix('scholarship')->name('scholarship.')->group(function () {
+        Route::get('/', [ScholarshipController::class, 'index'])->name('index');
+        Route::get('/student/{id}', [ScholarshipController::class, 'show'])->name('show');
+        Route::post('/student/{id}/documents', [ScholarshipController::class, 'updateDocuments'])->name('documents.update');
+        Route::post('/student/{id}/installments', [ScholarshipController::class, 'updateInstallments'])->name('installments.update');
+        Route::post('/student/{id}/not-processed', [ScholarshipController::class, 'markNotProcessed'])->name('not_processed');
+        Route::get('/student/{id}/demand-letter', [ScholarshipController::class, 'generateDemandLetter'])->name('demand_letter');
+
+        Route::get('/import', [ScholarshipImportController::class, 'index'])->name('import');
+        Route::post('/import/analyze', [ScholarshipImportController::class, 'analyze'])->name('import.analyze');
+        Route::post('/import/execute', [ScholarshipImportController::class, 'execute'])->name('import.execute');
+
+        Route::get('/fees', [ScholarshipFeeMasterController::class, 'index'])->name('fees.index');
+        Route::post('/fees', [ScholarshipFeeMasterController::class, 'store'])->name('fees.store');
+        Route::delete('/fees/{id}', [ScholarshipFeeMasterController::class, 'destroy'])->name('fees.destroy');
     });
 
     /*

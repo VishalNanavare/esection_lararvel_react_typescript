@@ -42,6 +42,7 @@
             font-size: 8.5pt;
             line-height: 1.3;
             margin-bottom: 6px;
+            max-width: 60%;
         }
         .subject-block {
             text-align: center;
@@ -122,7 +123,7 @@
             }
         @endphp
         To,<br>
-        <b>{{ $displayHead }}<br>{{ $universityName }}</b><br>
+        <b>{{ $displayHead }}<br>{!! nl2br(e($universityName)) !!}</b><br>
         {!! nl2br(e($address)) !!}
     </div>
 

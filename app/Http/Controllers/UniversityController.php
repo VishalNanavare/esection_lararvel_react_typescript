@@ -58,12 +58,12 @@ class UniversityController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'name' => 'required|string|max:255',
+            'name' => 'required|string|max:1000',
             'state' => 'required|string|max:100',
             'head_name' => 'nullable|string|max:255',
             'fees' => 'nullable|numeric|min:0',
             'in_favour_of' => 'nullable|string|max:255',
-            'address' => 'nullable|string|max:1000',
+            'address' => 'nullable|string|max:1500',
             'email_id' => 'nullable|email|max:100',
             'mobile_no' => 'nullable|string|max:30',
         ]);
@@ -91,12 +91,12 @@ class UniversityController extends Controller
         $college = CollegeDetail::findOrFail($id);
 
         $validated = $request->validate([
-            'name' => 'required|string|max:255',
+            'name' => 'required|string|max:1000',
             'state' => 'required|string|max:100',
             'head_name' => 'nullable|string|max:255',
             'fees' => 'nullable|numeric|min:0',
             'in_favour_of' => 'nullable|string|max:255',
-            'address' => 'nullable|string|max:1000',
+            'address' => 'nullable|string|max:1500',
             'email_id' => 'nullable|email|max:100',
             'mobile_no' => 'nullable|string|max:30',
         ]);
