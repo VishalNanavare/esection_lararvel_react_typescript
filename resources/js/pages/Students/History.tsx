@@ -205,7 +205,7 @@ export const History: React.FC<HistoryProps> = ({ batches, filterOptions, filter
 
     const handleOpenEditBatch = (b: BatchSummary) => {
         setEditingBatch(b);
-        setEditClgAdd(b.clg_add);
+        setEditClgAdd((b.clg_add || '').replace(/<br\s*\/?>/gi, '\n'));
         setEditToName(b.to_name || 'The Controller of Examinations');
         setEditCourse(b.admission_taken_in);
         setEditYear(b.admission_taken_year);
@@ -229,10 +229,11 @@ export const History: React.FC<HistoryProps> = ({ batches, filterOptions, filter
         if (!val) return;
         const found = collegesList.find((c) => String(c.id) === String(val) || String(c.value) === String(val));
         if (found) {
-            const fullAddr = found.address
-                ? found.address.toLowerCase().includes(found.name.toLowerCase())
-                    ? found.address
-                    : `${found.name}\n${found.address}`
+            const rawAddr = (found.address || '').replace(/<br\s*\/?>/gi, '\n').trim();
+            const fullAddr = rawAddr
+                ? rawAddr.toLowerCase().includes(found.name.toLowerCase())
+                    ? rawAddr
+                    : `${found.name}\n${rawAddr}`
                 : found.name;
             setEditClgAdd(fullAddr);
             if (found.head_name) {
@@ -587,7 +588,7 @@ export const History: React.FC<HistoryProps> = ({ batches, filterOptions, filter
 
     const renderAddress = (addr: string) => {
         if (!addr) return '-';
-        const lines = addr.split(/<br\s*\/?>/i);
+        const lines = addr.split(/<br\s*\/?>|\r\n|\n|\r/i);
         return lines.map((line, idx) => (
             <React.Fragment key={idx}>
                 {line.trim()}

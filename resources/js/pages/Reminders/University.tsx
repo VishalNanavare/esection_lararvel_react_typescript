@@ -546,7 +546,7 @@ export default function University({
 
     const renderAddress = (addr: string | null | undefined) => {
         if (!addr) return '—';
-        const lines = addr.split(/<br\s*\/?>/i);
+        const lines = addr.split(/<br\s*\/?>|\r\n|\n|\r/i);
         return lines.map((line, idx) => (
             <React.Fragment key={idx}>
                 {line.trim()}

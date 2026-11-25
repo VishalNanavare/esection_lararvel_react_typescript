@@ -133,8 +133,12 @@ class PdfController extends Controller
             $lines = preg_split('/(\r\n|\n|\r|<br\s*\/?>)/i', $address);
             $lines = array_values(array_filter(array_map('trim', $lines)));
             if (count($lines) > 1) {
-                $universityName = array_shift($lines);
-                $address = implode("\n", $lines);
+                $first = $lines[0];
+                if (preg_match('/(univ|college|vidya|inst|acad|board|school|campus|centre|center|directorate|bhavan|bhavana)/i', $first)
+                    || (!preg_match('/^(near|opp|behind|at|po|post|plot|flat|room|road|rd|sector|lane|street|paliwal|vidya\s*nagar|camp\b|\d+)/i', $first) && !preg_match('/,\s*$/', $first))) {
+                    $universityName = array_shift($lines);
+                    $address = implode("\n", $lines);
+                }
             }
         }
 
@@ -210,14 +214,15 @@ class PdfController extends Controller
 
         $addr = preg_replace('/<br\s*\/?>/i', "\n", $addr);
 
-        // Put phone / mobile / tel numbers onto their own line
-        $addr = preg_replace_callback('/([,.]?\s*)(ph(?:one)?[\.\-:\s]|tel[\.\-:\s]|mobile[\.\-:\s]|mob[\.\-:\s])/i', function ($m) {
-            $prefix = str_contains($m[1], '.') ? '.' : '';
+        // Put phone / mobile / tel numbers onto their own line if preceded by inline text
+        $addr = preg_replace_callback('/(?<![\r\n])([,.]?\s+)(ph(?:one)?[\.\-:\s]*|tel[\.\-:\s]*|mobile[\.\-:\s]*|mob[\.\-:\s]*)/i', function ($m) {
+            $prefix = (str_contains($m[1], '.') ? '.' : (str_contains($m[1], ',') ? ',' : ''));
             return $prefix . "\n" . trim($m[2]) . ' ';
         }, $addr);
 
         $rawLines = preg_split('/[\r\n]+/', $addr);
-        $hasManualLineBreaks = count(array_filter(array_map('trim', $rawLines))) > 1;
+        $nonPhoneLines = array_filter($rawLines, fn ($l) => ! preg_match('/^(ph|tel|mob)/i', trim((string) $l)));
+        $hasManualLineBreaks = count(array_filter(array_map('trim', $nonPhoneLines))) > 1;
         $finalLines = [];
 
         foreach ($rawLines as $line) {
@@ -231,8 +236,8 @@ class PdfController extends Controller
                 continue;
             }
 
-            // If user supplied manual line breaks in textarea, respect them unless line is excessively long (> 55 chars)
-            $threshold = $hasManualLineBreaks ? 55 : 30;
+            // If user supplied manual line breaks in textarea, respect them unless line is excessively long (> 45 chars)
+            $threshold = $hasManualLineBreaks ? 45 : 32;
             if (mb_strlen($line) > $threshold && str_contains($line, ',')) {
                 $parts = array_map('trim', explode(',', $line));
                 $current = '';
@@ -686,6 +691,10 @@ class PdfController extends Controller
         }
 
         $currentTime = !empty($record->pdf_time) ? $record->pdf_time : (!empty($record->created_at) ? $record->created_at->timestamp : time());
+
+        if (!empty($record->address)) {
+            $record->address = $this->formatAddressLines($record->address);
+        }
 
         $rendered = $this->renderLetterTemplate('student_reminder', [
             'course_name' => $record->course_name ?? ($student?->admission_taken_in ?? ''),

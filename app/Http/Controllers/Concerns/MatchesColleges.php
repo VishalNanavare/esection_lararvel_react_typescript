@@ -24,6 +24,22 @@ trait MatchesColleges
     }
 
     /**
+     * Extract alphanumeric core of an address (ignoring phone numbers, HTML tags, and punctuation) for robust comparison.
+     */
+    protected function extractAddressCore(?string $str): string
+    {
+        if ($str === null || $str === '') {
+            return '';
+        }
+
+        $s = preg_replace('/<br\s*\/?>/i', ' ', (string) $str);
+        $s = strip_tags($s);
+        $s = preg_replace('/(phone|tel|mobile|mob)[\s\S]*/i', '', $s);
+
+        return strtolower((string) preg_replace('/[^a-zA-Z0-9]/', '', $s));
+    }
+
+    /**
      * Disambiguate and select the best CollegeDetail among multiple candidates with matching names.
      *
      * @param array<int, CollegeDetail> $candidates
@@ -94,6 +110,7 @@ trait MatchesColleges
     {
         $colleges = CollegeDetail::all();
         $addrMap = [];
+        $coreAddrMap = [];
         $nameCandidates = [];
 
         $isActive = function ($col): bool {
@@ -122,6 +139,13 @@ trait MatchesColleges
                     $addrMap[$cAddress] = $col;
                 }
             }
+
+            $colCore = $this->extractAddressCore($col->Address);
+            if (strlen($colCore) >= 12) {
+                if (! isset($coreAddrMap[$colCore]) || ($isActive($col) && ! $isActive($coreAddrMap[$colCore]))) {
+                    $coreAddrMap[$colCore] = $col;
+                }
+            }
         }
 
         // Sort candidate lists so active colleges are always at index 0
@@ -133,7 +157,7 @@ trait MatchesColleges
         $activeColleges = $validColleges->filter($isActive)->values();
         $inactiveColleges = $validColleges->reject($isActive)->values();
 
-        $matcher = function ($raw) use ($validColleges, $activeColleges, $inactiveColleges, $addrMap, $nameCandidates, $isActive) {
+        $matcher = function ($raw) use ($validColleges, $activeColleges, $inactiveColleges, $addrMap, $coreAddrMap, $nameCandidates, $isActive) {
             if (empty($raw) || $raw === 'Select Admission Taken In' || $raw === 'Select University Name') {
                 return null;
             }
@@ -189,12 +213,29 @@ trait MatchesColleges
                 }
             }
 
-            // Step 6: Substring matching on address (minimum length 15 to avoid false positives)
+            // Step 6: Substring and core-address matching on address
+            $rawCore = $this->extractAddressCore($rawStr);
+            if ($rawCore !== '' && isset($coreAddrMap[$rawCore])) {
+                return $coreAddrMap[$rawCore];
+            }
+            if ($addressPart !== '') {
+                $addrPartCore = $this->extractAddressCore($addressPart);
+                if ($addrPartCore !== '' && isset($coreAddrMap[$addrPartCore])) {
+                    return $coreAddrMap[$addrPartCore];
+                }
+            }
+
             foreach ([$activeColleges, $inactiveColleges] as $collegeGroup) {
                 foreach ($collegeGroup as $col) {
                     $cAddr = $this->normalizeCollegeString($col->Address);
                     if (strlen($cAddr) >= 15 && (str_contains($rawClean, $cAddr) || str_contains($this->normalizeCollegeString($rawStr), $cAddr))) {
                         return $col;
+                    }
+                    if (strlen($rawCore) >= 12) {
+                        $colCore = $this->extractAddressCore($col->Address);
+                        if (strlen($colCore) >= 12 && ($rawCore === $colCore || str_contains($rawCore, $colCore) || str_contains($colCore, $rawCore))) {
+                            return $col;
+                        }
                     }
                 }
             }

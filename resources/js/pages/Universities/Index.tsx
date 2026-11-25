@@ -112,12 +112,12 @@ export default function Index({ colleges, states, filters }: Props) {
     const openEditModal = (college: College) => {
         setEditingCollege(college);
         setFormData({
-            name: college.Name || '',
+            name: (college.Name || '').replace(/<br\s*\/?>/gi, '\n'),
             state: college.States || '',
             head_name: college.head_name || 'The Controller of Examinations',
             fees: college.fees !== null && college.fees !== undefined ? String(college.fees) : '0',
             in_favour_of: college.in_favour_of || '',
-            address: college.Address || '',
+            address: (college.Address || '').replace(/<br\s*\/?>/gi, '\n'),
             email_id: college.email_id || '',
             mobile_no: college.mobile_no || '',
         });

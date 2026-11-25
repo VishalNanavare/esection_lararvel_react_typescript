@@ -130,7 +130,7 @@ export const BatchDetail: React.FC<BatchDetailProps> = ({ arraySpace, students, 
     };
 
     const handleOpenBatchEdit = () => {
-        const currentAddr = batchInfo?.clg_add || firstStudent?.clg_add || '';
+        const currentAddr = (batchInfo?.clg_add || firstStudent?.clg_add || '').replace(/<br\s*\/?>/gi, '\n');
         const currentTo = batchInfo?.to_name || firstStudent?.to_name || 'The Controller of Examinations';
         const currentCourse = batchInfo?.admission_taken_in || firstStudent?.admission_taken_in || '';
         const currentYear = batchInfo?.admission_taken_year || firstStudent?.admission_taken_year || '';
@@ -160,10 +160,11 @@ export const BatchDetail: React.FC<BatchDetailProps> = ({ arraySpace, students, 
         if (!val) return;
         const found = collegesList.find((c) => String(c.id) === String(val) || String(c.value) === String(val));
         if (found) {
-            const fullAddr = found.address
-                ? found.address.toLowerCase().includes(found.name.toLowerCase())
-                    ? found.address
-                    : `${found.name}\n${found.address}`
+            const rawAddr = (found.address || '').replace(/<br\s*\/?>/gi, '\n').trim();
+            const fullAddr = rawAddr
+                ? rawAddr.toLowerCase().includes(found.name.toLowerCase())
+                    ? rawAddr
+                    : `${found.name}\n${rawAddr}`
                 : found.name;
             setEditClgAdd(fullAddr);
             if (found.head_name) {

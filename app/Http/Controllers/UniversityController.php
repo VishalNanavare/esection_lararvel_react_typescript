@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\MatchesColleges;
 use App\Http\Controllers\Concerns\SanitizesSpreadsheetCells;
 use App\Models\CollegeDetail;
 use App\Models\Setting;
+use App\Models\StudentDetail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -13,7 +15,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class UniversityController extends Controller
 {
-    use SanitizesSpreadsheetCells;
+    use MatchesColleges, SanitizesSpreadsheetCells;
 
     /**
      * Display the university directory list with optional filters.
@@ -90,6 +92,8 @@ class UniversityController extends Controller
     public function update(Request $request, int $id): RedirectResponse
     {
         $college = CollegeDetail::findOrFail($id);
+        $oldAddress = (string) ($college->Address ?? '');
+        $oldName = (string) ($college->Name ?? '');
 
         $validated = $request->validate([
             'name' => 'required|string|max:1000',
@@ -102,16 +106,53 @@ class UniversityController extends Controller
             'mobile_no' => 'nullable|string|max:30',
         ]);
 
+        $newAddress = $validated['address'] ?? '';
+        $newName = $validated['name'];
+
         $college->update([
-            'Name' => $validated['name'],
+            'Name' => $newName,
             'States' => $validated['state'],
             'head_name' => $validated['head_name'] ?? 'The Controller of Examinations',
             'fees' => $validated['fees'] ?? 0,
             'in_favour_of' => $validated['in_favour_of'] ?? '',
-            'Address' => $validated['address'] ?? '',
+            'Address' => $newAddress,
             'email_id' => $validated['email_id'] ?? '',
             'mobile_no' => $validated['mobile_no'] ?? '',
         ]);
+
+        // Sync updated address to existing StudentDetail records matching old address or name
+        if ($newAddress !== '') {
+            $oldCore = $this->extractAddressCore($oldAddress);
+            $newCore = $this->extractAddressCore($newAddress);
+
+            $students = StudentDetail::where(function ($q) use ($id, $oldAddress, $oldName) {
+                $q->where('clg_add', (string) $id);
+                if ($oldAddress !== '') {
+                    $q->orWhere('clg_add', $oldAddress);
+                }
+                if ($oldName !== '') {
+                    $q->orWhere('clg_add', 'like', "%{$oldName}%");
+                }
+            })->get();
+
+            if ($students->isEmpty() && strlen($oldCore) >= 15) {
+                $allStudents = StudentDetail::whereNotNull('clg_add')->where('clg_add', '!=', '')->get();
+                $matchingIds = [];
+                foreach ($allStudents as $st) {
+                    $stCore = $this->extractAddressCore($st->clg_add);
+                    if ($stCore !== '' && ($stCore === $oldCore || $stCore === $newCore || str_contains($stCore, $oldCore) || str_contains($oldCore, $stCore))) {
+                        $matchingIds[] = $st->id;
+                    }
+                }
+                if (! empty($matchingIds)) {
+                    $students = StudentDetail::whereIn('id', $matchingIds)->get();
+                }
+            }
+
+            foreach ($students as $stud) {
+                $stud->update(['clg_add' => $newAddress]);
+            }
+        }
 
         return redirect()->back()->with('success', 'University details updated successfully.');
     }
