@@ -374,6 +374,12 @@ class SettingsController extends Controller
             'is_active' => true,
         ]);
 
+        // Keep stream_details in sync
+        StreamDetail::firstOrCreate(
+            ['Division' => $course->name],
+            ['Name' => $course->code ?: $course->name]
+        );
+
         ActivityLog::create([
             'user_id' => Auth::id(),
             'username' => Auth::user()?->username ?? 'staff',
@@ -399,10 +405,25 @@ class SettingsController extends Controller
             'code' => 'nullable|string|max:50|unique:courses,code,'.$id,
         ]);
 
+        $oldName = $course->name;
         $course->update([
             'name' => $validated['name'],
             'code' => $validated['code'] ?? null,
         ]);
+
+        // Keep stream_details in sync
+        $stream = StreamDetail::where('Division', $oldName)->first();
+        if ($stream) {
+            $stream->update([
+                'Division' => $course->name,
+                'Name' => $course->code ?: $course->name,
+            ]);
+        } else {
+            StreamDetail::firstOrCreate(
+                ['Division' => $course->name],
+                ['Name' => $course->code ?: $course->name]
+            );
+        }
 
         ActivityLog::create([
             'user_id' => Auth::id(),
@@ -448,7 +469,10 @@ class SettingsController extends Controller
     {
         abort_unless(Setting::enabled('feature_delete_enabled'), 403, 'Deleting records is currently disabled by an administrator.');
 
-        Course::findOrFail($id)->delete();
+        $course = Course::findOrFail($id);
+        $name = $course->name;
+        $course->delete();
+        StreamDetail::where('Division', $name)->delete();
 
         return redirect()->back()->with('success', 'Course removed.');
     }

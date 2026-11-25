@@ -161,7 +161,7 @@ export const NewForm: React.FC<NewFormProps> = ({
     const streamOptions = useMemo(() => {
         return streams.map((s) => ({
             value: s.id,
-            label: `${s.text} - ${s.stream}`,
+            label: s.stream && s.stream !== s.text ? `${s.text} - ${s.stream}` : s.text,
         }));
     }, [streams]);
 

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\ActivityLog;
 use App\Models\CollegeDetail;
 use App\Models\ConfStudData;
+use App\Models\Course;
 use App\Models\Regularization;
 use App\Models\StreamDetail;
 use App\Models\StudentDetail;
@@ -22,7 +23,7 @@ class DashboardController extends Controller
         $totalRegularizations = Regularization::count();
 
         // Stream breakdown metrics
-        $streams = StreamDetail::whereNotNull('Division')->get();
+        $streams = Course::getActiveStreamOptions();
         $totalCounts = StudentDetail::selectRaw('admission_taken_in, count(*) as count')
             ->groupBy('admission_taken_in')
             ->pluck('count', 'admission_taken_in')
@@ -36,7 +37,7 @@ class DashboardController extends Controller
 
         $metrics = [];
         foreach ($streams as $s) {
-            $streamName = $s->Division ?? $s->full_name ?? '';
+            $streamName = $s['text'];
             if (empty($streamName)) {
                 continue;
             }

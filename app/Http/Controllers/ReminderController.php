@@ -7,6 +7,7 @@ use App\Http\Controllers\Concerns\SanitizesSpreadsheetCells;
 use App\Mail\RawHtmlMail;
 use App\Models\AcademicYear;
 use App\Models\CollegeDetail;
+use App\Models\Course;
 use App\Models\EmailLog;
 use App\Models\Setting;
 use App\Models\StreamDetail;
@@ -151,15 +152,7 @@ class ReminderController extends Controller
             'is_current' => (bool) $y->is_current,
         ]);
 
-        $streams = StreamDetail::whereNotNull('Division')
-            ->where('Division', '!=', '')
-            ->orderBy('Division', 'asc')
-            ->get()
-            ->map(fn ($s) => [
-                'id' => $s->Division,
-                'text' => $s->Division,
-                'stream' => $s->Name,
-            ]);
+        $streams = Course::getActiveStreamOptions();
 
         $distinctUnivs = StudentDetail::whereNotNull('clg_add')
             ->where('clg_add', '!=', '')

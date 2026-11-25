@@ -8,6 +8,7 @@ use App\Models\AcademicYear;
 use App\Models\ActivityLog;
 use App\Models\CollegeDetail;
 use App\Models\ConfStudData;
+use App\Models\Course;
 use App\Models\Setting;
 use App\Models\StreamDetail;
 use App\Models\StudentDetail;
@@ -140,15 +141,7 @@ class ConfirmationController extends Controller
             'is_current' => (bool) $y->is_current,
         ]);
 
-        $streams = StreamDetail::whereNotNull('Division')
-            ->where('Division', '!=', '')
-            ->orderBy('Division', 'asc')
-            ->get()
-            ->map(fn ($s) => [
-                'id' => $s->Division,
-                'text' => $s->Division,
-                'stream' => $s->Name,
-            ]);
+        $streams = Course::getActiveStreamOptions();
 
         $distinctUnivs = StudentDetail::whereNotNull('clg_add')
             ->where('clg_add', '!=', '')
@@ -483,11 +476,7 @@ class ConfirmationController extends Controller
         }
 
         // Prepare Select2 streams options
-        $streamDivisions = StreamDetail::whereNotNull('Division')
-            ->where('Division', '!=', '')
-            ->orderBy('Division', 'asc')
-            ->pluck('Division')
-            ->toArray();
+        $streamDivisions = Course::getActiveCourseNames();
         $legacyStreams = [
             'MA', 'MCOM', 'MA Edu', 'PGDFM', 'PGDORM',
             'MSC IT', 'MSC MATHS', 'MMS', 'BAF', 'BMS',

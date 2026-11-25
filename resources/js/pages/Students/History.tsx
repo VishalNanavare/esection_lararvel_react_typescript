@@ -99,6 +99,7 @@ export interface BatchCombo {
 interface FilterOptions {
     years: string[];
     courses: string[];
+    allCourses?: string[];
     universities: (UniversityOption | string)[];
     combos?: BatchCombo[];
 }
@@ -180,7 +181,9 @@ export const History: React.FC<HistoryProps> = ({ batches, filterOptions, filter
             : ['2026-2027', '2025-2026', '2024-2025', '2023-2024', '2022-2023', '2021-2022', '2020-2021', '2019-2020'];
 
     const modalCourses =
-        filterOptions?.courses && filterOptions.courses.length > 0
+        filterOptions?.allCourses && filterOptions.allCourses.length > 0
+            ? filterOptions.allCourses
+            : filterOptions?.courses && filterOptions.courses.length > 0
             ? filterOptions.courses
             : [
                   'FYBA',

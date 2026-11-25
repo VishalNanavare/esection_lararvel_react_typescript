@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Concerns\SanitizesSpreadsheetCells;
 use App\Models\AcademicYear;
 use App\Models\CollegeDetail;
+use App\Models\Course;
 use App\Models\Regularization;
 use App\Models\Setting;
 use App\Models\StreamDetail;
@@ -31,11 +32,7 @@ class RegularizationController extends Controller
             'is_current' => (bool) $y->is_current,
         ]);
 
-        $streamDivisions = StreamDetail::whereNotNull('Division')
-            ->where('Division', '!=', '')
-            ->orderBy('Division', 'asc')
-            ->pluck('Division')
-            ->toArray();
+        $streamDivisions = Course::getActiveCourseNames();
 
         $legacyStreams = [
             'MA', 'MCOM', 'MA Edu', 'PGDFM', 'PGDORM',

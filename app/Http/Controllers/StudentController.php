@@ -7,6 +7,7 @@ use App\Http\Controllers\Concerns\SanitizesSpreadsheetCells;
 use App\Models\AcademicYear;
 use App\Models\ActivityLog;
 use App\Models\CollegeDetail;
+use App\Models\Course;
 use App\Models\Setting;
 use App\Models\StreamDetail;
 use App\Models\StudentDetail;
@@ -44,15 +45,7 @@ class StudentController extends Controller
             'is_current' => (bool) $y->is_current,
         ]);
 
-        $streams = StreamDetail::whereNotNull('Division')
-            ->where('Division', '!=', '')
-            ->orderBy('Division', 'asc')
-            ->get()
-            ->map(fn ($s) => [
-                'id' => $s->Division,
-                'text' => $s->Division,
-                'stream' => $s->Name,
-            ]);
+        $streams = Course::getActiveStreamOptions();
 
         $universities = CollegeDetail::active()
             ->orderBy('Name', 'asc')
@@ -395,6 +388,7 @@ class StudentController extends Controller
         $filterOptions = [
             'years' => $yearsList,
             'courses' => $coursesList,
+            'allCourses' => Course::getActiveCourseNames(),
             'universities' => $universityOptions,
             'combos' => $combos,
         ];
@@ -442,13 +436,7 @@ class StudentController extends Controller
         }
 
         $distinctYears = AcademicYear::orderBy('id', 'desc')->pluck('year_label')->all();
-        $distinctCourses = StreamDetail::whereNotNull('Division')
-            ->where('Division', '!=', '')
-            ->orderBy('Division', 'asc')
-            ->pluck('Division')
-            ->unique()
-            ->values()
-            ->all();
+        $distinctCourses = Course::getActiveCourseNames();
 
         $univName = $col ? trim((string) $col->Name, " ,\t\n\r\0\x0B") : '';
         if ($univName === '' || $univName === '-' || preg_match('/^[\s\-–—\._,]+$/u', $univName)) {

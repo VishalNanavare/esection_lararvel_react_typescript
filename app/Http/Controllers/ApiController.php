@@ -95,23 +95,21 @@ class ApiController extends Controller
     {
         $q = trim((string) ($request->input('q') ?? $request->input('term') ?? ''));
 
-        $query = StreamDetail::whereNotNull('Division')
-            ->where('Division', '!=', '');
+        $options = Course::getActiveStreamOptions();
 
         if ($q !== '') {
-            $query->where(function ($b) use ($q) {
-                $b->where('Division', 'like', "%{$q}%")
-                  ->orWhere('Name', 'like', "%{$q}%");
-            });
+            $lowerQ = strtolower($q);
+            $options = $options->filter(function ($item) use ($lowerQ) {
+                return str_contains(strtolower($item['text']), $lowerQ) ||
+                       str_contains(strtolower($item['stream']), $lowerQ);
+            })->values();
         }
 
-        $streams = $query->orderBy('Division', 'asc')->get();
-
-        $results = $streams->map(fn ($s) => [
-            'id' => $s->Division,
-            'text' => $s->Division,
-            'Division' => $s->Division,
-            'stream' => $s->Name,
+        $results = $options->map(fn ($s) => [
+            'id' => $s['id'],
+            'text' => $s['text'],
+            'Division' => $s['id'],
+            'stream' => $s['stream'],
         ]);
 
         return response()->json(['results' => $results]);

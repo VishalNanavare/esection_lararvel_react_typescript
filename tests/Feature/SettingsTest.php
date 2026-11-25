@@ -184,6 +184,17 @@ test('admin can manage courses and stream divisions', function () {
     $course = Course::where('name', 'Master of Science (Data Science)')->first();
     expect($course)->not->toBeNull();
 
+    // Verify stream_details synchronization and options
+    $syncedStream = StreamDetail::where('Division', 'Master of Science (Data Science)')->first();
+    expect($syncedStream)->not->toBeNull();
+    expect(Course::getActiveCourseNames())->toContain('Master of Science (Data Science)');
+
+    // Verify /api/streams endpoint reflects new course
+    $apiResponse = $this->actingAs($this->admin)->get('/api/streams?q=Data Science');
+    $apiResponse->assertOk();
+    $results = $apiResponse->json('results');
+    expect(collect($results)->pluck('text')->all())->toContain('Master of Science (Data Science)');
+
     $this->actingAs($this->admin)->post('/settings/streams', [
         'Division' => 'M.Sc. Data Science Part-I',
         'course_name' => $course->name,
@@ -194,6 +205,8 @@ test('admin can manage courses and stream divisions', function () {
 
     $this->actingAs($this->admin)->delete("/settings/streams/{$stream->id}")->assertRedirect();
     $this->actingAs($this->admin)->delete("/settings/courses/{$course->id}")->assertRedirect();
+
+    expect(StreamDetail::where('Division', 'Master of Science (Data Science)')->first())->toBeNull();
 });
 
 test('admin can manage staff user accounts', function () {
