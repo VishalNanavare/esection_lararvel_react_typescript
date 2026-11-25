@@ -124,16 +124,23 @@ export const NewForm: React.FC<NewFormProps> = ({
         setSelectedUniversityId(val);
         if (!val) {
             setSelectedUniversityFees(null);
+            setClgAdd('');
+            setInFavourOf('');
             return;
         }
         const found = localUniversities.find(
             (u) => String(u.id) === String(val) || String(u.value) === String(val) || u.name === val
         );
         if (found) {
-            const fullAddr = found.address
-                ? found.address.toLowerCase().includes(found.name.toLowerCase())
-                    ? found.address
-                    : `${found.name}\n${found.address}`
+            const rawAddr = (found.address || '')
+                .replace(/<br\s*\/?>/gi, '\n')
+                .replace(/\r\n/g, '\n')
+                .replace(/\r/g, '\n')
+                .trim();
+            const fullAddr = rawAddr
+                ? rawAddr.toLowerCase().includes(found.name.toLowerCase())
+                    ? rawAddr
+                    : `${found.name}\n${rawAddr}`
                 : found.name;
             setClgAdd(fullAddr);
             setToName(found.head_name || 'The Controller of Examinations');
@@ -514,7 +521,7 @@ export const NewForm: React.FC<NewFormProps> = ({
                         <div className="card-body p-4">
                             {/* Top 2-Column Form matching old new_form.php */}
                             <div className="row g-3 mb-4">
-                                {/* Left Column: To : & Choose University Address : */}
+                                {/* Left Column: To : & Choose University Address : & University Postal Address */}
                                 <div className="col-lg-6">
                                     <div className="mb-3">
                                         <label className="form-label fw-semibold text-secondary small">
@@ -529,7 +536,7 @@ export const NewForm: React.FC<NewFormProps> = ({
                                         />
                                     </div>
 
-                                    <div className="mb-2">
+                                    <div className="mb-3">
                                         <label className="form-label fw-semibold text-secondary small" htmlFor="target_university_select">
                                             Choose University Address :
                                         </label>
@@ -542,15 +549,45 @@ export const NewForm: React.FC<NewFormProps> = ({
                                             allowClear={true}
                                         />
                                         {selectedUniversityFees !== null && (
-                                            <h6 className="text-success small fw-semibold mt-2 mb-0">
-                                                Fees : {selectedUniversityFees && selectedUniversityFees !== '0' ? selectedUniversityFees : '0'}
-                                                {clgAdd ? ` | ${clgAdd.split('\n')[0]}` : ''}
-                                            </h6>
+                                            <div className="d-flex align-items-center gap-2 mt-2 flex-wrap">
+                                                <span className="badge bg-success-subtle text-success border border-success-subtle fw-semibold">
+                                                    Fees : ₹{selectedUniversityFees && selectedUniversityFees !== '0' ? selectedUniversityFees : '0'}
+                                                </span>
+                                                {inFavourOf && (
+                                                    <span className="badge bg-light text-secondary border small text-truncate" style={{ maxWidth: '300px' }} title={inFavourOf}>
+                                                        In Favour: {inFavourOf}
+                                                    </span>
+                                                )}
+                                            </div>
                                         )}
+                                    </div>
+
+                                    <div className="mb-3">
+                                        <label className="form-label fw-semibold text-secondary small d-flex justify-content-between align-items-center">
+                                            <span>
+                                                <i className="fa fa-map-marker text-danger me-1"></i> University Postal Address (for Reference) :
+                                            </span>
+                                            {clgAdd && (
+                                                <span className="badge bg-light text-muted border fw-normal" style={{ fontSize: '0.72rem' }}>
+                                                    Appears on Letter &amp; PDF
+                                                </span>
+                                            )}
+                                        </label>
+                                        <textarea
+                                            className="form-control"
+                                            rows={3}
+                                            value={clgAdd}
+                                            onChange={(e) => setClgAdd(e.target.value)}
+                                            placeholder="University postal address will appear here for reference upon selection..."
+                                            style={{ fontSize: '0.875rem', lineHeight: '1.45' }}
+                                        />
+                                        <small className="text-muted" style={{ fontSize: '0.75rem' }}>
+                                            Auto-filled from selected university. You can review or adjust this address before dispatching.
+                                        </small>
                                     </div>
                                 </div>
 
-                                {/* Right Column: Admission Taken Year & Admission Taken In */}
+                                {/* Right Column: Admission Taken Year, Admission Taken In & Payment Favoring Title */}
                                 <div className="col-lg-6">
                                     <div className="mb-3">
                                         <label className="form-label fw-semibold text-secondary small">
@@ -578,6 +615,22 @@ export const NewForm: React.FC<NewFormProps> = ({
                                             placeholder="Select Admission Taken In"
                                             allowClear={false}
                                         />
+                                    </div>
+
+                                    <div className="mb-3">
+                                        <label className="form-label fw-semibold text-secondary small">
+                                            Payment Favoring Title (In Favour Of) :
+                                        </label>
+                                        <input
+                                            type="text"
+                                            className="form-control"
+                                            value={inFavourOf}
+                                            onChange={(e) => setInFavourOf(e.target.value)}
+                                            placeholder="Auto-populated payment title (e.g. Registrar, University...)"
+                                        />
+                                        <small className="text-muted" style={{ fontSize: '0.75rem' }}>
+                                            Auto-populated from selected university or enter payment instruction.
+                                        </small>
                                     </div>
                                 </div>
                             </div>
