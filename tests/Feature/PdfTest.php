@@ -436,4 +436,55 @@ test('university reminder letter formats long affiliated university names across
     expect($renderedHtml)->toContain('Scheme No:74 C, Vijay Nagar,<br />' . "\n" . 'Indore, 452 010 (M.P) India<br />' . "\n" . 'PH- 7869999297');
 });
 
+test('PdfController sanitizePdfText and makePdf cleans mojibake â€“ and â€" and unicode dashes across all pdf outputs', function () {
+    $pdfCtrl = new \App\Http\Controllers\PdfController();
+
+    $corruptedAddress = "Paliwal Park, Park Rd, Agra, Uttar Pradesh 282004.<br>phone-(0562) \xc3\xa2\xe2\x82\xac\xe2\x80\x9c 6544827 and Girls\xc3\xa2\xe2\x82\xac\xe2\x84\xa2 Hostel";
+    $cleaned = \App\Http\Controllers\PdfController::sanitizePdfText($corruptedAddress);
+
+    expect($cleaned)->not->toContain("\xc3\xa2\xe2\x82\xac");
+    expect($cleaned)->toContain('phone-(0562) - 6544827');
+    expect($cleaned)->toContain("Girls' Hostel");
+
+    // Also test generating dispatch pdf with corrupted address
+    $batchSpace = 'mojibake_test_batch_1';
+    StudentDetail::create([
+        'student_name' => 'Mojibake Candidate',
+        'eligibility_case_no' => 'MOJI-01',
+        'admission_taken_in' => 'B.Com',
+        'admission_taken_year' => '2026-2027',
+        'clg_add' => "Paliwal Park, Park Rd, Agra, Uttar Pradesh 282004.<br>phone-(0562) \xc3\xa2\xe2\x82\xac\xe2\x80\x9c 6544827",
+        'array_space' => $batchSpace,
+    ]);
+
+    $res = $this->actingAs($this->user)->get("/pdf/dispatch/{$batchSpace}");
+    $res->assertOk();
+    $res->assertHeader('Content-Type', 'application/pdf');
+
+    // Test university reminder notice pdf
+    $batch = UniversityReminderBatch::create([
+        'academic_year' => '2026-2027',
+        'university_name' => 'Agra University',
+        'created_by' => 'staff_pdf_user',
+    ]);
+    $student = StudentDetail::create([
+        'student_name' => 'Agra Student',
+        'eligibility_case_no' => 'AGRA-01',
+        'clg_add' => "Paliwal Park, Park Rd, Agra.<br>phone-(0562) \xc3\xa2\xe2\x82\xac\xe2\x80\x9c 6544827",
+        'array_space' => 'rem_batch_agra',
+    ]);
+    UniversityReminderNote::create([
+        'batch_id' => $batch->id,
+        'student_id' => $student->id,
+        'note_text' => '1st Reminder',
+        'note_date' => '2026-11-25',
+        'created_by' => 'staff_pdf_user',
+    ]);
+
+    $remRes = $this->actingAs($this->user)->get("/pdf/reminders/university/{$batch->id}");
+    $remRes->assertOk();
+    $remRes->assertHeader('Content-Type', 'application/pdf');
+});
+
+
 

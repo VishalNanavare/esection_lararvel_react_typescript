@@ -226,7 +226,7 @@ class ScholarshipController extends Controller
             'generated_by' => auth()->user()?->username ?? 'Section Officer',
         ]);
 
-        $pdf = Pdf::loadView('pdf.scholarship_demand_letter', [
+        $pdf = app(\App\Http\Controllers\PdfController::class)->makePdf('pdf.scholarship_demand_letter', [
             'student' => $student,
             'letter' => $letter,
         ]);

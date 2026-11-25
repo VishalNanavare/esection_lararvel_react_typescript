@@ -1336,7 +1336,7 @@ class SettingsController extends Controller
 
         $data = array_merge($instituteSettings, $rendered, $sampleData);
 
-        $pdf = Pdf::loadView($viewName, $data)->setPaper('a4', 'portrait');
+        $pdf = app(PdfController::class)->makePdf($viewName, $data);
 
         return $pdf->stream("preview_{$slug}.pdf");
     }

@@ -19,13 +19,77 @@ class PdfController extends Controller
     use MatchesColleges;
 
     /**
+     * Clean up and normalize legacy Windows-1252 / UTF-8 mojibake (e.g. â€“ / â€")
+     * and non-standard unicode dashes / quotes that fail to render properly in Dompdf fonts.
+     */
+    public static function sanitizePdfText(?string $text): string
+    {
+        if ($text === null || $text === '') {
+            return '';
+        }
+
+        static $replacements = [
+            "\xc3\xa2\xe2\x82\xac\xe2\x80\x9c" => '-', // â€“ / â€"
+            "\xc3\xa2\xe2\x82\xac\xe2\x80\x9d" => '-', // â€”
+            "\xc3\xa2\xe2\x82\xac\xe2\x80\x93" => '-', // â€“
+            "\xc3\xa2\xe2\x82\xac\xe2\x80\x94" => '-', // â€”
+            "\xc3\xa2\xe2\x82\xac\""            => '-', // â€"
+            "\xc3\xa2\xe2\x82\xac\xcb\x9c"     => "'", // â€˜
+            "\xc3\xa2\xe2\x82\xac\xe2\x84\xa2" => "'", // â€™
+            "\xc3\xa2\xe2\x82\xac\xc5\xbd"     => '',  // â€Ž
+            "\xc3\x82\xc2\xb7"                 => '-', // Â·
+            "\xc3\x82\xc2\xa0"                 => ' ', // Â + nbsp
+            "\xc3\x82"                         => '',  // stray Â
+            "\xc2\xa0"                         => ' ', // Non-breaking space
+            "\xe2\x80\x93"                     => '-', // en-dash
+            "\xe2\x80\x94"                     => '-', // em-dash
+            "\xe2\x80\x95"                     => '-', // horizontal bar
+            "\xe2\x88\x92"                     => '-', // minus sign
+            "\xe2\x80\x98"                     => "'", // left single quote
+            "\xe2\x80\x99"                     => "'", // right single quote
+            "\xe2\x80\x9c"                     => '"', // left double quote
+            "\xe2\x80\x9d"                     => '"', // right double quote
+            "\xe2\x80\x8e"                     => '',  // LTR mark
+            "\xe2\x80\x8f"                     => '',  // RTL mark
+            "\xc2\xb7"                         => '-', // middle dot
+            "\xe2\x80\xa2"                     => '-', // bullet
+            'â€"'                              => '-',
+            'â€“'                              => '-',
+            'â€”'                              => '-',
+            'â€˜'                              => "'",
+            'â€™'                              => "'",
+            'â€œ'                              => '"',
+            'â€"'                              => '"',
+            'â€Ž'                              => '',
+            'Â·'                               => '-',
+            'Â'                                => '',
+        ];
+
+        $cleaned = strtr($text, $replacements);
+        $cleaned = preg_replace("/\xc3\xa2\xe2\x82\xac[\\s\"'\\x2d]*/", '-', $cleaned);
+
+        return $cleaned;
+    }
+
+    /**
+     * Render blade view and sanitize all text before generating Dompdf object.
+     */
+    public function makePdf(string $view, array $data, string $paper = 'a4', string $orientation = 'portrait'): \Barryvdh\DomPDF\PDF
+    {
+        $html = view($view, $data)->render();
+        $cleanHtml = self::sanitizePdfText($html);
+
+        return Pdf::loadHTML($cleanHtml)->setPaper($paper, $orientation);
+    }
+
+    /**
      * Resolve the university name and clean mailing address from a raw clg_add/string.
      *
      * @return array{to_name: string, university_name: string, address: string}
      */
     public function resolveUniversityAndAddress(?string $clgAdd, ?string $toName = null): array
     {
-        $raw = trim((string) $clgAdd);
+        $raw = self::sanitizePdfText(trim((string) $clgAdd));
         $college = null;
 
         if (is_numeric($raw)) {
@@ -104,7 +168,7 @@ class PdfController extends Controller
      */
     public function formatUniversityName(?string $name): string
     {
-        $name = trim((string) $name);
+        $name = self::sanitizePdfText(trim((string) $name));
         if ($name === '') {
             return '';
         }
@@ -139,7 +203,7 @@ class PdfController extends Controller
      */
     public function formatAddressLines(?string $addr): string
     {
-        $addr = trim((string) $addr);
+        $addr = self::sanitizePdfText(trim((string) $addr));
         if ($addr === '') {
             return '';
         }
@@ -307,7 +371,7 @@ class PdfController extends Controller
             'date' => date('d/m/Y'),
         ]);
 
-        $pdf = Pdf::loadView('pdf.dispatch_letter', $data)->setPaper('a4', 'portrait');
+        $pdf = $this->makePdf('pdf.dispatch_letter', $data);
 
         return $pdf->stream("{$currentTime}.pdf");
     }
@@ -362,7 +426,7 @@ class PdfController extends Controller
             'date' => date('d/m/Y'),
         ]);
 
-        $pdf = Pdf::loadView('pdf.dispatch_accounts_letter', $data)->setPaper('a4', 'portrait');
+        $pdf = $this->makePdf('pdf.dispatch_accounts_letter', $data);
 
         return $pdf->stream("{$currentTime}.pdf");
     }
@@ -453,7 +517,7 @@ class PdfController extends Controller
             'date' => date('d/m/Y'),
         ]);
 
-        $pdf = Pdf::loadView('pdf.confirmation_eligibility_letter', $data)->setPaper('a4', 'portrait');
+        $pdf = $this->makePdf('pdf.confirmation_eligibility_letter', $data);
 
         return $pdf->stream("{$currentTime}.pdf");
     }
@@ -511,7 +575,7 @@ class PdfController extends Controller
             'date' => date('d/m/Y'),
         ]);
 
-        $pdf = Pdf::loadView('pdf.regularization_letter', $data)->setPaper('a4', 'portrait');
+        $pdf = $this->makePdf('pdf.regularization_letter', $data);
 
         return $pdf->stream("{$currentTime}.pdf");
     }
@@ -598,7 +662,7 @@ class PdfController extends Controller
             'date' => date('d/m/Y'),
         ]);
 
-        $pdf = Pdf::loadView('pdf.university_reminder_letter', $data)->setPaper('a4', 'portrait');
+        $pdf = $this->makePdf('pdf.university_reminder_letter', $data);
 
         return $pdf->stream("{$currentTime}.pdf");
     }
@@ -636,7 +700,7 @@ class PdfController extends Controller
             'date' => date('d/m/Y'),
         ]);
 
-        $pdf = Pdf::loadView('pdf.student_reminder_letter', $data)->setPaper('a4', 'portrait');
+        $pdf = $this->makePdf('pdf.student_reminder_letter', $data);
 
         return $pdf->stream("{$currentTime}.pdf");
     }

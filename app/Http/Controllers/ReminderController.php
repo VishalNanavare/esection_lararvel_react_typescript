@@ -1208,7 +1208,7 @@ class ReminderController extends Controller
                 'students' => $students,
                 'date' => date('d/m/Y'),
             ]);
-            $pdf = Pdf::loadView('pdf.university_reminder_letter', $data)->setPaper('a4', 'portrait');
+            $pdf = $pdfCtrl->makePdf('pdf.university_reminder_letter', $data);
             $rawAttachments[] = [
                 'data' => $pdf->output(),
                 'name' => "university_reminder_{$batchId}.pdf",
