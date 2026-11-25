@@ -57,9 +57,11 @@ class PdfController extends Controller
         if ($universityName !== '' && $address !== '') {
             $pattern = '/^' . preg_quote($universityName, '/') . '[\s,\-\n\r<br\/>]*/i';
             $cleaned = preg_replace($pattern, '', $address);
-            if (trim($cleaned) !== '') {
-                $address = trim($cleaned);
-            }
+            $address = trim((string) $cleaned);
+        }
+
+        if ($universityName !== '' && $address !== '' && strcasecmp(trim($address), trim($universityName)) === 0) {
+            $address = '';
         }
 
         // If no college matched, but clgAdd has multiple lines, first line might be university name
@@ -72,7 +74,15 @@ class PdfController extends Controller
             }
         }
 
-        $resolvedToName = $toName ?: ($college?->head_name ? 'The ' . trim($college->head_name) : 'The Secretary');
+        $rawHead = trim((string) ($college?->head_name ?? ''));
+        if ($rawHead !== '') {
+            $resolvedToName = preg_match('/^the\s+/i', $rawHead) ? $rawHead : 'The ' . $rawHead;
+        } else {
+            $resolvedToName = 'The Secretary';
+        }
+        if (!empty($toName)) {
+            $resolvedToName = trim((string) $toName);
+        }
         $fees = floatval(preg_replace('/[^0-9.]/', '', (string)($college?->fees ?? '0')));
         $inFavourOf = trim((string)($college?->in_favour_of ?? ''));
 
@@ -546,17 +556,44 @@ class PdfController extends Controller
         $rawTime = !empty($batch->pdf_time) ? $batch->pdf_time : time();
         $currentTime = is_numeric($rawTime) ? (int)$rawTime : (strtotime((string)$rawTime) ?: time());
 
+        // If college wasn't resolved by university_name or address is missing/empty, try student records
+        if ((empty($resolved['address']) || !$resolved['college'] || $resolved['address'] === $resolved['university_name']) && $students->isNotEmpty()) {
+            foreach ($students as $student) {
+                if (!empty($student->clg_add)) {
+                    $studentResolved = $this->resolveUniversityAndAddress($student->clg_add, $batch->head_name);
+                    if ($studentResolved['college'] || !empty($studentResolved['address'])) {
+                        if (empty($resolved['university_name']) || $resolved['university_name'] === $resolved['address']) {
+                            $resolved['university_name'] = $studentResolved['university_name'];
+                        }
+                        if (!empty($studentResolved['address']) && $studentResolved['address'] !== $studentResolved['university_name']) {
+                            $resolved['address'] = $studentResolved['address'];
+                        }
+                        if (empty($resolved['college']) && !empty($studentResolved['college'])) {
+                            $resolved['college'] = $studentResolved['college'];
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+
         // Prioritize head_name entered by staff on the batch
         $headName = !empty(trim((string)$batch->head_name))
             ? trim((string)$batch->head_name)
             : ($resolved['to_name'] ?: 'The Controller of Examinations');
 
+        $uniName = $resolved['university_name'] ?: $this->formatUniversityName($batch->university_name);
+        $finalAddress = $resolved['address'];
+        if (strcasecmp(trim((string)$finalAddress), trim((string)$uniName)) === 0 || strcasecmp(trim((string)$finalAddress), trim((string)$batch->university_name)) === 0) {
+            $finalAddress = '';
+        }
+
         $data = array_merge($this->getInstituteSettings(), $rendered, [
             'batch' => $batch,
             'currentTime' => $currentTime,
-            'universityName' => $resolved['university_name'] ?: $this->formatUniversityName($batch->university_name),
+            'universityName' => $uniName,
             'headName' => $headName,
-            'address' => $resolved['address'],
+            'address' => $finalAddress,
             'students' => $students,
             'date' => date('d/m/Y'),
         ]);

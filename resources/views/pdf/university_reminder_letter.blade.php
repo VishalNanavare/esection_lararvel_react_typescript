@@ -1,6 +1,6 @@
 @php
     $currentTime = $currentTime ?? ($batch->pdf_time ?? time());
-    $headName = $headName ?? ($batch->head_name ?? 'The Secretary');
+    $headName = $headName ?? ($batch->head_name ?? 'The Controller of Examinations');
     $universityName = $universityName ?? ($batch->university_name ?? '');
     $address = $address ?? '';
     $students = $students ?? collect();
@@ -123,7 +123,10 @@
             }
         @endphp
         To,<br>
-        <b>{{ $displayHead }}<br>{!! nl2br(e($universityName)) !!}</b><br>
+        <b>{{ $displayHead }}</b><br>
+        @if(!empty($universityName))
+            <b>{!! nl2br(e($universityName)) !!}</b><br>
+        @endif
         {!! nl2br(e($address)) !!}
     </div>
 

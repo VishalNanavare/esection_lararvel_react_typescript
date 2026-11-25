@@ -1176,10 +1176,35 @@ class ReminderController extends Controller
                 'academic_year' => $batch->academic_year ?? '',
             ]);
             $resolved = $pdfCtrl->resolveUniversityAndAddress($batch->university_name, $batch->head_name);
+            if ((empty($resolved['address']) || !$resolved['college'] || $resolved['address'] === $resolved['university_name']) && $students->isNotEmpty()) {
+                foreach ($students as $student) {
+                    if (!empty($student->clg_add)) {
+                        $studentResolved = $pdfCtrl->resolveUniversityAndAddress($student->clg_add, $batch->head_name);
+                        if ($studentResolved['college'] || !empty($studentResolved['address'])) {
+                            if (empty($resolved['university_name']) || $resolved['university_name'] === $resolved['address']) {
+                                $resolved['university_name'] = $studentResolved['university_name'];
+                            }
+                            if (!empty($studentResolved['address']) && $studentResolved['address'] !== $studentResolved['university_name']) {
+                                $resolved['address'] = $studentResolved['address'];
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+            $headName = !empty(trim((string) $batch->head_name))
+                ? trim((string) $batch->head_name)
+                : ($resolved['to_name'] ?: 'The Controller of Examinations');
+            $uniName = $resolved['university_name'] ?: $pdfCtrl->formatUniversityName($batch->university_name);
+            $finalAddress = $resolved['address'];
+            if (strcasecmp(trim((string) $finalAddress), trim((string) $uniName)) === 0 || strcasecmp(trim((string) $finalAddress), trim((string) $batch->university_name)) === 0) {
+                $finalAddress = '';
+            }
             $data = array_merge($instituteData, $rendered, [
                 'batch' => $batch,
-                'universityName' => $resolved['university_name'] ?: $pdfCtrl->formatUniversityName($batch->university_name),
-                'address' => $resolved['address'],
+                'universityName' => $uniName,
+                'headName' => $headName,
+                'address' => $finalAddress,
                 'students' => $students,
                 'date' => date('d/m/Y'),
             ]);

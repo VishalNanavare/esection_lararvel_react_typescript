@@ -395,3 +395,45 @@ test('resolveUniversityAndAddress matches active college and correct fees for du
     expect((float) $resolvedByName['fees'])->toBe(1030.0);
 });
 
+test('university reminder letter formats long affiliated university names across lines cleanly matching dispatch letter', function () {
+    $pdfCtrl = new \App\Http\Controllers\PdfController();
+
+    $rawUni = 'PRESTIGE INSTITUTE OF MANAGEMENT AND RESEARCH, INDORE (affiliated with the Devi Ahilya University)';
+    $formattedUni = $pdfCtrl->formatUniversityName($rawUni);
+
+    expect($formattedUni)->toBe("PRESTIGE INSTITUTE OF MANAGEMENT AND RESEARCH, INDORE\n(affiliated with the Devi Ahilya University)");
+
+    $renderedHtml = view('pdf.university_reminder_letter', array_merge($pdfCtrl->getInstituteSettings(), [
+        'currentTime' => 1793862921,
+        'headName' => 'The Controller of Examinations',
+        'universityName' => $formattedUni,
+        'address' => "Scheme No:74 C, Vijay Nagar,\nIndore, 452 010 (M.P) India\nPH- 7869999297",
+        'subject' => '',
+        'date' => '05/11/2026',
+        'students' => collect([
+            (object) [
+                'id' => 1,
+                'student_name' => 'TEST CANDIDATE',
+                'eligibility_case_no' => 'REM-TEST-01',
+                'verification_of_marksheet_done_by_you' => 'B.Com',
+                'notes' => collect([
+                    (object) ['note_text' => '1st Reminder', 'note_date' => '2026-11-05'],
+                ]),
+            ],
+        ]),
+    ]))->render();
+
+    // Verify address block has max-width
+    expect($renderedHtml)->toContain('max-width: 60%');
+
+    // Verify To, and headName are separated cleanly
+    expect($renderedHtml)->toContain('<b>The Controller of Examinations</b><br>');
+
+    // Verify university name renders in bold with <br /> before affiliation
+    expect($renderedHtml)->toContain('<b>PRESTIGE INSTITUTE OF MANAGEMENT AND RESEARCH, INDORE<br />' . "\n" . '(affiliated with the Devi Ahilya University)</b><br>');
+
+    // Verify address lines are rendered
+    expect($renderedHtml)->toContain('Scheme No:74 C, Vijay Nagar,<br />' . "\n" . 'Indore, 452 010 (M.P) India<br />' . "\n" . 'PH- 7869999297');
+});
+
+
