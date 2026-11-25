@@ -33,7 +33,7 @@ class UniversityController extends Controller
             $query->where('States', $stateFilter);
         }
 
-        $colleges = $query->orderBy('Name', 'asc')->paginate(30)->withQueryString();
+        $colleges = $query->orderBy('id', 'desc')->paginate(30)->withQueryString();
 
         $states = CollegeDetail::query()
             ->whereNotNull('States')

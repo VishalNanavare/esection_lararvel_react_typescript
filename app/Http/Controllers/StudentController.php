@@ -264,14 +264,14 @@ class StudentController extends Controller
             $batchQuery->having('admission_taken_in', '=', $course);
         }
 
-        $batchQuery->orderByRaw('MAX(en_time) DESC');
+        $batchQuery->orderByRaw('MAX(id) DESC');
 
         $batches = $batchQuery->paginate(20)->withQueryString();
 
         $pageBatchSpaces = $batches->getCollection()->pluck('array_space')->filter()->values();
 
         $studentsByBatch = StudentDetail::whereIn('array_space', $pageBatchSpaces)
-            ->orderBy('id', 'asc')
+            ->orderBy('id', 'desc')
             ->get()
             ->groupBy('array_space');
 
@@ -415,7 +415,7 @@ class StudentController extends Controller
     public function batchDetail(string $arraySpace): Response|JsonResponse
     {
         $students = StudentDetail::where('array_space', $arraySpace)
-            ->orderBy('id', 'asc')
+            ->orderBy('id', 'desc')
             ->get();
 
         if (request()->wantsJson()) {
@@ -814,7 +814,7 @@ class StudentController extends Controller
             $batchQuery->having('admission_taken_in', '=', $course);
         }
 
-        $batches = $batchQuery->orderByRaw('MAX(en_time) DESC')->get();
+        $batches = $batchQuery->orderByRaw('MAX(id) DESC')->get();
         $batchSpaces = $batches->pluck('array_space')->filter()->values();
 
         $studentsByBatch = StudentDetail::whereIn('array_space', $batchSpaces)

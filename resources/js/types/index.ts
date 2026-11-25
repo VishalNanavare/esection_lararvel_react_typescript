@@ -25,6 +25,7 @@ export interface SharedProps {
         import: boolean;
         delete: boolean;
         bulk_email: boolean;
+        scholarship?: boolean;
     };
     [key: string]: unknown;
 }

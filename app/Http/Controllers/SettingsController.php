@@ -351,7 +351,7 @@ class SettingsController extends Controller
      */
     public function courses(): Response
     {
-        $courses = Course::orderBy('name', 'asc')->get();
+        $courses = Course::orderBy('id', 'desc')->get();
 
         return Inertia::render('Settings/Courses', [
             'courses' => $courses,
@@ -632,7 +632,7 @@ class SettingsController extends Controller
      */
     public function users(): Response
     {
-        $users = User::orderBy('id', 'asc')->get();
+        $users = User::orderBy('id', 'desc')->get();
         $grants = UserPageAccess::all()->groupBy('user_id')->map(fn ($rows) => $rows->pluck('page_key')->toArray());
 
         $usersWithPages = $users->map(function ($u) use ($grants) {

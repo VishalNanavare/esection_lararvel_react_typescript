@@ -380,7 +380,7 @@ class ReminderController extends Controller
         $notes = UniversityReminderNote::where('batch_id', $batchId)->orderBy('id', 'desc')->get();
         $studentIds = $notes->pluck('student_id')->unique();
 
-        $students = StudentDetail::with('confirmation')->whereIn('id', $studentIds)->get();
+        $students = StudentDetail::with('confirmation')->whereIn('id', $studentIds)->orderBy('id', 'desc')->get();
 
         foreach ($students as $s) {
             $s->notes = $notes->where('student_id', $s->id)->values();

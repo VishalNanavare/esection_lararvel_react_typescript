@@ -42,6 +42,7 @@ class HandleInertiaRequests extends Middleware
                 'import' => Setting::get('feature_import_enabled', '1') === '1',
                 'delete' => Setting::get('feature_delete_enabled', '1') === '1',
                 'bulk_email' => Setting::get('feature_bulk_email_enabled', '1') === '1',
+                'scholarship' => Setting::get('feature_scholarship_enabled', '0') === '1',
             ],
         ];
     }

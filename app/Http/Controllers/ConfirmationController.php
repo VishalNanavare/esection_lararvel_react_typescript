@@ -121,7 +121,6 @@ class ConfirmationController extends Controller
         }
 
         $students = $query
-            ->orderByRaw('conf_stud_data.id IS NULL DESC')
             ->orderBy('student_details.id', 'desc')
             ->paginate(50)
             ->withQueryString();
@@ -357,7 +356,7 @@ class ConfirmationController extends Controller
 
         if (! empty($pageSpaces)) {
             $batchRecords = ConfStudData::whereIn('array_space', $pageSpaces)
-                ->orderBy('id', 'asc')
+                ->orderBy('id', 'desc')
                 ->get();
 
             $studentIds = $batchRecords->pluck('student_id')->filter()->unique()->toArray();
@@ -565,7 +564,7 @@ class ConfirmationController extends Controller
     public function batchDetail(string $arraySpace): Response|JsonResponse
     {
         $confirmations = ConfStudData::where('array_space', $arraySpace)
-            ->orderBy('id', 'asc')
+            ->orderBy('id', 'desc')
             ->get();
 
         if (request()->wantsJson()) {

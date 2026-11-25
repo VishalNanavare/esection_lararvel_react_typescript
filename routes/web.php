@@ -212,7 +212,7 @@ Route::middleware('auth')->group(function () {
     | Scholarship Management System
     |--------------------------------------------------------------------------
     */
-    Route::prefix('scholarship')->name('scholarship.')->group(function () {
+    Route::prefix('scholarship')->name('scholarship.')->middleware(\App\Http\Middleware\EnsureScholarshipEnabled::class)->group(function () {
         Route::get('/', [ScholarshipController::class, 'index'])->name('index');
         Route::get('/student/{id}', [ScholarshipController::class, 'show'])->name('show');
         Route::post('/student/{id}/documents', [ScholarshipController::class, 'updateDocuments'])->name('documents.update');

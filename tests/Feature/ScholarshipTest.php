@@ -34,6 +34,14 @@ class ScholarshipTest extends TestCase
         ]);
         $this->year = AcademicYear::firstOrCreate(['year_label' => '2026-2027'], ['is_current' => true]);
         $this->course = Course::firstOrCreate(['name' => 'F.Y.B.A'], ['is_active' => true]);
+        \App\Models\Setting::set('feature_scholarship_enabled', '1');
+    }
+
+    public function test_scholarship_system_is_hidden_and_aborts_404_when_disabled(): void
+    {
+        \App\Models\Setting::set('feature_scholarship_enabled', '0');
+        $response = $this->actingAs($this->user)->get('/scholarship');
+        $response->assertStatus(404);
     }
 
     public function test_scholarship_roster_loads_successfully(): void

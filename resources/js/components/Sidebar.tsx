@@ -154,16 +154,18 @@ export const Sidebar: React.FC<SidebarProps> = ({ isRail, isMobileOpen, onCloseM
                         </li>
                     )}
 
-                    <li className="nav-item">
-                        <Link
-                            href="/scholarship"
-                            className={`nav-link ${isActive('/scholarship') ? 'active' : ''}`}
-                            title="Scholarship"
-                        >
-                            <i className="fa fa-id-card-o me-3 w-5 text-center"></i>
-                            {!isRail && <span className="link-text">Scholarship</span>}
-                        </Link>
-                    </li>
+                    {features.scholarship && (
+                        <li className="nav-item">
+                            <Link
+                                href="/scholarship"
+                                className={`nav-link ${isActive('/scholarship') ? 'active' : ''}`}
+                                title="Scholarship"
+                            >
+                                <i className="fa fa-id-card-o me-3 w-5 text-center"></i>
+                                {!isRail && <span className="link-text">Scholarship</span>}
+                            </Link>
+                        </li>
+                    )}
 
                     {isAdmin && (
                         <>
